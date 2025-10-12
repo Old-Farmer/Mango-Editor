@@ -1,0 +1,6 @@
+# Mango editor
+
+## Keymaps
+
+- <ctrl-q> quit
+- <ctrl-s> save
