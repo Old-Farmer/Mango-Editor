@@ -6,7 +6,7 @@
 
 namespace mango {
 
-enum Result { kOk = 0, kError, kTermOutOfBounds, kBufferNoBackupFile };
+enum Result { kOk = 0, kError, kTermOutOfBounds, kBufferNoBackupFile, kEof };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};
 

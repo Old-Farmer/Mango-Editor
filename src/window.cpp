@@ -21,7 +21,7 @@ void Window::Draw() {
         std::vector<uint32_t> codepoints;
         for (int win_r = 0; win_r < height_; win_r++) {
             int screen_r = win_r + row_;
-            int b_view_r = win_r + b_view_row_;
+            int64_t b_view_r = win_r + b_view_row_;
 
             if (lines.size() <= b_view_r) {
                 uint32_t codepoint = '~';
@@ -31,8 +31,8 @@ void Window::Draw() {
 
             const std::string& cur_line = lines[b_view_r].line;
             std::vector<uint32_t> character;
-            int cur_b_view_c = 0;
-            int offset = 0;
+            int64_t cur_b_view_c = 0;
+            int64_t offset = 0;
             while (offset < cur_line.size()) {
                 int character_width;
                 int byte_len;
@@ -55,60 +55,12 @@ void Window::Draw() {
                         // in this row
                         break;
                     }
-
-                    // // maybe this is the location to render the cursor.
-                    // if (need_to_render_cursor) {
-                    //     if (cursor_->line == b_view_r &&
-                    //         cursor_->byte_offset == offset) {
-                    //         ret = term_->SetCursor(screen_c, screen_r);
-                    //         if (ret == kTermOutOfBounds) {
-                    //             break;
-                    //         }
-                    //         cursor_->s_col = screen_c;
-                    //         cursor_->s_row = screen_r;
-                    //         need_to_render_cursor = false;
-                    //     }
-                    // }
                 } else {
                     break;
                 }
                 offset += byte_len;
                 cur_b_view_c += character_width;
             }
-
-            // // maybe this is the location to render the cursor.
-            // // !! end of line pos
-            // if (need_to_render_cursor) {
-            //     if (cursor_->line == b_view_r &&
-            //         cursor_->byte_offset == offset) {
-            //         int screen_c = cur_b_view_c - b_view_col_ + col_;
-            //         int ret = term_->SetCursor(screen_c, screen_r);
-            //         if (ret == kTermOutOfBounds) {
-            //             break;
-            //         }
-            //         cursor_->s_col = screen_c;
-            //         cursor_->s_row = screen_r;
-            //         need_to_render_cursor = false;
-            //     }
-            // }
-
-            // Line& cur_line = lines[b_view_r];
-            // codepoints.clear();
-            // cur_line.RenderLine(&codepoints);
-            // for (int i = 0; i < cur_line.render_line.size() - 1; i++) {
-            //     if (cur_line.render_line[i].col >= b_view_col_ &&
-            //         cur_line.render_line[i + 1].col <= width_ + b_view_col_)
-            //         { int ret = term_->SetCell(
-            //             cur_line.render_line[i].col - b_view_col_ + col_,
-            //             screen_r, &codepoints[i], 1);
-            //         if (ret == kTermOutOfBounds) {
-            //             // User resize the screen now, just skip the left
-            //             cols
-            //             // in this row
-            //             break;
-            //         }
-            //     }
-            // }
         }
     }
 }
@@ -119,8 +71,8 @@ void Window::MakeCursorVisible() {
 
     const std::string& cur_line = buffer_->lines()[cursor_->line].line;
     std::vector<uint32_t> character;
-    int cur_b_view_c = 0;
-    int offset = 0;
+    int64_t cur_b_view_c = 0;
+    int64_t offset = 0;
     while (offset < cur_line.size() && offset != cursor_->byte_offset) {
         int character_width;
         int byte_len;
@@ -289,11 +241,12 @@ void Window::DeleteCharacterBeforeCursor() {
         }
 
         // merge two lines
+        int64_t prev_line_size = buffer_->lines()[cursor_->line - 1].line.size();
         buffer_->lines()[cursor_->line - 1].line.append(
             buffer_->lines()[cursor_->line].line);
         buffer_->lines().erase(buffer_->lines().begin() + cursor_->line);
         cursor_->line = cursor_->line - 1;
-        cursor_->byte_offset = buffer_->lines()[cursor_->line].line.size();
+        cursor_->byte_offset = prev_line_size;
     } else {
         std::vector<uint32_t> charater;
         int len, character_width;

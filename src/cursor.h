@@ -25,11 +25,6 @@ struct Cursor {
     Window* in_window;
 
     // TODO: other info
-
-    // bool Visible() {
-    //     return s_row != -1 && s_row < Terminal::GetInstance().Height() &&
-    //            s_col < Terminal::GetInstance().Width();
-    // }
 };
 
 }  // namespace mango

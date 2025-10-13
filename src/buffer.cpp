@@ -1,8 +1,8 @@
 #include "buffer.h"
 
 #include <cassert>
-#include <cstring>
 #include <cstdio>
+#include <cstring>
 
 #include "coding.h"
 #include "exception.h"
@@ -47,14 +47,12 @@ File& File::operator=(File&& other) noexcept {
     return *this;
 }
 
-
 void File::Truncate(size_t size) {
     int ret = ftruncate64(fileno(file_), size);
     if (ret == -1) {
         throw IOException("ftruncate64 error: %s", strerror(errno));
     }
 }
-
 
 void File::Fsync() {
     int ret = fsync(fileno(file_));
@@ -116,11 +114,12 @@ Buffer::Buffer(std::string path)
 void Buffer::ReadAll() {
     lines_.clear();
     while (true) {
-        auto line = ReadLine();
-        if (line.empty()) {  // EOF
+        std::string buf;
+        Result ret = ReadLine(buf);
+        lines_.emplace_back(std::move(buf));
+        if (ret == kEof) {
             break;
         }
-        lines_.emplace_back(std::move(line));
     }
     if (lines_.empty()) {
         lines_.push_back({});
@@ -129,25 +128,23 @@ void Buffer::ReadAll() {
     read_all_ = true;
 }
 
-std::string Buffer::ReadLine() {
-    std::string line;
-
+Result Buffer::ReadLine(std::string& buf) {
     int c;
     while (true) {
         c = fgetc(file_.file());
         if (c == EOF) {
             if (feof(file_.file()) != 0) {
-                break;
+                return kEof;
             }
             throw IOException("%s", strerror(errno));
         }
         if (c == '\n') {
             break;
         } else {
-            line.push_back(c);
+            buf.push_back(c);
         }
     }
-    return line;
+    return kOk;
 }
 
 Result Buffer::WriteAll() {
@@ -161,23 +158,32 @@ Result Buffer::WriteAll() {
         swap_file_.Truncate(0);
     }
 
-    for (const Line& line: lines_) {
-        size_t s = fwrite(line.line.c_str(), 1, line.line.size(), swap_file_.file());        
-        if (s < line.line.size()) {
-            throw IOException("fwrite error: %s", strerror(errno));
+    for (size_t i = 0; i < lines_.size(); i++) {
+        if (!lines_[i].line.empty()) {
+            size_t s = fwrite(lines_[i].line.c_str(), 1, lines_[i].line.size(),
+                              swap_file_.file());
+            if (s < lines_[i].line.size()) {
+                throw IOException("fwrite error: %s", strerror(errno));
+            }
         }
-        s = fwrite("\n", 1, 1, swap_file_.file());
-        if (s < 1) {
-            throw IOException("fwrite error: %s", strerror(errno));
+        if (i != lines_.size() - 1) {
+            size_t s = fwrite("\n", 1, 1, swap_file_.file());
+            if (s < 1) {
+                throw IOException("fwrite error: %s", strerror(errno));
+            }
         }
+    }
+
+    if (fflush(swap_file_.file()) == EOF) {
+        throw IOException("fflush error: %s", strerror(errno));
     }
     swap_file_.Fsync();
     int ret = rename((path_ + kSwapSuffix).c_str(), path_.c_str());
     if (ret == -1) {
         throw IOException("rename error: %s", strerror(errno));
     }
+
     return kOk;
 }
-
 
 }  // namespace mango

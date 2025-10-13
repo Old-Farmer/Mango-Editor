@@ -45,10 +45,7 @@ class Terminal {
     void Init();
 
     // throws TermException
-    void Shutdown() {
-        int ret = tb_shutdown();
-        // assert(ret == TB_OK);
-    }
+    void Shutdown();
 
     // throws TermException
     // or
@@ -289,6 +286,7 @@ class Terminal {
 
    private:
     tb_event event_;
+    bool shutdown_ = false;
 };
 
 }  // namespace mango

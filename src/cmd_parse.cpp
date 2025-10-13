@@ -31,7 +31,7 @@ void ParseCmdArgs(int argc, char* argv[], Options& options) {
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != 0) {
+    while ((c = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
         switch (c) {
             case 'h': {
                 PrintUsage();

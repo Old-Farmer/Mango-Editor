@@ -80,7 +80,10 @@ class Buffer {
 
    private:
     // throws IOException
-    std::string ReadLine();
+    // return 
+    // kOk means ok
+    // kEof means EOF
+    Result ReadLine(std::string& buf);
 
     static int64_t AllocId() { return cur_buffer_id_++; }
 
