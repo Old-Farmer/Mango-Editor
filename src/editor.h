@@ -7,6 +7,7 @@
 #include "cursor.h"
 #include "options.h"
 #include "state.h"
+#include "status_line.h"
 #include "utils.h"
 #include "window.h"
 
@@ -22,7 +23,7 @@ class Editor {
 
     // Make sure that options is static lifetime
     // throws TermException
-    void Loop(Options* options);
+    void Loop(std::unique_ptr<Options> options);
 
     void HandleKey();
     void HandleMouse();
@@ -33,10 +34,11 @@ class Editor {
 
     void Quit();
 
-    static Editor& GetInstance() {
-        static Editor editor;
-        return editor;
-    }
+    void Resize(int width, int height);
+
+    static Editor& GetInstance();
+
+    static Options* GetOption();
 
    private:
     std::unordered_map<int64_t, Buffer> buffers_;
@@ -48,10 +50,11 @@ class Editor {
     bool quit_ = false;
 
     Cursor cursor_;
+    std::unique_ptr<StatusLine> status_line_;
 
-    Options* options_ = nullptr;
+    static std::unique_ptr<Options> options_;
 
-    MouseState moust_state_ = MouseState::released;
+    MouseState moust_state_ = MouseState::kReleased;
 
     Terminal& term_ = Terminal::GetInstance();
 };

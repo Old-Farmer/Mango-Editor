@@ -38,6 +38,13 @@ class IOException : public Exception {
         : Exception(format, args...) {}
 };
 
+class FileCreateException : public IOException {
+   public:
+    template <typename... Args>
+    FileCreateException(const char* format, Args... args)
+        : IOException(format, args...) {}
+};
+
 class LoggingException : public Exception {
    public:
     template <typename... Args>

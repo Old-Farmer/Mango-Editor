@@ -47,14 +47,36 @@ class Terminal {
     // throws TermException
     void Shutdown();
 
+    using Attr = uintattr_t;
+
+    struct AttrPair {
+        Attr fg;
+        Attr bg;
+
+        AttrPair(Attr _fg, Attr _bg) : fg(_fg), bg(_bg) {}
+    };
+
+    enum Color : Attr {
+        kDefault = TB_DEFAULT,
+        kBlack = TB_BLACK,
+        kRed = TB_RED,
+        kGreen = TB_GREEN,
+        kYellow = TB_YELLOW,
+        kBlue = TB_BLUE,
+        kMagenta = TB_MAGENTA,
+        kCyan = TB_CYAN,
+        kWhite = TB_WHITE
+    };
+
     // throws TermException
     // or
     // return
     // kOk for ok
     // kTermOutOfBounds for out of bounds
-    Result SetCell(int col, int row, uint32_t* codepoint, size_t n_codepoint) {
-        int ret = tb_set_cell_ex(col, row, codepoint, n_codepoint, TB_DEFAULT,
-                                 TB_DEFAULT);
+    Result SetCell(int col, int row, uint32_t* codepoint, size_t n_codepoint,
+                   const AttrPair& attr) {
+        int ret =
+            tb_set_cell_ex(col, row, codepoint, n_codepoint, attr.fg, attr.bg);
         if (ret == TB_OK) {
             return kOk;
         } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
@@ -64,6 +86,23 @@ class Terminal {
             throw TermException("%s", tb_strerror(ret));
         }
         return kOk;
+    }
+
+    // throws TermException
+    // or
+    // return
+    // kOk for ok
+    // kTermOutOfBounds for start out of bounds
+    Result Print(int col, int row, const AttrPair& attr, const char* str) {
+        int ret = tb_print(col, row, attr.fg, attr.bg, str);
+        if (ret == TB_OK) {
+            return kOk;
+        } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
+            return kTermOutOfBounds;
+        } else {
+            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            throw TermException("%s", tb_strerror(ret));
+        }
     }
 
     // throws TermException
@@ -283,6 +322,8 @@ class Terminal {
     // 1 for 1 col
     // 2 for 2 col
     static int WCWidth(uint32_t ch) noexcept { return tb_wcwidth(ch); }
+
+    static int64_t StringWidth(std::string& str);
 
    private:
     tb_event event_;

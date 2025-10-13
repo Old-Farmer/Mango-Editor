@@ -5,36 +5,39 @@
 
 namespace mango {
 
-void Editor::Loop(Options* options) {
-    options_ = options;
+void Editor::Loop(std::unique_ptr<Options> options) {
+    options_ = std::move(options);
+    status_line_ = std::make_unique<StatusLine>(&cursor_, options_.get());
 
-    {
-        auto first_win = std::make_unique<Window>();
-        int64_t id = first_win->id();
-        windows_.emplace(id, std::move(first_win));
+    // Create all buffers
+    for (const char* path : options_->begin_files) {
+        auto buffer = Buffer(path);
+        int64_t buffer_id = buffer.id();
+        auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
+        assert(inserted);
     }
 
-    auto window_iter = windows_.begin();
-    Window* first_win = window_iter->second.get();
-    first_win->height_ = term_.Height();
-    first_win->width_ = term_.Width();
-    if (!options_->begin_files.empty()) {
-        try {
-            // TODO: support multiple file
-            auto buffer = Buffer(options_->begin_files[0]);
-            int64_t id = buffer.id();
-            auto [iter, inserted] = buffers_.emplace(id, std::move(buffer));
-            assert(inserted);
-            first_win->buffer_ = &(iter->second);
-        } catch (IOException& e) {
-            // TODO: Notify the user
-            ;
-        }
+    // Create the first window
+    Buffer* buf;
+    if (!buffers_.empty()) {
+        buf = &buffers_.begin()->second;
+    } else {
+        Buffer buffer;
+        int64_t buffer_id = buffer.id();
+        auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
+        assert(inserted);
+        buf = &iter->second;
     }
-    first_win->cursor_ = &cursor_;
+    std::unique_ptr<Window> win =
+        std::make_unique<Window>(buf, &cursor_, options_.get());
+    int64_t win_id = win->id();
+    windows_.emplace(win_id, std::move(win));
 
-    // Set Cursor
-    cursor_.in_window = first_win;
+    // Set Cursor in the first window
+    cursor_.in_window = windows_.begin()->second.get();
+
+    // manually trigger resizing to create the layout
+    Resize(term_.Width(), term_.Height());
 
     // Event Loop
     while (!quit_) {
@@ -153,7 +156,6 @@ void Editor::HandleKey() {
     }
 }
 
-// TODO: support Mouse
 void Editor::HandleMouse() {
     Terminal::MouseInfo mouse_info = term_.EventMouseInfo();
 
@@ -189,12 +191,20 @@ void Editor::HandleMouse() {
 }
 
 // TODO: support multi window
-void Editor::HandleResize() {
+void Editor::Resize(int width, int height) {
     Window* first_win = windows_.begin()->second.get();
+    first_win->col_ = 0;
+    first_win->row_ = 0;
+    first_win->width_ = width;
+    first_win->height_ = height - 1;
 
+    status_line_->row_ = height - 1;
+    status_line_->width_ = width;
+}
+
+void Editor::HandleResize() {
     Terminal::ResizeInfo resize_info = term_.EventResizeInfo();
-    first_win->width_ = resize_info.width;
-    first_win->height_ = resize_info.height;
+    Resize(resize_info.width, resize_info.height);
 }
 
 void Editor::Quit() { quit_ = true; }
@@ -210,19 +220,26 @@ void Editor::Draw() {
     }
 
     for (auto& [_, window] : windows_) {
-        if (window->buffer_ != nullptr && window->buffer_->IsReadAll()) {
+        if (window->buffer_->IsReadAll()) {
             window->Draw();
         }
     }
+
+    status_line_->Draw();
 }
 
 void Editor::PreProcess() {
     // Try Load All Buffers in all windows
     for (auto& [_, window] : windows_) {
-        if (window->buffer_ != nullptr && !window->buffer_->IsReadAll()) {
+        if (window->buffer_->state() == BufferState::kHaveNotRead) {
             try {
                 window->buffer_->ReadAll();
+            } catch (FileCreateException& e) {
+                window->buffer_->state() = BufferState::kCannotCreate;
+                MANGO_LOG_ERROR("%s", e.what());
+                // TODO: Notify the user
             } catch (IOException& e) {
+                window->buffer_->state() = BufferState::kCannotRead;
                 MANGO_LOG_ERROR("%s", e.what());
                 // TODO: Notify the user
             }
@@ -230,5 +247,14 @@ void Editor::PreProcess() {
     }
     cursor_.in_window->MakeCursorVisible();
 }
+
+Editor& Editor::GetInstance() {
+    static Editor editor;
+    return editor;
+}
+
+Options* Editor::GetOption() { return options_.get(); }
+
+std::unique_ptr<Options> Editor::options_ = nullptr;
 
 }  // namespace mango

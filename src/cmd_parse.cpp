@@ -24,7 +24,7 @@ void PrintUsage(int status = EXIT_SUCCESS) {
 
 }  // namespace
 
-void ParseCmdArgs(int argc, char* argv[], Options& options) {
+void ParseCmdArgs(int argc, char* argv[], Options* options) {
     const char* short_opts = "h";
     const option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
@@ -45,10 +45,16 @@ void ParseCmdArgs(int argc, char* argv[], Options& options) {
     }
 
     while (optind < argc) {
-        options.begin_files.push_back(argv[optind++]);
+        options->begin_files.push_back(argv[optind++]);
     }
-    for (auto file : options.begin_files) {
+    for (auto file : options->begin_files) {
         MANGO_LOG_DEBUG("cmd args: file name: %s", file);
+    }
+
+    // just support one file and only one file now
+    if (options->begin_files.size() != 1) {
+        fprintf(stderr, "Only support one file now!\n");
+        PrintUsage(EXIT_FAILURE);
     }
 }
 

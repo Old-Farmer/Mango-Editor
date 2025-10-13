@@ -13,10 +13,10 @@ int main(int argc, char* argv[]) {
     try {
         SignalHandler signal_handler;
         LogInit();
-        static Options options;
-        ParseCmdArgs(argc, argv, options);
+        auto options = std::make_unique<Options>();
+        ParseCmdArgs(argc, argv, options.get());
         Editor& editor = Editor::GetInstance();
-        editor.Loop(&options);
+        editor.Loop(std::move(options));
     } catch (LoggingException& e) {
         Terminal::GetInstance().Shutdown();
         fputs(e.what(), stderr);

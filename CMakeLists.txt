@@ -73,6 +73,8 @@ target_sources(
   "${SRC_DIR}/result.h"
   "${SRC_DIR}/signal_handler.h"
   "${SRC_DIR}/signal_handler.cpp"
+  "${SRC_DIR}/status_line.h"
+  "${SRC_DIR}/status_line.cpp"
   "${SRC_DIR}/term.h"
   "${SRC_DIR}/term.cpp"
   "${SRC_DIR}/utils.h"

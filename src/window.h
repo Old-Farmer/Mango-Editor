@@ -3,12 +3,18 @@
 #include "buffer.h"
 #include "cursor.h"
 #include "term.h"
+#include "options.h"
+
 namespace mango {
+
+enum CharacterType : int {
+    kNormal = 0,
+    kSelection = 1,
+};
 
 class Window {
    public:
-    Window();
-    Window(Buffer* buffer);
+    Window(Buffer* buffer, Cursor* cursor, Options* options);
     ~Window() = default;
     MANGO_DEFAULT_COPY(Window);
     MANGO_DEFAULT_MOVE(Window);
@@ -58,10 +64,10 @@ class Window {
     int64_t b_view_col_ = 0;
     bool wrap_ = false;
 
-
    private:
     Terminal* term_ = &Terminal::GetInstance();
     int64_t id_;
+    std::vector<Terminal::AttrPair>* attr_table = nullptr;
 
     static int64_t cur_window_id_;
 };

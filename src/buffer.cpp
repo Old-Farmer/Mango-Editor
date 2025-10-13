@@ -10,24 +10,28 @@
 
 namespace mango {
 
-File::File(const std::string& path) {
-    file_ = fopen(path.c_str(), "a+");
-    if (file_ == nullptr) {
+File::File(const std::string& path, const char* mode,
+           bool create_if_not_exist) {
+    file_ = fopen(path.c_str(), mode);
+    if (file_ != nullptr) {
+        return;
+    }
+
+    if (!create_if_not_exist || errno != ENOENT) {
         throw IOException("File %s can't open: %s", path.c_str(),
                           strerror(errno));
     }
-    int ret = fseek(file_, 0, SEEK_SET);
-    if (ret == -1) {
-        fclose(file_);
-        throw IOException("%s", strerror(errno));
+
+    file_ = fopen(path.c_str(), "w+");
+    if (file_ == nullptr) {
+        throw FileCreateException("File %s can't open: %s", path.c_str(),
+                                  strerror(errno));
     }
 }
 
 File::~File() {
-    if (file_ != nullptr) {
-        int ret = fclose(file_);
-        assert(ret != EOF);
-    }
+    int ret = fclose(file_);
+    assert(ret != EOF);
 }
 
 File::File(File&& other) noexcept : file_(other.file_) {
@@ -47,6 +51,25 @@ File& File::operator=(File&& other) noexcept {
     return *this;
 }
 
+Result File::ReadLine(std::string& buf) {
+    int c;
+    while (true) {
+        c = fgetc(file_);
+        if (c == EOF) {
+            if (feof(file_) != 0) {
+                return kEof;
+            }
+            throw IOException("%s", strerror(errno));
+        }
+        if (c == '\n') {
+            break;
+        } else {
+            buf.push_back(c);
+        }
+    }
+    return kOk;
+}
+
 void File::Truncate(size_t size) {
     int ret = ftruncate64(fileno(file_), size);
     if (ret == -1) {
@@ -61,46 +84,6 @@ void File::Fsync() {
     }
 }
 
-// void Line::RenderLine(std::vector<uint32_t>* codepoints) {
-//     if (modified) {
-//         render_line.clear();
-//     }
-//     int cur_col = 0;
-//     for (int i = 0; i < line.size();) {
-//         uint32_t codepoint;
-//         int len = Utf8ToUnicode(&line[i], codepoint);
-//         if (len < 0) {
-//             len = -len;
-//             codepoint = kReplacementChar;
-//             assert(false);
-//         }
-//         int width = Terminal::WCWidth(codepoint);
-//         if (width == -1) {
-//             codepoint = kReplacementChar;
-//             width = 1;
-//             assert(false);
-//         } else if (width == 0) {
-//             codepoint = kReplacementChar;
-//             width = 1;
-//             assert(false);
-//         }
-//         if (modified) {
-//             render_line.push_back({cur_col, i});
-//         }
-
-//         if (codepoints) {
-//             codepoints->push_back(codepoint);
-//         }
-
-//         i += len;
-//         cur_col += width;
-//     }
-//     if (modified) {
-//         render_line.push_back({cur_col, static_cast<int>(line.size())});
-//     }
-//     modified = false;
-// }
-
 int64_t Buffer::cur_buffer_id_ = 0;
 
 Buffer::Buffer() : id_(AllocId()) {
@@ -108,81 +91,76 @@ Buffer::Buffer() : id_(AllocId()) {
     read_all_ = true;
 }
 
-Buffer::Buffer(std::string path)
-    : path_(std::move(path)), file_(path_), id_(AllocId()) {}
+Buffer::Buffer(std::string path) : path_(std::move(path)), id_(AllocId()) {}
 
 void Buffer::ReadAll() {
-    lines_.clear();
-    while (true) {
-        std::string buf;
-        Result ret = ReadLine(buf);
-        lines_.emplace_back(std::move(buf));
-        if (ret == kEof) {
-            break;
+    try {
+        lines_.clear();
+
+        if (path_.empty()) {
+            lines_.push_back({});
+            state_ = BufferState::kNotModified;
+            return;
         }
-    }
-    if (lines_.empty()) {
-        lines_.push_back({});
-    }
 
-    read_all_ = true;
-}
+        File f(path_, "r");
 
-Result Buffer::ReadLine(std::string& buf) {
-    int c;
-    while (true) {
-        c = fgetc(file_.file());
-        if (c == EOF) {
-            if (feof(file_.file()) != 0) {
-                return kEof;
+        while (true) {
+            std::string buf;
+            Result ret = f.ReadLine(buf);
+            lines_.emplace_back(std::move(buf));
+            if (ret == kEof) {
+                break;
             }
-            throw IOException("%s", strerror(errno));
         }
-        if (c == '\n') {
-            break;
-        } else {
-            buf.push_back(c);
+        if (lines_.empty()) {
+            lines_.push_back({});
         }
+
+        state_ = BufferState::kNotModified;
+    } catch (IOException& e) {
+        lines_.push_back({}); // ensure one empty line
+        throw;
     }
-    return kOk;
 }
 
 Result Buffer::WriteAll() {
-    if (file_.file() == nullptr) {
+    if (path_.empty()) {
         return kBufferNoBackupFile;
     }
 
-    if (swap_file_.file() == nullptr) {
-        swap_file_ = File(path_ + kSwapSuffix);
-    } else {
-        swap_file_.Truncate(0);
+    if (!IsReadAll()) {
+        return kBufferCannotRead;
     }
+
+    File swap_file = File(path_ + kSwapSuffix, "w");
 
     for (size_t i = 0; i < lines_.size(); i++) {
         if (!lines_[i].line.empty()) {
             size_t s = fwrite(lines_[i].line.c_str(), 1, lines_[i].line.size(),
-                              swap_file_.file());
+                              swap_file.file());
             if (s < lines_[i].line.size()) {
                 throw IOException("fwrite error: %s", strerror(errno));
             }
         }
         if (i != lines_.size() - 1) {
-            size_t s = fwrite("\n", 1, 1, swap_file_.file());
+            size_t s = fwrite("\n", 1, 1, swap_file.file());
             if (s < 1) {
                 throw IOException("fwrite error: %s", strerror(errno));
             }
         }
     }
 
-    if (fflush(swap_file_.file()) == EOF) {
+    if (fflush(swap_file.file()) == EOF) {
         throw IOException("fflush error: %s", strerror(errno));
     }
-    swap_file_.Fsync();
+    swap_file.Fsync();
     int ret = rename((path_ + kSwapSuffix).c_str(), path_.c_str());
     if (ret == -1) {
         throw IOException("rename error: %s", strerror(errno));
     }
 
+    state_ = BufferState::kNotModified;
     return kOk;
 }
 

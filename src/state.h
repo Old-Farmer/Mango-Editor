@@ -2,6 +2,25 @@
 
 namespace mango {
 
-enum class MouseState { pressed, released };
+enum class MouseState {
+    kPressed,
+    kReleased,
+};
 
-}
+enum class BufferState : int {
+    kModified = 0,
+    kNotModified = 1,
+    kCannotRead = 2,
+    kHaveNotRead = 3,
+    kCannotCreate = 4,
+};
+
+constexpr const char* BufferStateString[] = {
+    "[Modified]",
+    "",
+    "[Can't Read]",
+    "[Haven't Read]",
+    "[Can' Create]"
+};
+
+}  // namespace mango

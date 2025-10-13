@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "result.h"
+#include "state.h"
 #include "utils.h"
 
 namespace mango {
@@ -14,16 +15,25 @@ constexpr const char* kSwapSuffix = ".mango_swap";
 // A File class, just simple wraps a FILE* handler.
 class File {
    public:
-    File() {}
-    // throws IOException
-    File(const std::string& path);
+    // mode is same as C file stdio api
+    // "r" for readonly
+    // "w" for writeonly
+    // throws IOException, FileCreateException
+    File(const std::string& path, const char* mode,
+         bool create_if_not_exist = true);
     ~File();
 
-    MANGO_DEFAULT_COPY(File);
+    MANGO_DELETE_COPY(File);
     File(File&&) noexcept;
     File& operator=(File&&) noexcept;
 
     FILE* file() { return file_; }
+
+    // throws IOException
+    // return
+    // kOk means ok
+    // kEof means EOF
+    Result ReadLine(std::string& buf);
 
     // throws IOException
     void Truncate(size_t size);
@@ -31,26 +41,13 @@ class File {
     void Fsync();
 
    private:
-    FILE* file_ = nullptr;
+    FILE* file_;
 };
-
-// struct RenderChar {
-//     int col;  // col of this character if the row is rendered in terminal
-//     from
-//               // start
-//     int index_in_line;  // This charater's related start byte in line
-// };
 
 struct Line {
     std::string line;
-    // bool modified = true;
-    // std::vector<RenderChar> render_line;
-
     Line() {}
     Line(std::string _line) : line(std::move(_line)) {}
-
-    // // Render line and return codepoints if not null.
-    // void RenderLine(std::vector<uint32_t>* codepoints);
 };
 
 // A class which represents a file contents in memory
@@ -60,41 +57,38 @@ struct Line {
 class Buffer {
    public:
     Buffer();
-    // throws IOException
     Buffer(std::string path);
     MANGO_DELETE_COPY(Buffer);
     MANGO_DEFAULT_MOVE(Buffer);
 
-    // throws IOException
+    // throws IOException, FileCreateException
     void ReadAll();
 
     // throws IOException
-    // return kok
+    // return
+    // kok
     // kBufferNoBackupFile
+    // kBufferCannotRead
     Result WriteAll();
 
     int64_t id() const { return id_; }
     std::vector<Line>& lines() { return lines_; }
-
-    bool IsReadAll() const { return read_all_; }
+    const std::string& path() { return path_; }
+    BufferState& state() { return state_; };
+    bool IsReadAll() {
+        return state_ == BufferState::kModified ||
+               state_ == BufferState::kNotModified;
+    }
 
    private:
-    // throws IOException
-    // return 
-    // kOk means ok
-    // kEof means EOF
-    Result ReadLine(std::string& buf);
-
     static int64_t AllocId() { return cur_buffer_id_++; }
 
    private:
-    // If no line in file, just leave one empty line
     std::vector<Line> lines_;
 
     std::string path_;
-    File file_;
-    File swap_file_;
     bool read_all_ = false;
+    BufferState state_ = BufferState::kHaveNotRead;
 
     int64_t id_;
 

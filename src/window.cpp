@@ -5,14 +5,15 @@
 #include "coding.h"
 
 namespace mango {
-Window::Window() : id_(AllocId()) {}
-
-Window::Window(Buffer* buffer) : buffer_(buffer), id_(AllocId()) {}
+Window::Window(Buffer* buffer, Cursor* cursor, Options* options)
+    : buffer_(buffer),
+      cursor_(cursor),
+      id_(AllocId()),
+      attr_table(&options->attr_table) {}
 
 void Window::Draw() {
     assert(buffer_ != nullptr);
     assert(buffer_->IsReadAll());
-    // bool need_to_render_cursor = cursor_->in_window == this;
     if (wrap_) {
         // TODO: wrap the content
         assert(false);
@@ -25,7 +26,8 @@ void Window::Draw() {
 
             if (lines.size() <= b_view_r) {
                 uint32_t codepoint = '~';
-                term_->SetCell(col_, screen_r, &codepoint, 1);
+                term_->SetCell(col_, screen_r, &codepoint, 1,
+                               (*attr_table)[kNormal]);
                 continue;
             }
 
@@ -48,8 +50,9 @@ void Window::Draw() {
                                width_ + b_view_col_) {
                     int screen_c = cur_b_view_c - b_view_col_ + col_;
                     // Just in view, render the character
-                    int ret = term_->SetCell(
-                        screen_c, screen_r, character.data(), character.size());
+                    int ret = term_->SetCell(screen_c, screen_r,
+                                             character.data(), character.size(),
+                                             (*attr_table)[kNormal]);
                     if (ret == kTermOutOfBounds) {
                         // User resize the screen now, just skip the left cols
                         // in this row
@@ -73,6 +76,7 @@ void Window::MakeCursorVisible() {
     std::vector<uint32_t> character;
     int64_t cur_b_view_c = 0;
     int64_t offset = 0;
+    cursor_->character_in_line = 0;
     while (offset < cur_line.size() && offset != cursor_->byte_offset) {
         int character_width;
         int byte_len;
@@ -81,6 +85,7 @@ void Window::MakeCursorVisible() {
         assert(res == kOk);
         offset += byte_len;
         cur_b_view_c += character_width;
+        cursor_->character_in_line++;
     }
 
     // adjust col of view
@@ -154,6 +159,10 @@ void Window::ScrollRows(int64_t count) {
             std::min<int64_t>(b_view_row_ + count, buffer_->lines().size() - 1);
     } else {
         b_view_row_ = std::max<int64_t>(b_view_row_ + count, 0);
+    }
+
+    if (cursor_->in_window != this) {
+        return;
     }
 
     if (cursor_->line < b_view_row_) {
@@ -235,13 +244,18 @@ void Window::CursorGoEnd() {
 }
 
 void Window::DeleteCharacterBeforeCursor() {
+    if (!buffer_->IsReadAll()) {
+        return;
+    }
+
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
             return;
         }
 
         // merge two lines
-        int64_t prev_line_size = buffer_->lines()[cursor_->line - 1].line.size();
+        int64_t prev_line_size =
+            buffer_->lines()[cursor_->line - 1].line.size();
         buffer_->lines()[cursor_->line - 1].line.append(
             buffer_->lines()[cursor_->line].line);
         buffer_->lines().erase(buffer_->lines().begin() + cursor_->line);
@@ -257,9 +271,14 @@ void Window::DeleteCharacterBeforeCursor() {
         cursor_->byte_offset -= len;
         buffer_->lines()[cursor_->line].line.erase(cursor_->byte_offset, len);
     }
+    buffer_->state() = BufferState::kModified;
 }
 
 void Window::AddCharacterAtCursor(const std::string& character) {
+    if (!buffer_->IsReadAll()) {
+        return;
+    }
+
     if (character == kNewLine) {
         auto& lines = buffer_->lines();
         std::string new_line = lines[cursor_->line].line.substr(
@@ -276,6 +295,7 @@ void Window::AddCharacterAtCursor(const std::string& character) {
                                                     character);
         cursor_->byte_offset += character.size();
     }
+    buffer_->state() = BufferState::kModified;
 }
 
 int64_t Window::AllocId() noexcept { return cur_window_id_++; }

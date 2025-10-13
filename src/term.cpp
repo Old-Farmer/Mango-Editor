@@ -1,5 +1,9 @@
 #include "term.h"
 
+#include <vector>
+
+#include "coding.h"
+
 namespace mango {
 
 Terminal::Terminal() { Init(); }
@@ -26,6 +30,19 @@ void Terminal::Shutdown() {
         assert(ret == TB_OK);
         shutdown_ = true;
     }
+}
+
+int64_t Terminal::StringWidth(std::string& str) {
+    std::vector<uint32_t> character;
+    int64_t offset = 0;
+    int64_t width = 0;
+    while (offset < str.size()) {
+        int len, c_width;
+        Result res = NextCharacterInUtf8(str, offset, character, len, c_width);
+        assert(res == kOk);
+        width += c_width;
+    }
+    return width;
 }
 
 }  // namespace mango
