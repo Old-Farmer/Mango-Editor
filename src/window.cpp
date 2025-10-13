@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "coding.h"
+#include "gsl/gsl"
 
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, Options* options)
@@ -88,6 +89,11 @@ void Window::MakeCursorVisible() {
         cursor_->character_in_line++;
     }
 
+    // some opretions makes want change, reset it
+    if (cursor_->b_view_col_want == -1) {
+        cursor_->b_view_col_want = cur_b_view_c;
+    }
+
     // adjust col of view
     if (cur_b_view_c < b_view_col_) {
         b_view_col_ = cur_b_view_c;
@@ -106,7 +112,7 @@ void Window::MakeCursorVisible() {
     cursor_->s_col = cur_b_view_c - b_view_col_ + col_;
 }
 
-void Window::SetCursorByBViewCol(int64_t b_view_col) {
+int64_t Window::SetCursorByBViewCol(int64_t b_view_col) {
     int64_t cur_b_view_row = cursor_->line;
     int64_t target_b_view_col = b_view_col;
     const std::string& cur_line = buffer_->lines()[cur_b_view_row].line;
@@ -123,18 +129,21 @@ void Window::SetCursorByBViewCol(int64_t b_view_col) {
             target_b_view_col < cur_b_view_c + character_width) {
             cursor_->line = cur_b_view_row;
             cursor_->byte_offset = offset;
-            return;
+            return cur_b_view_c;
         }
         offset += byte_len;
         cur_b_view_c += character_width;
     }
     cursor_->byte_offset = offset;
+    return cur_b_view_c;
 }
 
 void Window::SetCursorHint(int s_row, int s_col) {
     assert(buffer_);
     assert(s_row >= row_ && s_row < row_ + height_);
     assert(s_col >= col_ && s_col < col_ + width_);
+
+    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
 
     int64_t cur_b_view_row = s_row - row_ + b_view_row_;
     // empty line, locate the last line end
@@ -166,16 +175,18 @@ void Window::ScrollRows(int64_t count) {
     }
 
     if (cursor_->line < b_view_row_) {
-        SetCursorHint(row_, cursor_->s_col);
+        cursor_->line = b_view_row_;
     } else if (cursor_->line >= b_view_row_ + height_) {
-        SetCursorHint(row_ + height_ - 1, cursor_->s_col);
+        cursor_->line = b_view_row_ + height_ - 1;
     }
+    SetCursorByBViewCol(cursor_->b_view_col_want);
 }
 
 void Window::ScrollCols(int64_t count) {}
 
 void Window::CursorGoRight() {
     assert(buffer_);
+    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
 
     // end
     if (buffer_->lines()[cursor_->line].line.size() == cursor_->byte_offset) {
@@ -187,14 +198,13 @@ void Window::CursorGoRight() {
     Result ret = NextCharacterInUtf8(buffer_->lines()[cursor_->line].line,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
-    if (ret != kOk) {
-        assert(false);
-        return;
-    }
+    assert(ret == kOk);
     cursor_->byte_offset += len;
 }
+
 void Window::CursorGoLeft() {
     assert(buffer_);
+    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
 
     // home
     if (cursor_->byte_offset == 0) {
@@ -206,11 +216,10 @@ void Window::CursorGoLeft() {
     Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
-    if (ret != kOk) {
-        return;
-    }
+    assert(ret == kOk);
     cursor_->byte_offset -= len;
 }
+
 void Window::CursorGoUp() {
     assert(buffer_);
 
@@ -220,8 +229,9 @@ void Window::CursorGoUp() {
     }
 
     cursor_->line--;
-    SetCursorByBViewCol(cursor_->s_col - col_ + b_view_col_);
+    SetCursorByBViewCol(cursor_->b_view_col_want);
 }
+
 void Window::CursorGoDown() {
     assert(buffer_);
 
@@ -231,16 +241,19 @@ void Window::CursorGoDown() {
     }
 
     cursor_->line++;
-    SetCursorByBViewCol(cursor_->s_col - col_ + b_view_col_);
+    SetCursorByBViewCol(cursor_->b_view_col_want);
 }
 
 void Window::CursorGoHome() {
     assert(buffer_);
     cursor_->byte_offset = 0;
+    cursor_->b_view_col_want = -1;
 }
+
 void Window::CursorGoEnd() {
     assert(buffer_);
     cursor_->byte_offset = buffer_->lines()[cursor_->line].line.size();
+    cursor_->b_view_col_want = -1;
 }
 
 void Window::DeleteCharacterBeforeCursor() {
@@ -272,6 +285,7 @@ void Window::DeleteCharacterBeforeCursor() {
         buffer_->lines()[cursor_->line].line.erase(cursor_->byte_offset, len);
     }
     buffer_->state() = BufferState::kModified;
+    cursor_->b_view_col_want = -1;
 }
 
 void Window::AddCharacterAtCursor(const std::string& character) {
@@ -296,6 +310,7 @@ void Window::AddCharacterAtCursor(const std::string& character) {
         cursor_->byte_offset += character.size();
     }
     buffer_->state() = BufferState::kModified;
+    cursor_->b_view_col_want = -1;
 }
 
 int64_t Window::AllocId() noexcept { return cur_window_id_++; }

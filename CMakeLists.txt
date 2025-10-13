@@ -40,6 +40,7 @@ FetchContent_Declare(GSL
     GIT_SHALLOW ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/GSL"
 )
+set(GSL_INCLUDE_DIR "${THIRD_PARTY_DIR}/GSL/include")
 
 FetchContent_MakeAvailable(termbox2 GSL)
 
@@ -82,8 +83,8 @@ target_sources(
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )
-target_link_libraries(mango_lib PUBLIC ${TERMBOX2_LIB})
-target_include_directories(mango_lib PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" PUBLIC Microsoft.GSL::GSL)
+target_link_libraries(mango_lib PUBLIC ${TERMBOX2_LIB} PUBLIC Microsoft.GSL::GSL)
+target_include_directories(mango_lib PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${GSL_INCLUDE_DIR}")
 
 # mango executable
 add_executable(mango)

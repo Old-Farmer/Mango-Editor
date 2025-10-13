@@ -19,10 +19,9 @@ struct Cursor {
     int64_t line = 0;
     int64_t byte_offset = 0;
 
-    // when go up and go down using cursor, b_view_col should be
-    // the same
-    // not used now
-    // TODO: support this
+    // when cursor move up/down or scroll rows make cursor move,
+    // b_view_col should be the same.
+    // Editing or cursor move left/right/jump lose this effect
     int64_t b_view_col_want = -1;
 
     Window* in_window;

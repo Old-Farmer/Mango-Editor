@@ -25,7 +25,8 @@ class Window {
 
     void MakeCursorVisible();
 
-    void SetCursorByBViewCol(int64_t b_view_col);
+    // return real b_view_col
+    int64_t SetCursorByBViewCol(int64_t b_view_col);
 
     void SetCursorHint(int s_row, int s_col);
 
