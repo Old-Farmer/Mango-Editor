@@ -23,7 +23,7 @@ void Window::Draw() {
         std::vector<uint32_t> codepoints;
         for (int win_r = 0; win_r < height_; win_r++) {
             int screen_r = win_r + row_;
-            int64_t b_view_r = win_r + b_view_row_;
+            int64_t b_view_r = win_r + b_view_line_;
 
             if (lines.size() <= b_view_r) {
                 uint32_t codepoint = '~';
@@ -102,13 +102,13 @@ void Window::MakeCursorVisible() {
     }
 
     // adjust row of view
-    if (row < b_view_row_) {
-        b_view_row_ = row;
-    } else if (row - b_view_row_ >= height_) {
-        b_view_row_ = row + 2 - height_;
+    if (row < b_view_line_) {
+        b_view_line_ = row;
+    } else if (row - b_view_line_ >= height_) {
+        b_view_line_ = row + 2 - height_;
     }
 
-    cursor_->s_row = row - b_view_row_ + row_;
+    cursor_->s_row = row - b_view_line_ + row_;
     cursor_->s_col = cur_b_view_c - b_view_col_ + col_;
 }
 
@@ -145,7 +145,7 @@ void Window::SetCursorHint(int s_row, int s_col) {
 
     auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
 
-    int64_t cur_b_view_row = s_row - row_ + b_view_row_;
+    int64_t cur_b_view_row = s_row - row_ + b_view_line_;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->lines().size()) {
         cursor_->line = buffer_->lines().size() - 1;
@@ -164,20 +164,20 @@ void Window::SetCursorHint(int s_row, int s_col) {
 void Window::ScrollRows(int64_t count) {
     assert(buffer_);
     if (count > 0) {
-        b_view_row_ =
-            std::min<int64_t>(b_view_row_ + count, buffer_->lines().size() - 1);
+        b_view_line_ =
+            std::min<int64_t>(b_view_line_ + count, buffer_->lines().size() - 1);
     } else {
-        b_view_row_ = std::max<int64_t>(b_view_row_ + count, 0);
+        b_view_line_ = std::max<int64_t>(b_view_line_ + count, 0);
     }
 
     if (cursor_->in_window != this) {
         return;
     }
 
-    if (cursor_->line < b_view_row_) {
-        cursor_->line = b_view_row_;
-    } else if (cursor_->line >= b_view_row_ + height_) {
-        cursor_->line = b_view_row_ + height_ - 1;
+    if (cursor_->line < b_view_line_) {
+        cursor_->line = b_view_line_;
+    } else if (cursor_->line >= b_view_line_ + height_) {
+        cursor_->line = b_view_line_ + height_ - 1;
     }
     SetCursorByBViewCol(cursor_->b_view_col_want);
 }

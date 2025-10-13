@@ -2,8 +2,8 @@
 
 #include "buffer.h"
 #include "cursor.h"
-#include "term.h"
 #include "options.h"
+#include "term.h"
 
 namespace mango {
 
@@ -58,10 +58,11 @@ class Window {
     // col
     Buffer* buffer_ = nullptr;  // associated buffer
     Cursor* cursor_ = nullptr;
-    // If we put a buffer in an infinite window, (b_view_x_, b_view_y_) means
-    // the top left corner to show the buffer if the buffer top left coner is
-    // (0, 0).
-    int64_t b_view_row_ = 0;
+    // when no wrap, If we put a buffer in an infinite window, (b_view_line_,
+    // b_view_row_) means the top left corner to show the buffer if the buffer
+    // top left coner is (0, 0).
+    // When wrap, b_view_col_ is not used
+    int64_t b_view_line_ = 0;
     int64_t b_view_col_ = 0;
     bool wrap_ = false;
 

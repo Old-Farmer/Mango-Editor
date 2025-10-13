@@ -85,6 +85,8 @@ void Editor::HandleKey() {
                     Result res = cursor_.in_window->buffer_->WriteAll();
                     if (res == kBufferNoBackupFile) {
                         // TODO: notify user
+                    } else if (res == kBufferCannotRead) {
+                        // TODO: notify user
                     }
                 } catch (IOException& e) {
                     MANGO_LOG_ERROR("%s", e.what());
@@ -138,6 +140,18 @@ void Editor::HandleKey() {
             case sk::kEnd: {
                 if (!ctrl && !shift && !alt && !motion) {
                     cursor_.in_window->CursorGoEnd();
+                }
+                break;
+            }
+            case sk::kPgdn: {
+                if (!ctrl && !shift && !alt && !motion) {
+                    cursor_.in_window->ScrollRows(cursor_.in_window->height_ - 1);
+                }
+                break;
+            }
+            case sk::kPgup: {
+                if (!ctrl && !shift && !alt && !motion) {
+                    cursor_.in_window->ScrollRows(-(cursor_.in_window->height_ - 1));
                 }
                 break;
             }
