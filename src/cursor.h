@@ -13,14 +13,14 @@ struct Cursor {
     int s_col = -1;
 
     // line and byte_offset of the buffer of the specific window
-    int line = 0;
-    int byte_offset = 0;
+    int64_t line = 0;
+    int64_t byte_offset = 0;
 
     // when go up and go down using cursor, b_view_col should be
     // the same
     // not used now
     // TODO: support this
-    int b_view_col_want = -1;
+    int64_t b_view_col_want = -1;
 
     Window* in_window;
 

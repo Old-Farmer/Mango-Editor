@@ -149,13 +149,13 @@ void Window::MakeCursorVisible() {
     cursor_->s_col = cur_b_view_c - b_view_col_ + col_;
 }
 
-void Window::SetCursorByBViewCol(int b_view_col) {
-    int cur_b_view_row = cursor_->line;
-    int target_b_view_col = b_view_col;
+void Window::SetCursorByBViewCol(int64_t b_view_col) {
+    int64_t cur_b_view_row = cursor_->line;
+    int64_t target_b_view_col = b_view_col;
     const std::string& cur_line = buffer_->lines()[cur_b_view_row].line;
     std::vector<uint32_t> character;
-    int cur_b_view_c = 0;
-    int offset = 0;
+    int64_t cur_b_view_c = 0;
+    int64_t offset = 0;
     while (offset < cur_line.size()) {
         int character_width;
         int byte_len;
@@ -179,7 +179,7 @@ void Window::SetCursorHint(int s_row, int s_col) {
     assert(s_row >= row_ && s_row < row_ + height_);
     assert(s_col >= col_ && s_col < col_ + width_);
 
-    int cur_b_view_row = s_row - row_ + b_view_row_;
+    int64_t cur_b_view_row = s_row - row_ + b_view_row_;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->lines().size()) {
         cursor_->line = buffer_->lines().size() - 1;
@@ -191,53 +191,17 @@ void Window::SetCursorHint(int s_row, int s_col) {
 
     // not empty line
     // search througn line
-    int target_b_view_col = s_col - col_ + b_view_col_;
+    int64_t target_b_view_col = s_col - col_ + b_view_col_;
     SetCursorByBViewCol(target_b_view_col);
 }
 
-// void Window::SetCursorHint(Cursor& cursor, int s_row, int s_col) {
-//     assert(buffer_);
-//     assert(s_row >= row_ && s_row < row_ + height_);
-//     assert(s_col >= col_ && s_col < col_ + width_);
-
-//     int cur_b_view_row = s_row - row_ + b_view_row_;
-//     if (cur_b_view_row >= buffer_->lines().size()) {
-//         cursor.row = s_row;
-//         cursor.col =
-//             std::min(col_, s_col);  // empty line, locate in the first col
-//         return;
-//     }
-
-//     const std::vector<RenderChar>& cur_render_line =
-//         buffer_->lines()[s_row - row_ + b_view_row_].render_line;
-
-//     int cur_b_view_col = b_view_col_ + s_col - col_;
-//     int l = 0, r = cur_render_line.size() - 1;
-//     while (l <= r) {
-//         int mid = l + (r - l) / 2;
-//         if (cur_render_line[mid].col == cur_b_view_col) {
-//             l = mid;
-//             break;
-//         } else if (cur_render_line[mid].col < cur_b_view_col) {
-//             l = mid + 1;
-//         } else {
-//             r = mid - 1;
-//         }
-//     }
-//     if (l == cur_render_line.size()) {
-//         l = l - 1;
-//     }
-//     cursor.col = cur_render_line[l].col - b_view_col_ + col_;
-//     cursor.row = s_row;
-// }
-
-void Window::ScrollRows(int count) {
+void Window::ScrollRows(int64_t count) {
     assert(buffer_);
     if (count > 0) {
         b_view_row_ =
-            std::min<int>(b_view_row_ + count, buffer_->lines().size() - 1);
+            std::min<int64_t>(b_view_row_ + count, buffer_->lines().size() - 1);
     } else {
-        b_view_row_ = std::max<int>(b_view_row_ + count, 0);
+        b_view_row_ = std::max<int64_t>(b_view_row_ + count, 0);
     }
 
     if (cursor_->line < b_view_row_) {
@@ -247,7 +211,7 @@ void Window::ScrollRows(int count) {
     }
 }
 
-void Window::ScrollCols(int count) {}
+void Window::ScrollCols(int64_t count) {}
 
 void Window::CursorGoRight() {
     assert(buffer_);

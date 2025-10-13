@@ -19,12 +19,12 @@ class Window {
 
     void MakeCursorVisible();
 
-    void SetCursorByBViewCol(int b_view_col);
+    void SetCursorByBViewCol(int64_t b_view_col);
 
     void SetCursorHint(int s_row, int s_col);
 
-    void ScrollRows(int count);
-    void ScrollCols(int count);
+    void ScrollRows(int64_t count);
+    void ScrollCols(int64_t count);
 
     void CursorGoRight();
     void CursorGoLeft();
@@ -54,8 +54,8 @@ class Window {
     // If we put a buffer in an infinite window, (b_view_x_, b_view_y_) means
     // the top left corner to show the buffer if the buffer top left coner is
     // (0, 0).
-    int b_view_row_ = 0;
-    int b_view_col_ = 0;
+    int64_t b_view_row_ = 0;
+    int64_t b_view_col_ = 0;
     bool wrap_ = false;
 
 
