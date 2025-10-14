@@ -46,7 +46,9 @@ class Frame {
     void CursorGoEnd();
 
     void DeleteCharacterBeforeCursor();
-    void AddCharacterAtCursor(const std::string& character);
+    // Only single "\n" or a no "\n" string is permitted
+    void AddStringAtCursor(const std::string& str);
+    void TabAtCursor();
 
    public:
     int width_ = 0;
@@ -69,7 +71,7 @@ class Frame {
     bool wrap_ = false;
 
    private:
-    std::vector<Terminal::AttrPair>* attr_table = nullptr;
+    Options* options_;
     Terminal* term_ = &Terminal::GetInstance();
 };
 

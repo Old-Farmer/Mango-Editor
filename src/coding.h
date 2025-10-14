@@ -7,11 +7,12 @@
 
 namespace mango {
 
-constexpr uint32_t kSpace = 0x20;
+constexpr uint32_t kSpaceChar = 0x20;
 constexpr uint32_t kReplacementChar = 0xFFFD;  // �
+constexpr uint32_t kTabChar = '\t';
 
-
-constexpr const char* kNewLine = "\n";  // �
+constexpr const char* kNewLine = "\n";
+constexpr const char* kTab = "\t";
 
 bool IsUtf8BeginByte(char b);
 

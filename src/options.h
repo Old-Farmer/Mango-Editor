@@ -29,6 +29,9 @@ struct Options {
         {Terminal::kGreen, Terminal::kDefault}, // string
         {Terminal::kCyan, Terminal::kDefault}, // comment
     };
+
+    int tabstop = 4;
+    bool tabspace = true;
 };
 
 }  // namespace mango

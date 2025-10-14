@@ -37,7 +37,8 @@ class Window {
     void CursorGoEnd();
 
     void DeleteCharacterBeforeCursor();
-    void AddCharacterAtCursor(const std::string& character);
+    void AddStringAtCursor(const std::string& str);
+    void TabAtCursor();
 
     // window list op
     static Window CreateListHead() noexcept;

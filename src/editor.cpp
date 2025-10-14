@@ -98,9 +98,15 @@ void Editor::HandleKey() {
                 }
                 break;
             }
+            case sk::kTab: {
+                if (ctrl && !shift && !alt && !motion) {
+                    cursor_.in_window->TabAtCursor();
+                }
+                break;
+            }
             case sk::kEnter: {
                 if (ctrl && !shift && !alt && !motion) {
-                    cursor_.in_window->AddCharacterAtCursor(kNewLine);
+                    cursor_.in_window->AddStringAtCursor(kNewLine);
                 }
                 break;
             }
@@ -165,7 +171,7 @@ void Editor::HandleKey() {
             char c[6];
             int len = UnicodeToUtf8(codepoint, c);
             assert(len > 0);
-            cursor_.in_window->AddCharacterAtCursor(c);
+            cursor_.in_window->AddStringAtCursor(c);
         }
     }
 }

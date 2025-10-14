@@ -41,9 +41,11 @@ void Window::DeleteCharacterBeforeCursor() {
     frame_.DeleteCharacterBeforeCursor();
 }
 
-void Window::AddCharacterAtCursor(const std::string& character) {
-    frame_.AddCharacterAtCursor(character);
+void Window::AddStringAtCursor(const std::string& str) {
+    frame_.AddStringAtCursor(str);
 }
+
+void Window::TabAtCursor() { frame_.TabAtCursor(); }
 
 Window Window::CreateListHead() noexcept { return Window(); }
 

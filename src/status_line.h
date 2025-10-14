@@ -22,7 +22,7 @@ class StatusLine {
 
    private:
     Cursor* cursor_;
-    std::vector<Terminal::AttrPair>* attr_table = nullptr;
+    Options* options_;
 
     Terminal* term_ = &Terminal::GetInstance();
 };

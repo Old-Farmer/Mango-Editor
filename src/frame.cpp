@@ -10,7 +10,7 @@
 namespace mango {
 
 Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options) noexcept
-    : buffer_(buffer), cursor_(cursor), attr_table(&options->attr_table) {}
+    : buffer_(buffer), cursor_(cursor), options_(options) {}
 
 void Frame::Draw() {
     assert(buffer_ != nullptr);
@@ -28,7 +28,7 @@ void Frame::Draw() {
             if (lines.size() <= b_view_r) {
                 uint32_t codepoint = '~';
                 term_->SetCell(col_, screen_r, &codepoint, 1,
-                               (*attr_table)[kNormal]);
+                               options_->attr_table[kNormal]);
                 continue;
             }
 
@@ -49,15 +49,37 @@ void Frame::Draw() {
                 } else if (cur_b_view_c >= b_view_col_ &&
                            cur_b_view_c + character_width <=
                                width_ + b_view_col_) {
-                    int screen_c = cur_b_view_c - b_view_col_ + col_;
-                    // Just in view, render the character
-                    int ret = term_->SetCell(screen_c, screen_r,
-                                             character.data(), character.size(),
-                                             (*attr_table)[kNormal]);
-                    if (ret == kTermOutOfBounds) {
-                        // User resize the screen now, just skip the left cols
-                        // in this row
-                        break;
+                    if (character[0] == kTabChar) {
+                        int space_count = options_->tabstop -
+                                          cur_b_view_c % options_->tabstop;
+                        while (space_count > 0 &&
+                               cur_b_view_c + 1 <= width_ + b_view_col_) {
+                            int screen_c = cur_b_view_c - b_view_col_ + col_;
+                            // Just in view, render the character
+                            int ret = term_->SetCell(
+                                screen_c, screen_r, character.data(),
+                                character.size(),
+                                options_->attr_table[kNormal]);
+                            if (ret == kTermOutOfBounds) {
+                                // User resize the screen now, just skip the
+                                // left cols in this row
+                                break;
+                            }
+                            space_count--;
+                            cur_b_view_c++;
+                        }
+                        character_width = 0;
+                    } else {
+                        int screen_c = cur_b_view_c - b_view_col_ + col_;
+                        // Just in view, render the character
+                        int ret = term_->SetCell(
+                            screen_c, screen_r, character.data(),
+                            character.size(), options_->attr_table[kNormal]);
+                        if (ret == kTermOutOfBounds) {
+                            // User resize the screen now, just skip the left
+                            // cols in this row
+                            break;
+                        }
                     }
                 } else {
                     break;
@@ -288,12 +310,12 @@ void Frame::DeleteCharacterBeforeCursor() {
     cursor_->b_view_col_want = -1;
 }
 
-void Frame::AddCharacterAtCursor(const std::string& character) {
+void Frame::AddStringAtCursor(const std::string& str) {
     if (!buffer_->IsReadAll()) {
         return;
     }
 
-    if (character == kNewLine) {
+    if (str == kNewLine) {
         auto& lines = buffer_->lines();
         std::string new_line = lines[cursor_->line].line.substr(
             cursor_->byte_offset,
@@ -306,11 +328,39 @@ void Frame::AddCharacterAtCursor(const std::string& character) {
         cursor_->byte_offset = 0;
     } else {
         buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset,
-                                                    character);
-        cursor_->byte_offset += character.size();
+                                                    str);
+        cursor_->byte_offset += str.size();
     }
     buffer_->state() = BufferState::kModified;
     cursor_->b_view_col_want = -1;
+}
+
+void Frame::TabAtCursor() {
+    if (!buffer_->IsReadAll()) {
+        return;
+    }
+
+    if (!options_->tabspace) {
+        buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset, kTab);
+        return;
+    }
+
+    int64_t cur_b_view_row = cursor_->line;
+    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line;
+    std::vector<uint32_t> character;
+    int64_t cur_b_view_c = 0;
+    int64_t offset = 0;
+    while (offset < cursor_->byte_offset) {
+        int character_width;
+        int byte_len;
+        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
+                                         character_width);
+        assert(res == kOk);
+        offset += byte_len;
+        cur_b_view_c += character_width;
+    }
+    int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
+    AddStringAtCursor(std::string(need_space, kSpaceChar));
 }
 
 }  // namespace mango
