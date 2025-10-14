@@ -1,0 +1,76 @@
+#pragma once
+#include <cstdint>
+#include <vector>
+
+#include "term.h"
+#include "utils.h"
+
+namespace mango {
+
+class Buffer;
+class Cursor;
+class Options;
+
+enum CharacterType : int {
+    kNormal = 0,
+    kSelection = 1,
+};
+
+// Frame is a class that offers some basic ui interface
+// A Frame must associated with a buffer from rendering
+class Frame {
+   public:
+    Frame() {}
+    Frame(Buffer* buffer, Cursor* cursor, Options* options) noexcept;
+    ~Frame() = default;
+    MANGO_DELETE_COPY(Frame);
+    MANGO_DEFAULT_MOVE(Frame);
+
+    void Draw();
+
+    void MakeCursorVisible();
+
+    // return real b_view_col
+    int64_t SetCursorByBViewCol(int64_t b_view_col);
+
+    void SetCursorHint(int s_row, int s_col);
+
+    void ScrollRows(int64_t count, bool cursor_in_frame);
+    void ScrollCols(int64_t count);
+
+    void CursorGoRight();
+    void CursorGoLeft();
+    void CursorGoUp();
+    void CursorGoDown();
+    void CursorGoHome();
+    void CursorGoEnd();
+
+    void DeleteCharacterBeforeCursor();
+    void AddCharacterAtCursor(const std::string& character);
+
+   public:
+    int width_ = 0;
+    int height_ = 0;
+    int row_ = 0;  // window top left corner x related to the whole screen
+    int col_ = 0;  // window top left corner y related to the whole screen
+    // (0, 0) ------------------------------------ row
+    // |
+    // |
+    // |
+    // col
+    Buffer* buffer_ = nullptr;  // associated buffer
+    Cursor* cursor_ = nullptr;
+    // when no wrap, If we put a buffer in an infinite window, (b_view_line_,
+    // b_view_row_) means the top left corner to show the buffer if the buffer
+    // top left coner is (0, 0).
+    // When wrap, b_view_col_ is not used
+    int64_t b_view_line_ = 0;
+    int64_t b_view_col_ = 0;
+    bool wrap_ = false;
+
+   private:
+    std::vector<Terminal::AttrPair>* attr_table = nullptr;
+    Terminal* term_ = &Terminal::GetInstance();
+};
+
+}  // namespace mango

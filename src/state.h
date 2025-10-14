@@ -16,11 +16,13 @@ enum class BufferState : int {
 };
 
 constexpr const char* BufferStateString[] = {
-    "[Modified]",
-    "",
-    "[Can't Read]",
-    "[Haven't Read]",
-    "[Can' Create]"
+    "[Modified]", "", "[Can't Read]", "[Haven't Read]", "[Can' Create]",
+};
+
+enum class EditorMode : int {
+    kEdit,
+    kPeel,
+    kFind,
 };
 
 }  // namespace mango

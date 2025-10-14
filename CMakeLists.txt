@@ -67,6 +67,8 @@ target_sources(
   "${SRC_DIR}/editor.cpp"
   "${SRC_DIR}/exception.h"
   "${SRC_DIR}/exception.cpp"
+  "${SRC_DIR}/frame.h"
+  "${SRC_DIR}/frame.cpp"
   "${SRC_DIR}/logging.h"
   "${SRC_DIR}/logging.cpp"
   "${SRC_DIR}/options.h"

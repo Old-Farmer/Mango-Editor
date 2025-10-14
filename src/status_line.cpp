@@ -10,7 +10,7 @@ StatusLine::StatusLine(Cursor* cursor, Options* options)
     : cursor_(cursor), attr_table(&options->attr_table) {}
 
 void StatusLine::Draw() {
-    Buffer* b = cursor_->in_window->buffer_;
+    Buffer* b = cursor_->in_window->frame_.buffer_;
     std::string file_and_state =
         (b->path().empty() ? "[new file]" : b->path()) +
         BufferStateString[static_cast<int>(b->state())];

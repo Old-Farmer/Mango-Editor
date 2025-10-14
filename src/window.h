@@ -2,21 +2,17 @@
 
 #include "buffer.h"
 #include "cursor.h"
+#include "frame.h"
 #include "options.h"
 #include "term.h"
 
 namespace mango {
 
-enum CharacterType : int {
-    kNormal = 0,
-    kSelection = 1,
-};
-
 class Window {
    public:
-    Window(Buffer* buffer, Cursor* cursor, Options* options);
+    Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept;
     ~Window() = default;
-    MANGO_DEFAULT_COPY(Window);
+    MANGO_DELETE_COPY(Window);
     MANGO_DEFAULT_MOVE(Window);
 
     int id() { return id_; }
@@ -43,34 +39,23 @@ class Window {
     void DeleteCharacterBeforeCursor();
     void AddCharacterAtCursor(const std::string& character);
 
+    // window list op
+    static Window CreateListHead() noexcept;
+    void AppendToList(Window*& tail) noexcept;
+    void RemoveFromList() noexcept;
+
    private:
     static int64_t AllocId() noexcept;
+    Window() {} // only for list head
 
    public:
-    int width_ = 0;
-    int height_ = 0;
-    int row_ = 0;  // window top left corner x related to the whole screen
-    int col_ = 0;  // window top left corner y related to the whole screen
-    // (0, 0) ------------------------------------ row
-    // |
-    // |
-    // |
-    // col
-    Buffer* buffer_ = nullptr;  // associated buffer
-    Cursor* cursor_ = nullptr;
-    // when no wrap, If we put a buffer in an infinite window, (b_view_line_,
-    // b_view_row_) means the top left corner to show the buffer if the buffer
-    // top left coner is (0, 0).
-    // When wrap, b_view_col_ is not used
-    int64_t b_view_line_ = 0;
-    int64_t b_view_col_ = 0;
-    bool wrap_ = false;
+    Frame frame_;
+
+    Window* next_ = nullptr;
+    Window* prev_ = nullptr;
 
    private:
-    Terminal* term_ = &Terminal::GetInstance();
-    int64_t id_;
-    std::vector<Terminal::AttrPair>* attr_table = nullptr;
-
+    int64_t id_ = AllocId();
     static int64_t cur_window_id_;
 };
 

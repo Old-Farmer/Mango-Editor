@@ -5,7 +5,8 @@
 
 namespace mango {
 
-// the status line fix in the bottom of the window
+// the status line fix in the bottom of the window.
+// Only one row.
 class StatusLine {
    public:
     StatusLine(Cursor* cursor, Options* options);

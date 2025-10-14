@@ -24,7 +24,7 @@ struct Cursor {
     // Editing or cursor move left/right/jump lose this effect
     int64_t b_view_col_want = -1;
 
-    Window* in_window;
+    Window* in_window; // nullptr means in MangoPeel
 
     // TODO: other info
 };

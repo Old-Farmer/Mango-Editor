@@ -28,13 +28,11 @@ void Editor::Loop(std::unique_ptr<Options> options) {
         assert(inserted);
         buf = &iter->second;
     }
-    std::unique_ptr<Window> win =
-        std::make_unique<Window>(buf, &cursor_, options_.get());
-    int64_t win_id = win->id();
-    windows_.emplace(win_id, std::move(win));
+    auto win = new Window(buf, &cursor_, options_.get());
+    win->AppendToList(window_list_tail_);
 
     // Set Cursor in the first window
-    cursor_.in_window = windows_.begin()->second.get();
+    cursor_.in_window = window_list_head_.next_;
 
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
@@ -82,7 +80,7 @@ void Editor::HandleKey() {
             }
             case sk::kCtrlS: {
                 try {
-                    Result res = cursor_.in_window->buffer_->WriteAll();
+                    Result res = cursor_.in_window->frame_.buffer_->WriteAll();
                     if (res == kBufferNoBackupFile) {
                         // TODO: notify user
                     } else if (res == kBufferCannotRead) {
@@ -145,13 +143,15 @@ void Editor::HandleKey() {
             }
             case sk::kPgdn: {
                 if (!ctrl && !shift && !alt && !motion) {
-                    cursor_.in_window->ScrollRows(cursor_.in_window->height_ - 1);
+                    cursor_.in_window->ScrollRows(
+                        cursor_.in_window->frame_.height_ - 1);
                 }
                 break;
             }
             case sk::kPgup: {
                 if (!ctrl && !shift && !alt && !motion) {
-                    cursor_.in_window->ScrollRows(-(cursor_.in_window->height_ - 1));
+                    cursor_.in_window->ScrollRows(
+                        -(cursor_.in_window->frame_.height_ - 1));
                 }
                 break;
             }
@@ -206,11 +206,11 @@ void Editor::HandleMouse() {
 
 // TODO: support multi window
 void Editor::Resize(int width, int height) {
-    Window* first_win = windows_.begin()->second.get();
-    first_win->col_ = 0;
-    first_win->row_ = 0;
-    first_win->width_ = width;
-    first_win->height_ = height - 1;
+    Window* first_win = window_list_head_.next_;
+    first_win->frame_.col_ = 0;
+    first_win->frame_.row_ = 0;
+    first_win->frame_.width_ = width;
+    first_win->frame_.height_ = height - 1;
 
     status_line_->row_ = height - 1;
     status_line_->width_ = width;
@@ -233,8 +233,9 @@ void Editor::Draw() {
         return;
     }
 
-    for (auto& [_, window] : windows_) {
-        if (window->buffer_->IsReadAll()) {
+    for (Window* window = window_list_head_.next_; window != nullptr;
+         window = window->next_) {
+        if (window->frame_.buffer_->IsReadAll()) {
             window->Draw();
         }
     }
@@ -244,16 +245,17 @@ void Editor::Draw() {
 
 void Editor::PreProcess() {
     // Try Load All Buffers in all windows
-    for (auto& [_, window] : windows_) {
-        if (window->buffer_->state() == BufferState::kHaveNotRead) {
+    for (Window* window = window_list_head_.next_; window != nullptr;
+         window = window->next_) {
+        if (window->frame_.buffer_->state() == BufferState::kHaveNotRead) {
             try {
-                window->buffer_->ReadAll();
+                window->frame_.buffer_->ReadAll();
             } catch (FileCreateException& e) {
-                window->buffer_->state() = BufferState::kCannotCreate;
+                window->frame_.buffer_->state() = BufferState::kCannotCreate;
                 MANGO_LOG_ERROR("%s", e.what());
                 // TODO: Notify the user
             } catch (IOException& e) {
-                window->buffer_->state() = BufferState::kCannotRead;
+                window->frame_.buffer_->state() = BufferState::kCannotRead;
                 MANGO_LOG_ERROR("%s", e.what());
                 // TODO: Notify the user
             }

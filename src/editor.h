@@ -44,9 +44,9 @@ class Editor {
     std::unordered_map<int64_t, Buffer> buffers_;
     // Now only support one window in the screen
     // TODO: mutiple window logic
-    std::unordered_map<int64_t, std::unique_ptr<Window>> windows_;
-    int64_t buffer_id_cur_ = 0;
-    int64_t window_id_cur_ = 0;
+    Window window_list_head_ = Window::CreateListHead();
+    Window* window_list_tail_ = &window_list_head_;
+
     bool quit_ = false;
 
     Cursor cursor_;
