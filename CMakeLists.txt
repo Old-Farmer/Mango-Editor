@@ -27,7 +27,7 @@ FetchContent_Declare(
 set(TERMBOX2_LIB "${THIRD_PARTY_DIR}/termbox2/libtermbox2.a")
 set(TERMBOX2_INCLUDE_DIR "${THIRD_PARTY_DIR}/termbox2")
 add_custom_target(build_termbox2
-    COMMAND make libtermbox2.a
+    COMMAND make libtermbox2.a CFLAGS=\"-DTB_OPT_ATTR_W=64 -DTB_OPT_EGC\" --always-make
     WORKING_DIRECTORY "${THIRD_PARTY_DIR}/termbox2"
     COMMENT "Building termbox2 library"
     BYPRODUCTS "${TERMBOX2_LIB}"
@@ -42,7 +42,14 @@ FetchContent_Declare(GSL
 )
 set(GSL_INCLUDE_DIR "${THIRD_PARTY_DIR}/GSL/include")
 
-FetchContent_MakeAvailable(termbox2 GSL)
+# json
+FetchContent_Declare(json
+    URL "https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz"
+    SOURCE_DIR "${THIRD_PARTY_DIR}/json"
+)
+set(JSON_INCLUDE_DIR "${THIRD_PARTY_DIR}/json/include")
+
+FetchContent_MakeAvailable(termbox2 GSL json)
 
 # TODO: use ICU and support grapheme cluster
 # # ICU
@@ -60,22 +67,29 @@ target_sources(
   "${SRC_DIR}/cmd_parse.cpp"
   "${SRC_DIR}/coding.h"
   "${SRC_DIR}/coding.cpp"
-  "${SRC_DIR}/common.h"
   "${SRC_DIR}/cursor.h"
   "${SRC_DIR}/cursor.cpp"
   "${SRC_DIR}/editor.h"
   "${SRC_DIR}/editor.cpp"
   "${SRC_DIR}/exception.h"
   "${SRC_DIR}/exception.cpp"
+  "${SRC_DIR}/filetype.h"
+  "${SRC_DIR}/filetype.cpp"
   "${SRC_DIR}/frame.h"
   "${SRC_DIR}/frame.cpp"
+  "${SRC_DIR}/keymap_manager.h"
+  "${SRC_DIR}/keymap_manager.cpp"
   "${SRC_DIR}/logging.h"
   "${SRC_DIR}/logging.cpp"
+  "${SRC_DIR}/mango_peel.h"
+  "${SRC_DIR}/mango_peel.cpp"
   "${SRC_DIR}/options.h"
   "${SRC_DIR}/options.cpp"
   "${SRC_DIR}/result.h"
   "${SRC_DIR}/signal_handler.h"
   "${SRC_DIR}/signal_handler.cpp"
+  "${SRC_DIR}/state.h"
+  "${SRC_DIR}/state.cpp"
   "${SRC_DIR}/status_line.h"
   "${SRC_DIR}/status_line.cpp"
   "${SRC_DIR}/term.h"
@@ -85,8 +99,18 @@ target_sources(
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )
-target_link_libraries(mango_lib PUBLIC ${TERMBOX2_LIB} PUBLIC Microsoft.GSL::GSL)
-target_include_directories(mango_lib PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${GSL_INCLUDE_DIR}")
+target_link_libraries(
+  mango_lib 
+  PUBLIC ${TERMBOX2_LIB} 
+  PUBLIC Microsoft.GSL::GSL 
+  PUBLIC nlohmann_json::nlohmann_json
+)
+target_include_directories(
+  mango_lib 
+  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${GSL_INCLUDE_DIR}" "${JSON_INCLUDE_DIR}"
+)
+
+target_compile_definitions(mango_lib PUBLIC TB_OPT_ATTR_W=64 TB_OPT_EGC)
 
 # mango executable
 add_executable(mango)

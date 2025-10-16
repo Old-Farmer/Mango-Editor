@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <vector>
 namespace mango {
 
-enum class MouseState {
+enum class MouseState : int {
     kPressed,
     kReleased,
 };
@@ -19,10 +21,15 @@ constexpr const char* BufferStateString[] = {
     "[Modified]", "", "[Can't Read]", "[Haven't Read]", "[Can' Create]",
 };
 
-enum class EditorMode : int {
-    kEdit,
-    kPeel,
+enum class Mode : int {
+    kEdit = 0,
+    kPeelCommand,  // user is inputting sth
+    kPeelShow,     // peel shows some multirow output
     kFind,
+
+    _COUNT, // not mode, just for count
 };
+
+extern const std::vector<Mode> kDefaultsModes;
 
 }  // namespace mango

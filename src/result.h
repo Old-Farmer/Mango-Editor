@@ -13,6 +13,9 @@ enum Result {
     kBufferNoBackupFile,
     kBufferCannotRead,
     kEof,
+    kKeymapError,
+    kKeymapDone,
+    kKeymapMatched,
 };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};

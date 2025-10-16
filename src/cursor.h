@@ -15,7 +15,7 @@ struct Cursor {
     // this is synced with line & byte_offset after Preprocess
     int64_t character_in_line = 0;
 
-    // line and byte_offset of the buffer of the specific window
+    // line and byte_offset of the buffer of the specific frame
     int64_t line = 0;
     int64_t byte_offset = 0;
 

@@ -50,12 +50,6 @@ void ParseCmdArgs(int argc, char* argv[], Options* options) {
     for (auto file : options->begin_files) {
         MANGO_LOG_DEBUG("cmd args: file name: %s", file);
     }
-
-    // just support one file and only one file now
-    if (options->begin_files.size() != 1) {
-        fprintf(stderr, "Only support one file now!\n");
-        PrintUsage(EXIT_FAILURE);
-    }
 }
 
 }  // namespace mango

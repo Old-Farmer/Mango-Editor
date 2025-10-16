@@ -1,6 +1,7 @@
 #include "frame.h"
 
 #include <gsl/util>
+#include <cinttypes>
 
 #include "buffer.h"
 #include "coding.h"
@@ -26,7 +27,7 @@ void Frame::Draw() {
             int64_t b_view_r = win_r + b_view_line_;
 
             if (lines.size() <= b_view_r) {
-                uint32_t codepoint = '~';
+                uint32_t codepoint = kTildeChar;
                 term_->SetCell(col_, screen_r, &codepoint, 1,
                                options_->attr_table[kNormal]);
                 continue;
@@ -89,6 +90,11 @@ void Frame::Draw() {
             }
         }
     }
+}
+
+bool Frame::In(int s_col, int s_row) {
+    return s_col >= col_ && s_col < s_col + width_ && s_row >= row_ &&
+           s_row < row_ + height_;
 }
 
 void Frame::MakeCursorVisible() {
@@ -162,8 +168,7 @@ int64_t Frame::SetCursorByBViewCol(int64_t b_view_col) {
 
 void Frame::SetCursorHint(int s_row, int s_col) {
     assert(buffer_);
-    assert(s_row >= row_ && s_row < row_ + height_);
-    assert(s_col >= col_ && s_col < col_ + width_);
+    assert(In(s_col, s_row));
 
     auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
 
@@ -275,6 +280,8 @@ void Frame::CursorGoHome() {
 void Frame::CursorGoEnd() {
     assert(buffer_);
     cursor_->byte_offset = buffer_->lines()[cursor_->line].line.size();
+    MANGO_LOG_DEBUG("end is %" PRId64, cursor_->byte_offset);
+    MANGO_LOG_DEBUG("cur line is %" PRId64, cursor_->line);
     cursor_->b_view_col_want = -1;
 }
 
@@ -327,8 +334,7 @@ void Frame::AddStringAtCursor(const std::string& str) {
         cursor_->line++;
         cursor_->byte_offset = 0;
     } else {
-        buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset,
-                                                    str);
+        buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset, str);
         cursor_->byte_offset += str.size();
     }
     buffer_->state() = BufferState::kModified;

@@ -68,6 +68,17 @@ class Terminal {
         kWhite = TB_WHITE
     };
 
+    enum Effect : Attr {
+        kBold = TB_BOLD,
+        kUnderline = TB_UNDERLINE,
+        kReverse = TB_REVERSE,
+        kItalic = TB_ITALIC,
+        kBlink = TB_BLINK,
+        kHiBlack = TB_HI_BLACK,
+        kBright = TB_BRIGHT,
+        kDim = TB_DIM,
+    };
+
     // throws TermException
     // or
     // return
@@ -197,6 +208,14 @@ class Terminal {
 
     bool EventIsMouse() { return event_.type == TB_EVENT_MOUSE; }
 
+    enum class Event : uint8_t {
+        kResize = TB_EVENT_RESIZE,
+        kKey = TB_EVENT_KEY,
+        kMouse = TB_EVENT_MOUSE
+    };
+
+    Event WhatEvent() { return static_cast<Event>(event_.type); }
+
     struct ResizeInfo {
         int width;
         int height;
@@ -288,7 +307,8 @@ class Terminal {
         kBackTab = TB_KEY_BACK_TAB,
     };
 
-    enum Mod {
+    // C++ prefer enum class, but we use enum here for convenient bit op
+    enum Mod : uint8_t {
         kAlt = TB_MOD_ALT,
         kCtrl = TB_MOD_CTRL,
         kShift = TB_MOD_SHIFT,
@@ -297,13 +317,29 @@ class Terminal {
 
     // special key xor codepoint
     // and mod
-    // kCtrl and Shift only occur with kArrow...
     struct KeyInfo {
-        SpecialKey special_key;
         uint32_t codepoint;
+        SpecialKey special_key;
         Mod mod;
 
         bool IsSpecialKey() const noexcept { return codepoint == 0; }
+
+        static constexpr KeyInfo CreateSpecialKey(
+            SpecialKey key, Mod mod = static_cast<Mod>(0)) {
+            return {0, key, mod};
+        }
+
+        static constexpr KeyInfo CreateNormalKey(
+            uint32_t codepoint, Mod mod = static_cast<Mod>(0)) {
+            assert(codepoint != 0);
+            return {codepoint, {}, mod};
+        }
+
+        size_t ToNumber() const {
+            return (static_cast<size_t>(codepoint) << 24) |
+                   (static_cast<size_t>(special_key) << 8) |
+                   (static_cast<size_t>(mod));
+        }
     };
 
     ResizeInfo EventResizeInfo() const noexcept { return {event_.w, event_.h}; }
@@ -311,7 +347,7 @@ class Terminal {
         return {event_.x, event_.y, static_cast<MouseKey>(event_.key)};
     }
     KeyInfo EventKeyInfo() const noexcept {
-        return {static_cast<SpecialKey>(event_.key), event_.ch,
+        return {event_.ch, static_cast<SpecialKey>(event_.key),
                 static_cast<Mod>(event_.mod)};
     }
 
@@ -323,11 +359,16 @@ class Terminal {
     // 2 for 2 col
     static int WCWidth(uint32_t ch) noexcept { return tb_wcwidth(ch); }
 
-    static int64_t StringWidth(std::string& str);
+    static int64_t StringWidth(const std::string& str);
 
    private:
     tb_event event_;
     bool shutdown_ = false;
 };
+
+inline bool operator==(const Terminal::KeyInfo& l, const Terminal::KeyInfo& r) {
+    return l.codepoint == r.codepoint && l.special_key == r.special_key &&
+           l.mod == r.mod;
+}
 
 }  // namespace mango

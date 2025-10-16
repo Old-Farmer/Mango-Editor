@@ -1,6 +1,5 @@
 #pragma once
 #include <cstdint>
-#include <vector>
 
 #include "term.h"
 #include "utils.h"
@@ -10,11 +9,6 @@ namespace mango {
 class Buffer;
 class Cursor;
 class Options;
-
-enum CharacterType : int {
-    kNormal = 0,
-    kSelection = 1,
-};
 
 // Frame is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
@@ -27,6 +21,8 @@ class Frame {
     MANGO_DEFAULT_MOVE(Frame);
 
     void Draw();
+
+    bool In(int s_col, int s_row);
 
     void MakeCursorVisible();
 

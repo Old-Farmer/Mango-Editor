@@ -1,5 +1,8 @@
 #include "window.h"
 
+#include "buffer.h"
+#include "cursor.h"
+
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept
     : frame_(buffer, cursor, options) {}
@@ -46,6 +49,24 @@ void Window::AddStringAtCursor(const std::string& str) {
 }
 
 void Window::TabAtCursor() { frame_.TabAtCursor(); }
+
+void Window::NextBuffer() {
+    Buffer* next = frame_.buffer_->next_;
+    if (next) {
+        frame_.buffer_->SaveCursorState(*frame_.cursor_);
+        frame_.buffer_ = next;
+        frame_.buffer_->RestoreCursorState(*frame_.cursor_);
+    }
+}
+
+void Window::PrevBuffer() {
+    Buffer* prev = frame_.buffer_->prev_;
+    if (prev && prev->prev_) { // not head
+        frame_.buffer_->SaveCursorState(*frame_.cursor_);
+        frame_.buffer_ = prev;
+        frame_.buffer_->RestoreCursorState(*frame_.cursor_);
+    }
+}
 
 Window Window::CreateListHead() noexcept { return Window(); }
 

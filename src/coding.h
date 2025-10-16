@@ -7,9 +7,10 @@
 
 namespace mango {
 
-constexpr uint32_t kSpaceChar = 0x20;
+constexpr uint32_t kSpaceChar = ' ';
 constexpr uint32_t kReplacementChar = 0xFFFD;  // �
 constexpr uint32_t kTabChar = '\t';
+constexpr uint32_t kTildeChar = '~';
 
 constexpr const char* kNewLine = "\n";
 constexpr const char* kTab = "\t";

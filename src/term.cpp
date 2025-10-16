@@ -32,7 +32,7 @@ void Terminal::Shutdown() {
     }
 }
 
-int64_t Terminal::StringWidth(std::string& str) {
+int64_t Terminal::StringWidth(const std::string& str) {
     std::vector<uint32_t> character;
     int64_t offset = 0;
     int64_t width = 0;

@@ -1,11 +1,14 @@
 #pragma once
 
+#include "term.h"
 #include "utils.h"
-#include "window.h"
 
 namespace mango {
 
-// the status line fix in the bottom of the window.
+class Cursor;
+class Options;
+
+// the status line stay above the mango peel.
 // Only one row.
 class StatusLine {
    public:

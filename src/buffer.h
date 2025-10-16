@@ -1,9 +1,9 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
+#include "filetype.h"
 #include "result.h"
 #include "state.h"
 #include "utils.h"
@@ -50,6 +50,8 @@ struct Line {
     Line(std::string _line) : line(std::move(_line)) {}
 };
 
+class Cursor;
+
 // A class which represents a file contents in memory
 // the Buffer may not be backed by a file
 // Only Posix
@@ -80,13 +82,30 @@ class Buffer {
                state_ == BufferState::kNotModified;
     }
 
+    // Buffer list op
+    void AppendToList(Buffer*& tail) noexcept;
+    void RemoveFromList() noexcept;
+
+    void SaveCursorState(Cursor& cursor);
+    void RestoreCursorState(Cursor& cursor);
+
    private:
     static int64_t AllocId() { return cur_buffer_id_++; }
+
+   public:
+    Buffer* next_ = nullptr;
+    Buffer* prev_ = nullptr;
+
+    int64_t cursor_state_line_ = 0;
+    int64_t cursor_state_byte_offset_ = 0;
+    int64_t cursor_state_b_view_col_want_ = 0;
 
    private:
     std::vector<Line> lines_;
 
     std::string path_;
+    std::string file_name_; // TODO: use it
+    Filetype filetype_;
     bool read_all_ = false;
     BufferState state_ = BufferState::kHaveNotRead;
 

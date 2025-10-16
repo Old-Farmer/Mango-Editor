@@ -1,7 +1,5 @@
 #pragma once
 
-#include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "term.h"
@@ -9,6 +7,15 @@
 namespace mango {
 
 enum class Action : int { kQuit = 0 };
+
+enum CharacterType : int {
+    kNormal = 0,
+    kReverse = 1,
+    kSelection,
+    kKeyword,
+    kString,
+    kComment
+};
 
 // Use many magic numbers here. Just for convinience.
 struct Options {
@@ -23,15 +30,21 @@ struct Options {
     // See Terminall::Init
     // TODO: better color control
     std::vector<Terminal::AttrPair> attr_table = {
-        {Terminal::kDefault, Terminal::kDefault}, // normal
-        {Terminal::kBlack, Terminal::kWhite}, // selection
-        {Terminal::kYellow, Terminal::kDefault}, // key word
-        {Terminal::kGreen, Terminal::kDefault}, // string
-        {Terminal::kCyan, Terminal::kDefault}, // comment
+        {Terminal::kDefault, Terminal::kDefault},  // normal
+        {Terminal::kDefault | Terminal::kReverse,
+         Terminal::kDefault | Terminal::kReverse},  // reverse
+        {Terminal::kDefault | Terminal::kReverse,
+         Terminal::kDefault | Terminal::kReverse},  // selection
+        {Terminal::kYellow, Terminal::kDefault},    // key word
+        {Terminal::kGreen, Terminal::kDefault},     // string
+        {Terminal::kCyan, Terminal::kDefault},      // comment
     };
 
     int tabstop = 4;
     bool tabspace = true;
+
+    int status_line_left_indent = 2;
+    int status_line_right_indent = 2;
 };
 
 }  // namespace mango

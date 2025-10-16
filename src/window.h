@@ -1,10 +1,6 @@
 #pragma once
 
-#include "buffer.h"
-#include "cursor.h"
 #include "frame.h"
-#include "options.h"
-#include "term.h"
 
 namespace mango {
 
@@ -40,6 +36,9 @@ class Window {
     void AddStringAtCursor(const std::string& str);
     void TabAtCursor();
 
+    void NextBuffer();
+    void PrevBuffer();
+
     // window list op
     static Window CreateListHead() noexcept;
     void AppendToList(Window*& tail) noexcept;
@@ -47,7 +46,7 @@ class Window {
 
    private:
     static int64_t AllocId() noexcept;
-    Window() {} // only for list head
+    Window() {}  // only for list head
 
    public:
     Frame frame_;

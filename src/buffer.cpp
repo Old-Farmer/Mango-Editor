@@ -5,8 +5,8 @@
 #include <cstring>
 
 #include "coding.h"
+#include "cursor.h"
 #include "exception.h"
-#include "term.h"
 
 namespace mango {
 
@@ -117,9 +117,11 @@ void Buffer::ReadAll() {
             lines_.push_back({});
         }
 
+        filetype_ = DecideFiletype(path_);
+
         state_ = BufferState::kNotModified;
     } catch (IOException& e) {
-        lines_.push_back({}); // ensure one empty line
+        lines_.push_back({});  // ensure one empty line
         throw;
     }
 }
@@ -162,6 +164,44 @@ Result Buffer::WriteAll() {
 
     state_ = BufferState::kNotModified;
     return kOk;
+}
+
+void Buffer::AppendToList(Buffer*& tail) noexcept {
+    assert(tail->next_ == nullptr);
+
+    tail->next_ = this;
+    prev_ = tail;
+    next_ = nullptr;
+
+    tail = this;
+}
+
+void Buffer::RemoveFromList() noexcept {
+    if (next_ == nullptr) {
+        prev_->next_ = next_;
+        prev_ = nullptr;
+        return;
+    }
+    // Must have a dummy head
+    next_->prev_ = prev_;
+    next_ = nullptr;
+}
+
+void Buffer::SaveCursorState(Cursor& cursor) {
+    cursor_state_line_ = cursor.line;
+    cursor_state_byte_offset_ = cursor.byte_offset;
+    cursor_state_b_view_col_want_ = cursor.b_view_col_want;
+}
+
+void Buffer::RestoreCursorState(Cursor& cursor) {
+    if (state_ == BufferState::kHaveNotRead) {
+        return;
+    }
+
+    cursor.line = std::min<int64_t>(lines_.size() - 1, cursor_state_line_);
+    cursor.byte_offset = std::min<int64_t>(lines_[cursor.line].line.size(),
+                                           cursor_state_byte_offset_);
+    cursor.b_view_col_want = cursor_state_b_view_col_want_;
 }
 
 }  // namespace mango
