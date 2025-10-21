@@ -30,7 +30,12 @@ Requirements:
 
 ```bash
 # Debug
-mkdir build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make
+mkdir build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4
 # Release
-mkdir build && cmake -DCMAKE_BUILD_TYPE=Release .. && make
+mkdir build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4
+
+# Execute app
+./mango
+# Execute test
+./mango_test
 ```

@@ -1,7 +1,7 @@
 #include "frame.h"
 
+#include <stdint.h>
 #include <gsl/util>
-#include <cinttypes>
 
 #include "buffer.h"
 #include "coding.h"
@@ -15,16 +15,16 @@ Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options) noexcept
 
 void Frame::Draw() {
     assert(buffer_ != nullptr);
-    assert(buffer_->IsReadAll());
+    assert(buffer_->IsLoad());
     if (wrap_) {
         // TODO: wrap the content
         assert(false);
     } else {
-        std::vector<Line>& lines = buffer_->lines();
+        const std::vector<Line>& lines = buffer_->lines();
         std::vector<uint32_t> codepoints;
-        for (int win_r = 0; win_r < height_; win_r++) {
+        for (size_t win_r = 0; win_r < height_; win_r++) {
             int screen_r = win_r + row_;
-            int64_t b_view_r = win_r + b_view_line_;
+            size_t b_view_r = win_r + b_view_line_;
 
             if (lines.size() <= b_view_r) {
                 uint32_t codepoint = kTildeChar;
@@ -33,18 +33,16 @@ void Frame::Draw() {
                 continue;
             }
 
-            const std::string& cur_line = lines[b_view_r].line;
+            const std::string& cur_line = lines[b_view_r].line_str;
             std::vector<uint32_t> character;
-            int64_t cur_b_view_c = 0;
-            int64_t offset = 0;
+            size_t cur_b_view_c = 0;
+            size_t offset = 0;
             while (offset < cur_line.size()) {
                 int character_width;
                 int byte_len;
                 Result res = NextCharacterInUtf8(cur_line, offset, character,
                                                  byte_len, character_width);
-                if (res != kOk) {
-                    break;
-                }
+                assert(res == kOk);
                 if (cur_b_view_c < b_view_col_) {
                     ;
                 } else if (cur_b_view_c >= b_view_col_ &&
@@ -56,11 +54,11 @@ void Frame::Draw() {
                         while (space_count > 0 &&
                                cur_b_view_c + 1 <= width_ + b_view_col_) {
                             int screen_c = cur_b_view_c - b_view_col_ + col_;
+                            uint32_t space = kSpaceChar;
                             // Just in view, render the character
-                            int ret = term_->SetCell(
-                                screen_c, screen_r, character.data(),
-                                character.size(),
-                                options_->attr_table[kNormal]);
+                            int ret =
+                                term_->SetCell(screen_c, screen_r, &space, 1,
+                                               options_->attr_table[kNormal]);
                             if (ret == kTermOutOfBounds) {
                                 // User resize the screen now, just skip the
                                 // left cols in this row
@@ -92,19 +90,19 @@ void Frame::Draw() {
     }
 }
 
-bool Frame::In(int s_col, int s_row) {
+bool Frame::In(size_t s_col, size_t s_row) {
     return s_col >= col_ && s_col < s_col + width_ && s_row >= row_ &&
            s_row < row_ + height_;
 }
 
 void Frame::MakeCursorVisible() {
     // Calculate the cursor pos if we put the buffer from (0, 0)
-    int row = cursor_->line;
+    size_t row = cursor_->line;
 
-    const std::string& cur_line = buffer_->lines()[cursor_->line].line;
+    const std::string& cur_line = buffer_->lines()[cursor_->line].line_str;
     std::vector<uint32_t> character;
-    int64_t cur_b_view_c = 0;
-    int64_t offset = 0;
+    size_t cur_b_view_c = 0;
+    size_t offset = 0;
     cursor_->character_in_line = 0;
     while (offset < cur_line.size() && offset != cursor_->byte_offset) {
         int character_width;
@@ -113,12 +111,17 @@ void Frame::MakeCursorVisible() {
                                          character_width);
         assert(res == kOk);
         offset += byte_len;
-        cur_b_view_c += character_width;
+        if (character[0] == kTabChar) {
+            cur_b_view_c +=
+                options_->tabstop - cur_b_view_c % options_->tabstop;
+        } else {
+            cur_b_view_c += character_width;
+        }
         cursor_->character_in_line++;
     }
 
     // some opretions makes want change, reset it
-    if (cursor_->b_view_col_want == -1) {
+    if (!cursor_->b_view_col_want.has_value()) {
         cursor_->b_view_col_want = cur_b_view_c;
     }
 
@@ -140,13 +143,13 @@ void Frame::MakeCursorVisible() {
     cursor_->s_col = cur_b_view_c - b_view_col_ + col_;
 }
 
-int64_t Frame::SetCursorByBViewCol(int64_t b_view_col) {
-    int64_t cur_b_view_row = cursor_->line;
-    int64_t target_b_view_col = b_view_col;
-    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line;
+size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
+    size_t cur_b_view_line = cursor_->line;
+    size_t target_b_view_col = b_view_col;
+    const std::string& cur_line = buffer_->lines()[cur_b_view_line].line_str;
     std::vector<uint32_t> character;
-    int64_t cur_b_view_c = 0;
-    int64_t offset = 0;
+    size_t cur_b_view_c = 0;
+    size_t offset = 0;
     while (offset < cur_line.size()) {
         int character_width;
         int byte_len;
@@ -155,28 +158,33 @@ int64_t Frame::SetCursorByBViewCol(int64_t b_view_col) {
         assert(res == kOk);
         if (cur_b_view_c <= target_b_view_col &&
             target_b_view_col < cur_b_view_c + character_width) {
-            cursor_->line = cur_b_view_row;
+            cursor_->line = cur_b_view_line;
             cursor_->byte_offset = offset;
             return cur_b_view_c;
         }
         offset += byte_len;
-        cur_b_view_c += character_width;
+        if (character[0] == kTabChar) {
+            cur_b_view_c +=
+                options_->tabstop - cur_b_view_c % options_->tabstop;
+        } else {
+            cur_b_view_c += character_width;
+        }
     }
     cursor_->byte_offset = offset;
     return cur_b_view_c;
 }
 
-void Frame::SetCursorHint(int s_row, int s_col) {
+void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     assert(buffer_);
     assert(In(s_col, s_row));
 
-    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
+    auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
-    int64_t cur_b_view_row = s_row - row_ + b_view_line_;
+    size_t cur_b_view_row = s_row - row_ + b_view_line_;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->lines().size()) {
         cursor_->line = buffer_->lines().size() - 1;
-        cursor_->byte_offset = buffer_->lines().back().line.size();
+        cursor_->byte_offset = buffer_->lines().back().line_str.size();
         return;
     }
 
@@ -184,17 +192,19 @@ void Frame::SetCursorHint(int s_row, int s_col) {
 
     // not empty line
     // search througn line
-    int64_t target_b_view_col = s_col - col_ + b_view_col_;
+    size_t target_b_view_col = s_col - col_ + b_view_col_;
     SetCursorByBViewCol(target_b_view_col);
 }
 
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     assert(buffer_);
     if (count > 0) {
-        b_view_line_ = std::min<int64_t>(b_view_line_ + count,
-                                         buffer_->lines().size() - 1);
+        b_view_line_ =
+            std::min(b_view_line_ + count, buffer_->lines().size() - 1);
     } else {
-        b_view_line_ = std::max<int64_t>(b_view_line_ + count, 0);
+        b_view_line_ =
+            std::max<int64_t>(static_cast<int64_t>(b_view_line_) + count,
+                              0);  // cast is necessary here
     }
 
     if (!cursor_in_frame) {
@@ -206,23 +216,25 @@ void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     } else if (cursor_->line >= b_view_line_ + height_) {
         cursor_->line = b_view_line_ + height_ - 1;
     }
-    SetCursorByBViewCol(cursor_->b_view_col_want);
+    assert(cursor_->b_view_col_want.has_value());
+    SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
-void Frame::ScrollCols(int64_t count) {}
+void Frame::ScrollCols(int64_t count) { (void)count; }
 
 void Frame::CursorGoRight() {
     assert(buffer_);
-    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
+    auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
     // end
-    if (buffer_->lines()[cursor_->line].line.size() == cursor_->byte_offset) {
+    if (buffer_->lines()[cursor_->line].line_str.size() ==
+        cursor_->byte_offset) {
         return;
     }
 
     std::vector<uint32_t> charater;
     int len, character_width;
-    Result ret = NextCharacterInUtf8(buffer_->lines()[cursor_->line].line,
+    Result ret = NextCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
     assert(ret == kOk);
@@ -231,7 +243,7 @@ void Frame::CursorGoRight() {
 
 void Frame::CursorGoLeft() {
     assert(buffer_);
-    auto _ = gsl::finally([this] { cursor_->b_view_col_want = -1; });
+    auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
     // home
     if (cursor_->byte_offset == 0) {
@@ -240,7 +252,7 @@ void Frame::CursorGoLeft() {
 
     std::vector<uint32_t> charater;
     int len, character_width;
-    Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line,
+    Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
     assert(ret == kOk);
@@ -256,7 +268,8 @@ void Frame::CursorGoUp() {
     }
 
     cursor_->line--;
-    SetCursorByBViewCol(cursor_->b_view_col_want);
+    assert(cursor_->b_view_col_want.has_value());
+    SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
 void Frame::CursorGoDown() {
@@ -268,94 +281,76 @@ void Frame::CursorGoDown() {
     }
 
     cursor_->line++;
-    SetCursorByBViewCol(cursor_->b_view_col_want);
+    assert(cursor_->b_view_col_want.has_value());
+    SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
 void Frame::CursorGoHome() {
     assert(buffer_);
     cursor_->byte_offset = 0;
-    cursor_->b_view_col_want = -1;
+    cursor_->DontHoldColWant();
 }
 
 void Frame::CursorGoEnd() {
     assert(buffer_);
-    cursor_->byte_offset = buffer_->lines()[cursor_->line].line.size();
-    MANGO_LOG_DEBUG("end is %" PRId64, cursor_->byte_offset);
-    MANGO_LOG_DEBUG("cur line is %" PRId64, cursor_->line);
-    cursor_->b_view_col_want = -1;
+    cursor_->byte_offset = buffer_->lines()[cursor_->line].line_str.size();
+    cursor_->DontHoldColWant();
 }
 
 void Frame::DeleteCharacterBeforeCursor() {
-    if (!buffer_->IsReadAll()) {
-        return;
-    }
-
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
             return;
         }
-
-        // merge two lines
         int64_t prev_line_size =
-            buffer_->lines()[cursor_->line - 1].line.size();
-        buffer_->lines()[cursor_->line - 1].line.append(
-            buffer_->lines()[cursor_->line].line);
-        buffer_->lines().erase(buffer_->lines().begin() + cursor_->line);
+            buffer_->lines()[cursor_->line - 1].line_str.size();
+        if (buffer_->MergeLine(cursor_->line - 1) != kOk) {
+            return;
+        }
+
         cursor_->line = cursor_->line - 1;
         cursor_->byte_offset = prev_line_size;
     } else {
-        std::vector<uint32_t> charater;
-        int len, character_width;
-        Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line,
-                                         cursor_->byte_offset, charater, len,
-                                         character_width);
-        assert(ret == kOk);
+        size_t len;
+        if (buffer_->DeleteCharacterInLineBefore(
+                cursor_->line, cursor_->byte_offset, len) != kOk) {
+            return;
+        }
         cursor_->byte_offset -= len;
-        buffer_->lines()[cursor_->line].line.erase(cursor_->byte_offset, len);
     }
-    buffer_->state() = BufferState::kModified;
-    cursor_->b_view_col_want = -1;
+    cursor_->DontHoldColWant();
 }
 
-void Frame::AddStringAtCursor(const std::string& str) {
-    if (!buffer_->IsReadAll()) {
-        return;
-    }
-
+void Frame::AddStringAtCursor(std::string str) {
     if (str == kNewLine) {
-        auto& lines = buffer_->lines();
-        std::string new_line = lines[cursor_->line].line.substr(
-            cursor_->byte_offset,
-            lines[cursor_->line].line.size() - cursor_->byte_offset);
-        buffer_->lines().insert(buffer_->lines().begin() + cursor_->line + 1,
-                                std::move(new_line));
-        lines[cursor_->line].line.resize(cursor_->byte_offset);
+        if (buffer_->NewLine(cursor_->line, cursor_->byte_offset) != kOk) {
+            return;
+        }
 
         cursor_->line++;
         cursor_->byte_offset = 0;
     } else {
-        buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset, str);
-        cursor_->byte_offset += str.size();
+        auto size = str.size();
+        if (buffer_->AddStringInLineAfter(cursor_->line, cursor_->byte_offset,
+                                          std::move(str)) != kOk) {
+            return;
+        }
+        cursor_->byte_offset += size;
     }
-    buffer_->state() = BufferState::kModified;
-    cursor_->b_view_col_want = -1;
+    cursor_->DontHoldColWant();
 }
 
 void Frame::TabAtCursor() {
-    if (!buffer_->IsReadAll()) {
-        return;
-    }
-
     if (!options_->tabspace) {
-        buffer_->lines()[cursor_->line].line.insert(cursor_->byte_offset, kTab);
+        AddStringAtCursor(kTab);
         return;
     }
 
     int64_t cur_b_view_row = cursor_->line;
-    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line;
+    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line_str;
     std::vector<uint32_t> character;
-    int64_t cur_b_view_c = 0;
-    int64_t offset = 0;
+    size_t cur_b_view_c = 0;
+    size_t offset = 0;
     while (offset < cursor_->byte_offset) {
         int character_width;
         int byte_len;

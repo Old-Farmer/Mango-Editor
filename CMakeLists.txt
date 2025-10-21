@@ -4,9 +4,9 @@ project(Mango)
 set(CMAKE_CXX_STANDARD 17)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-  add_compile_options(-Wall -Wextra)
+    add_compile_options(-Wall -Wextra)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  add_compile_options(/W4)
+    add_compile_options(/W4)
 endif()
 
 # Includes
@@ -40,16 +40,22 @@ FetchContent_Declare(GSL
     GIT_SHALLOW ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/GSL"
 )
-set(GSL_INCLUDE_DIR "${THIRD_PARTY_DIR}/GSL/include")
 
 # json
 FetchContent_Declare(json
     URL "https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz"
     SOURCE_DIR "${THIRD_PARTY_DIR}/json"
 )
-set(JSON_INCLUDE_DIR "${THIRD_PARTY_DIR}/json/include")
 
-FetchContent_MakeAvailable(termbox2 GSL json)
+# catch2
+FetchContent_Declare(
+    Catch2
+    GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+    GIT_TAG        v3.8.1
+    SOURCE_DIR "${THIRD_PARTY_DIR}/Catch2"
+)
+
+FetchContent_MakeAvailable(termbox2 GSL json Catch2)
 
 # TODO: use ICU and support grapheme cluster
 # # ICU
@@ -61,12 +67,16 @@ add_library(mango_lib)
 add_dependencies(mango_lib build_termbox2)
 target_sources(
   mango_lib PUBLIC
+  "${SRC_DIR}/buffer_manager.h"
+  "${SRC_DIR}/buffer_manager.cpp"
   "${SRC_DIR}/buffer.h"
   "${SRC_DIR}/buffer.cpp"
   "${SRC_DIR}/cmd_parse.h"
   "${SRC_DIR}/cmd_parse.cpp"
   "${SRC_DIR}/coding.h"
   "${SRC_DIR}/coding.cpp"
+  "${SRC_DIR}/command_manager.h"
+  "${SRC_DIR}/command_manager.cpp"
   "${SRC_DIR}/cursor.h"
   "${SRC_DIR}/cursor.cpp"
   "${SRC_DIR}/editor.h"
@@ -77,6 +87,8 @@ target_sources(
   "${SRC_DIR}/filetype.cpp"
   "${SRC_DIR}/frame.h"
   "${SRC_DIR}/frame.cpp"
+  "${SRC_DIR}/fs.h"
+  "${SRC_DIR}/fs.cpp"
   "${SRC_DIR}/keymap_manager.h"
   "${SRC_DIR}/keymap_manager.cpp"
   "${SRC_DIR}/logging.h"
@@ -100,14 +112,14 @@ target_sources(
   "${SRC_DIR}/window.cpp"
 )
 target_link_libraries(
-  mango_lib 
+  mango_lib
   PUBLIC ${TERMBOX2_LIB} 
   PUBLIC Microsoft.GSL::GSL 
   PUBLIC nlohmann_json::nlohmann_json
 )
 target_include_directories(
   mango_lib 
-  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${GSL_INCLUDE_DIR}" "${JSON_INCLUDE_DIR}"
+  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}"
 )
 
 target_compile_definitions(mango_lib PUBLIC TB_OPT_ATTR_W=64 TB_OPT_EGC)
@@ -123,5 +135,11 @@ target_link_libraries(mango PUBLIC mango_lib)
 # Tests
 set(TEST_DIR "${CMAKE_SOURCE_DIR}/test")
 
-add_executable(logging_test "${TEST_DIR}/logging_test.cpp")
-target_link_libraries(logging_test PUBLIC mango_lib)
+add_executable(mango_test)
+target_sources(
+  mango_test PUBLIC
+  "${TEST_DIR}/logging_test.cpp"
+  "${TEST_DIR}/term_test.cpp"
+  "${TEST_DIR}/xxx_manager_test.cpp"
+)
+target_link_libraries(mango_test PUBLIC mango_lib Catch2::Catch2WithMain)

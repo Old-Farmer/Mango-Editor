@@ -22,15 +22,17 @@ class Frame {
 
     void Draw();
 
-    bool In(int s_col, int s_row);
+    bool In(size_t s_col, size_t s_row);
 
     void MakeCursorVisible();
 
     // return real b_view_col
-    int64_t SetCursorByBViewCol(int64_t b_view_col);
+    size_t SetCursorByBViewCol(size_t b_view_col);
 
-    void SetCursorHint(int s_row, int s_col);
+    void SetCursorHint(size_t s_row, size_t s_col);
 
+    // count > 0 for down
+    // < 0 for up
     void ScrollRows(int64_t count, bool cursor_in_frame);
     void ScrollCols(int64_t count);
 
@@ -43,14 +45,14 @@ class Frame {
 
     void DeleteCharacterBeforeCursor();
     // Only single "\n" or a no "\n" string is permitted
-    void AddStringAtCursor(const std::string& str);
+    void AddStringAtCursor(std::string str);
     void TabAtCursor();
 
    public:
-    int width_ = 0;
-    int height_ = 0;
-    int row_ = 0;  // window top left corner x related to the whole screen
-    int col_ = 0;  // window top left corner y related to the whole screen
+    size_t width_ = 0;
+    size_t height_ = 0;
+    size_t row_ = 0;  // window top left corner x related to the whole screen
+    size_t col_ = 0;  // window top left corner y related to the whole screen
     // (0, 0) ------------------------------------ row
     // |
     // |
@@ -62,8 +64,8 @@ class Frame {
     // b_view_row_) means the top left corner to show the buffer if the buffer
     // top left coner is (0, 0).
     // When wrap, b_view_col_ is not used
-    int64_t b_view_line_ = 0;
-    int64_t b_view_col_ = 0;
+    size_t b_view_line_ = 0;
+    size_t b_view_col_ = 0;
     bool wrap_ = false;
 
    private:

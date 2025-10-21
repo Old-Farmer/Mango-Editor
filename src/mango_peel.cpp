@@ -7,8 +7,8 @@ namespace mango {
 
 MangoPeel::MangoPeel(Cursor* cursor, Options* options)
     : frame_(&buffer_, cursor, options) {
-        buffer_.ReadAll();
-    }
+    buffer_.Load();
+}
 
 void MangoPeel::Draw() { frame_.Draw(); }
 
@@ -17,11 +17,11 @@ void MangoPeel::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-int64_t MangoPeel::SetCursorByBViewCol(int64_t b_view_col) {
+int64_t MangoPeel::SetCursorByBViewCol(size_t b_view_col) {
     return frame_.SetCursorByBViewCol(b_view_col);
 }
 
-void MangoPeel::SetCursorHint(int s_row, int s_col) {
+void MangoPeel::SetCursorHint(size_t s_row, size_t s_col) {
     frame_.SetCursorHint(s_row, s_col);
 }
 
@@ -45,10 +45,19 @@ void MangoPeel::DeleteCharacterBeforeCursor() {
     frame_.DeleteCharacterBeforeCursor();
 }
 
-void MangoPeel::AddStringAtCursor(const std::string& str) {
-    frame_.AddStringAtCursor(str);
+void MangoPeel::AddStringAtCursor(std::string str) {
+    frame_.AddStringAtCursor(std::move(str));
 }
 
 void MangoPeel::TabAtCursor() { frame_.TabAtCursor(); }
+
+void MangoPeel::SetContent(std::string content) {
+    buffer_.Clear();
+    buffer_.AddStringInLineAfter(0, 0, std::move(content));
+}
+
+const std::string& MangoPeel::GetContent() {
+    return buffer_.lines()[0].line_str;
+}
 
 }  // namespace mango

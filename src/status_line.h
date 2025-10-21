@@ -7,12 +7,13 @@ namespace mango {
 
 class Cursor;
 class Options;
+enum class Mode;
 
 // the status line stay above the mango peel.
 // Only one row.
 class StatusLine {
    public:
-    StatusLine(Cursor* cursor, Options* options);
+    StatusLine(Cursor* cursor, Options* options, Mode* mode);
     ~StatusLine() = default;
     MANGO_DELETE_COPY(StatusLine);
     MANGO_DEFAULT_MOVE(StatusLine);
@@ -20,12 +21,13 @@ class StatusLine {
     void Draw();
 
    public:
-    int width_ = 0;
-    int row_ = 0;  // top left corner x related to the whole screen
+    size_t width_ = 0;
+    size_t row_ = 0;  // top left corner x related to the whole screen
 
    private:
     Cursor* cursor_;
     Options* options_;
+    Mode* mode_;
 
     Terminal* term_ = &Terminal::GetInstance();
 };

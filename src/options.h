@@ -17,14 +17,15 @@ enum CharacterType : int {
     kComment
 };
 
+// Some options only useful when the program just starts
+struct InitOptions {
+    std::vector<const char*> begin_files;
+};
+
 // Use many magic numbers here. Just for convinience.
 struct Options {
     int poll_event_timeout_ms = -1;
     int64_t scroll_rows_per_mouse_wheel_scroll = 3;
-    std::vector<const char*> begin_files;
-
-    // // Now only Support single Keys
-    // std::unordered_map<Terminal::KeyInfo, Action> keymaps;
 
     // NOTE: Change carefully
     // See Terminall::Init

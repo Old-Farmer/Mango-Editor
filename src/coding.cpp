@@ -21,14 +21,18 @@ Result NextCharacterInUtf8(const std::string& str, int offset,
         assert(false);
     }
     width = Terminal::WCWidth(character[0]);
+    // non-printable
     if (width == -1) {
+        if (character[0] == kTabChar) {
+            return kOk;
+        }
         character[0] = kReplacementChar;
         width = 1;
-        assert(false);
+        assert(("width == -1", false));
     } else if (width == 0) {
         character[0] = kReplacementChar;
         width = 1;
-        assert(false);
+        assert(("width == 0", false));
     }
     return kOk;
 }
@@ -48,13 +52,16 @@ Result PrevCharacterInUtf8(const std::string& str, int offset,
             }
             width = Terminal::WCWidth(character[0]);
             if (width == -1) {
+                if (character[0] == kTabChar) {
+                    return kOk;
+                }
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(false);
+                assert(("width == -1", false));
             } else if (width == 0) {
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(false);
+                assert(("width == 0", false));
             }
             break;
         }

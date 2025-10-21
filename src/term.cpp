@@ -15,7 +15,7 @@ void Terminal::Init() {
         MANGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
-    ret = tb_set_input_mode(TB_INPUT_MOUSE);  // enable mouse
+    ret = tb_set_input_mode(TB_INPUT_ESC | TB_INPUT_MOUSE);  // enable mouse
     if (ret != TB_OK) {
         MANGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
@@ -36,7 +36,7 @@ int64_t Terminal::StringWidth(const std::string& str) {
     std::vector<uint32_t> character;
     int64_t offset = 0;
     int64_t width = 0;
-    while (offset < str.size()) {
+    while (offset < static_cast<int64_t>(str.size())) {
         int len, c_width;
         Result res = NextCharacterInUtf8(str, offset, character, len, c_width);
         assert(res == kOk);

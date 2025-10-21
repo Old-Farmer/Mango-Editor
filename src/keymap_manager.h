@@ -7,17 +7,14 @@
 
 namespace mango {
 
-// only support ascii keystr
-extern const std::unordered_map<std::string_view, Terminal::KeyInfo>
-    kKeyStrToKeyInfo;
 
-struct KeymapHandler {
+struct Keymap {
     std::string name;
     std::string description;
     std::function<void()> f;
 
-    KeymapHandler() = default;
-    KeymapHandler(std::function<void()> _f) : f(_f) {}
+    Keymap() = default;
+    Keymap(std::function<void()> _f) : f(_f) {}
 };
 
 class KeymapManager {
@@ -31,10 +28,10 @@ class KeymapManager {
     // handler. a keymap prefixed with another keymap will be hidden.
     // only ascii charset seq is supported.
 
-    // throws std::out_of_range if key str is not pre-defined
+    // throws KeyNotPredefinedException if key str is not pre-defined
     // this is always considered a bug and should fixed emidiately
     // return kError if keymap is not well formed
-    Result AddKeymap(const std::string& seq, KeymapHandler handler,
+    Result AddKeymap(const std::string& seq, Keymap handler,
                      const std::vector<Mode>& modes = kDefaultsModes);
     Result RemoveKeymap(const std::string& seq,
                         const std::vector<Mode>& modes = kDefaultsModes);
@@ -42,11 +39,11 @@ class KeymapManager {
     // return kKeymapError, kKeymapDone, kKeymapMatched
     // if kKeymapDone return, handler will be set to the related handler
     // NOTE: Be careful of the handler lifetime
-    Result FeedKey(const Terminal::KeyInfo& key, KeymapHandler*& handler);
+    Result FeedKey(const Terminal::KeyInfo& key, Keymap*& handler);
 
    private:
     // For simplicity, only ascii charset seq is supported.
-    // throws std::out_of_range if key str is not pre-defined
+    // throws KeyNotPredefinedException if key str is not pre-defined
     // return kError if keymap is not well formed by users
     Result ParseKeymap(const std::string& seq,
                        std::vector<Terminal::KeyInfo>& keys);
@@ -56,7 +53,7 @@ class KeymapManager {
     using Nexts = std::unordered_map<size_t, Node*>;
     // use Trie tree to organize keymaps
     struct Node {
-        KeymapHandler handler;
+        Keymap handler;
         Nexts nexts;
         bool end = false;
 

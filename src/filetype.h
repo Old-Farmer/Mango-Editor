@@ -1,13 +1,10 @@
 #pragma once
-#include <string>
+#include <string_view>
 
 namespace mango {
 
-enum class Filetype {
-    kText,
-    kC,
-};
+// A filetype is represented as an immutable string
 
-Filetype DecideFiletype(std::string& path);
+std::string_view DecideFiletype(std::string_view file_name);
 
 }  // namespace mango

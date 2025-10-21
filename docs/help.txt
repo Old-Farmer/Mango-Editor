@@ -2,5 +2,34 @@
 
 ## Keymaps
 
+# General
+
 - <ctrl-q> quit
+
+### Navigation
+
+- <home> line home
+- <end> line end
+- <pgdn> page down
+- <pgup> page up
+- <left> left arrow to move cursor left
+- <right> right to move cursor right
+- <up> up arrow to move cursor up
+- <down> down arrow to move cursor down
+- <c-b><c-n> or <c-pgdn> next buffer
+- <c-b><c-p> or <c-pgup> previous buffer
+- <c-f> to search, <c-n> <c-p> to jump to search result when in search mode
+- <esc> to escape to edit mode
+- <c-p> to go to peel(command)
+
+### Edit
+
+- <bs> backspace to del a character before cursor
+- <enter> insert a new line
+- <tab> tab to insert tab/spaces (see src/options.h)
 - <ctrl-s> save
+
+## Mouse
+
+- left click
+- scroll up/down

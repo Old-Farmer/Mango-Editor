@@ -11,9 +11,12 @@ constexpr uint32_t kSpaceChar = ' ';
 constexpr uint32_t kReplacementChar = 0xFFFD;  // �
 constexpr uint32_t kTabChar = '\t';
 constexpr uint32_t kTildeChar = '~';
+constexpr uint32_t kSlashChar = '/';
 
+constexpr const char* kSpace = " ";
 constexpr const char* kNewLine = "\n";
 constexpr const char* kTab = "\t";
+constexpr const char* kSlash = "/";
 
 bool IsUtf8BeginByte(char b);
 

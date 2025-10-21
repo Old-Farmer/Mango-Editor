@@ -24,14 +24,16 @@ void PrintUsage(int status = EXIT_SUCCESS) {
 
 }  // namespace
 
-void ParseCmdArgs(int argc, char* argv[], Options* options) {
+void ParseCmdArgs(int argc, char* argv[], Options* options,
+                  InitOptions* init_options) {
     const char* short_opts = "h";
     const option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
     };
 
     int c;
-    while ((c = getopt_long(argc, argv, short_opts, long_opts, nullptr)) != -1) {
+    while ((c = getopt_long(argc, argv, short_opts, long_opts, nullptr)) !=
+           -1) {
         switch (c) {
             case 'h': {
                 PrintUsage();
@@ -45,9 +47,9 @@ void ParseCmdArgs(int argc, char* argv[], Options* options) {
     }
 
     while (optind < argc) {
-        options->begin_files.push_back(argv[optind++]);
+        init_options->begin_files.push_back(argv[optind++]);
     }
-    for (auto file : options->begin_files) {
+    for (auto file : init_options->begin_files) {
         MANGO_LOG_DEBUG("cmd args: file name: %s", file);
     }
 }

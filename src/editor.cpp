@@ -1,37 +1,41 @@
 #include "editor.h"
 
+#include <inttypes.h>
+
 #include "coding.h"
+#include "fs.h"
 #include "options.h"
 #include "term.h"
 
 namespace mango {
 
-void Editor::Loop(std::unique_ptr<Options> options) {
+void Editor::Loop(std::unique_ptr<Options> options,
+                  std::unique_ptr<InitOptions> init_options) {
+    MANGO_LOG_DEBUG("Loop init");
     options_ = std::move(options);
-    status_line_ = std::make_unique<StatusLine>(&cursor_, options_.get());
+    status_line_ =
+        std::make_unique<StatusLine>(&cursor_, options_.get(), &mode_);
     peel_ = std::make_unique<MangoPeel>(&cursor_, options_.get());
 
-    // Create all buffers
-    for (const char* path : options_->begin_files) {
-        auto buffer = Buffer(path);
-        int64_t buffer_id = buffer.id();
-        auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
-        assert(inserted);
-        iter->second.AppendToList(buffer_list_tail_);
+    // Init cwd
+    try {
+        Path::GetCwdSys();
+        MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
+        // Create all buffers
+        for (const char* path : init_options->begin_files) {
+            buffer_manager_.AddBuffer(Buffer(path));
+        }
+    } catch (FSException& e) {
+        // TODO: notify user
     }
 
     // Create the first window.
-    // If no buffer then create one.
+    // If no buffer then create one no file backup buffer.
     Buffer* buf;
-    if (buffer_list_head_.next_ != nullptr) {
-        buf = buffer_list_head_.next_;
+    if (buffer_manager_.FirstBuffer() != nullptr) {
+        buf = buffer_manager_.FirstBuffer();
     } else {
-        Buffer buffer;
-        int64_t buffer_id = buffer.id();
-        auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
-        assert(inserted);
-        iter->second.AppendToList(buffer_list_tail_);
-        buf = &iter->second;
+        buf = buffer_manager_.AddBuffer({});
     }
     auto win = new Window(buf, &cursor_, options_.get());
     win->AppendToList(window_list_tail_);
@@ -43,6 +47,10 @@ void Editor::Loop(std::unique_ptr<Options> options) {
     Resize(term_.Width(), term_.Height());
 
     InitKeymaps();
+    InitCommands();
+
+    // init options end of life
+    init_options.reset();
 
     // Event Loop
     while (!quit_) {
@@ -69,6 +77,8 @@ void Editor::Loop(std::unique_ptr<Options> options) {
 
 void Editor::InitKeymaps() {
     std::vector<Mode> efp = {Mode::kEdit, Mode::kFind, Mode::kPeelCommand};
+
+    keymap_manager_.AddKeymap("<c-q>", {[this] { Quit(); }}, kAllModes);
     keymap_manager_.AddKeymap("<c-b><c-n>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeymap("<c-b><c-p>",
@@ -77,15 +87,21 @@ void Editor::InitKeymaps() {
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeymap("<c-pgup>",
                               {[this] { cursor_.in_window->PrevBuffer(); }});
-    keymap_manager_.AddKeymap("<c-p>", {[this] {}});
-    keymap_manager_.AddKeymap("<c-q>", {[this] { Quit(); }});
+    keymap_manager_.AddKeymap("<c-p>", {[this] { SearchPrev(); }},
+                              {Mode::kFind});
+    keymap_manager_.AddKeymap("<c-n>", {[this] { SearchNext(); }},
+                              {Mode::kFind});
+    keymap_manager_.AddKeymap("<c-p>", {[this] { GotoPeel(); }}, {Mode::kEdit});
+    keymap_manager_.AddKeymap(
+        "<esc>", {[this] { ExitFromMode(); }},
+        {Mode::kPeelCommand, Mode::kFind, Mode::kPeelShow});
     keymap_manager_.AddKeymap(
         "<c-s>", {[this] {
             try {
-                Result res = cursor_.in_window->frame_.buffer_->WriteAll();
+                Result res = cursor_.in_window->frame_.buffer_->Write();
                 if (res == kBufferNoBackupFile) {
                     // TODO: notify user
-                } else if (res == kBufferCannotRead) {
+                } else if (res == kBufferCannotLoad) {
                     // TODO: notify user
                 }
             } catch (IOException& e) {
@@ -93,6 +109,12 @@ void Editor::InitKeymaps() {
                 // TODO: notify user
             }
         }});
+    keymap_manager_.AddKeymap("<c-f>", {
+                                           [this] {
+                                               GotoPeel();
+                                               peel_->AddStringAtCursor("s ");
+                                           },
+                                       });
     keymap_manager_.AddKeymap(
         "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }},
         kDefaultsModes);
@@ -106,13 +128,26 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeymap(
         "<enter>",
         {[this] { cursor_.in_window->AddStringAtCursor(kNewLine); }});
-    keymap_manager_.AddKeymap("<enter>", {[this] {  // TODO
+    keymap_manager_.AddKeymap("<enter>", {[this] {
+                                  CommandArgs args;
+                                  Command* c;
+                                  Result res = command_manager.EvalCommand(
+                                      peel_->GetContent(), args, c);
+                                  if (res != kOk) {
+                                      return;
+                                  }
+                                  c->f(args);
                               }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<enter>", {[this] {
                                   // TODO
                               }},
                               {Mode::kPeelShow});
+    keymap_manager_.AddKeymap(
+        "<space>", {[this] { cursor_.in_window->AddStringAtCursor(kSpace); }});
+    keymap_manager_.AddKeymap("<space>",
+                              {[this] { peel_->AddStringAtCursor(kSpace); }},
+                              {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<left>",
                               {[this] { cursor_.in_window->CursorGoLeft(); }});
     keymap_manager_.AddKeymap("<left>", {[this] { peel_->CursorGoLeft(); }},
@@ -143,25 +178,63 @@ void Editor::InitKeymaps() {
                               }});
 }
 
+void Editor::InitCommands() {
+    command_manager.AddCommand({"h", "", {}, [](CommandArgs args) {}, 0});
+    command_manager.AddCommand({"e",
+                                "",
+                                {},
+                                [](CommandArgs args) {
+
+                                },
+                                1});
+    command_manager.AddCommand({"s",
+                                "",
+                                {Type::kString},
+                                [this](CommandArgs args) {
+                                    ExitFromMode();
+                                    mode_ = Mode::kFind;
+                                    MANGO_LOG_DEBUG(
+                                        "search %s",
+                                        std::get<std::string>(args[0]).c_str());
+                                    cursor_.in_window->BuildSearchContext(
+                                        std::get<std::string>(args[0]));
+                                    SearchNext();
+                                },
+                                1});
+}
+
 void Editor::HandleKey() {
     Terminal::KeyInfo key_info = term_.EventKeyInfo();
+
+#ifndef NDEBUG
     bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
     bool shift = key_info.mod & Terminal::Mod::kShift;
     bool alt = key_info.mod & Terminal::Mod::kAlt;
     bool motion = key_info.mod & Terminal::Mod::kMotion;
-    (void)ctrl, (void)shift, (void)alt, (void)motion;
+    char c[7];
+    int len = UnicodeToUtf8(key_info.codepoint, c);
+    c[len] = '\0';
+    MANGO_LOG_DEBUG(
+        "ctrl %d shift %d alt %d motion %d special key %d codepoint %" PRIu32
+        " char %s",
+        ctrl, shift, alt, motion, key_info.special_key, key_info.codepoint, c);
+#endif  // !NDEBUG
 
-    KeymapHandler* handler;
+    Keymap* handler;
     Result res = keymap_manager_.FeedKey(key_info, handler);
     if (res == kKeymapError) {
         // pure characters
         // not handled by the keymap manager
         if (!key_info.IsSpecialKey() && key_info.mod == 0) {
             uint32_t codepoint = key_info.codepoint;
-            char c[6];
+            char c[7];
             int len = UnicodeToUtf8(codepoint, c);
             assert(len > 0);
-            cursor_.in_window->AddStringAtCursor(c);
+            if (IsPeel(mode_)) {
+                peel_->AddStringAtCursor(c);
+            } else {
+                cursor_.in_window->AddStringAtCursor(c);
+            }
         }
         return;
     } else if (res == kKeymapMatched) {
@@ -174,8 +247,11 @@ void Editor::HandleKey() {
 }
 
 void Editor::HandleMouse() {
-    Terminal::MouseInfo mouse_info = term_.EventMouseInfo();
+    if (IsPeel(mode_)) {
+        return;
+    }
 
+    Terminal::MouseInfo mouse_info = term_.EventMouseInfo();
     switch (mouse_info.t) {
         using mk = Terminal::MouseKey;
         case mk::kLeft: {
@@ -238,8 +314,6 @@ void Editor::HandleResize() {
     Resize(resize_info.width, resize_info.height);
 }
 
-void Editor::Quit() { quit_ = true; }
-
 void Editor::Draw() {
     // First clear the screen so we don't need to print spaces for blank
     // screen parts
@@ -252,7 +326,7 @@ void Editor::Draw() {
 
     for (Window* window = window_list_head_.next_; window != nullptr;
          window = window->next_) {
-        if (window->frame_.buffer_->IsReadAll()) {
+        if (window->frame_.buffer_->IsLoad()) {
             window->Draw();
         }
     }
@@ -270,21 +344,24 @@ void Editor::PreProcess() {
          window = window->next_) {
         if (window->frame_.buffer_->state() == BufferState::kHaveNotRead) {
             try {
-                window->frame_.buffer_->ReadAll();
+                window->frame_.buffer_->Load();
             } catch (FileCreateException& e) {
                 window->frame_.buffer_->state() = BufferState::kCannotCreate;
                 MANGO_LOG_ERROR("%s", e.what());
                 // TODO: Notify the user
             } catch (IOException& e) {
                 window->frame_.buffer_->state() = BufferState::kCannotRead;
-                MANGO_LOG_ERROR("%s", e.what());
+                MANGO_LOG_ERROR(
+                    "buffer %s : %s",
+                    window->frame_.buffer_->path().AbsolutePath().c_str(),
+                    e.what());
                 // TODO: Notify the user
             }
         }
     }
-    if (mode_ == Mode::kEdit || mode_ == Mode::kFind) {
+    if (!IsPeel(mode_)) {
         cursor_.in_window->MakeCursorVisible();
-    } else if (mode_ == Mode::kPeelCommand) {
+    } else {
         peel_->MakeCursorVisible();
     }
 }
@@ -303,4 +380,77 @@ Editor& Editor::GetInstance() {
     static Editor editor;
     return editor;
 }
+
+void Editor::Help() {}
+
+void Editor::Quit() { quit_ = true; }
+
+void Editor::GotoPeel() {
+    assert(!IsPeel(mode_));
+
+    peel_->SetContent("");
+    cursor_.in_window->frame_.buffer_->SaveCursorState(cursor_);
+    cursor_.restore_from_peel = cursor_.in_window;
+    cursor_.in_window = nullptr;
+    cursor_.line = 0;
+    cursor_.byte_offset = 0;
+    mode_ = Mode::kPeelCommand;
+}
+
+void Editor::ExitFromMode() {
+    MANGO_LOG_DEBUG("enter ExitFromMode");
+    if (IsPeel(mode_)) {
+        peel_->SetContent("");
+        assert(cursor_.restore_from_peel);
+        cursor_.in_window = cursor_.restore_from_peel;
+        cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
+    } else if (mode_ == Mode::kFind) {
+        peel_->SetContent("");
+        assert(cursor_.in_window);
+        cursor_.in_window->DestorySearchContext();
+    }
+    MANGO_LOG_DEBUG("exit from mode");
+    mode_ = Mode::kEdit;
+}
+
+void Editor::SearchNext() {
+    assert(mode_ == Mode::kFind);
+    peel_->SetContent("");
+    std::stringstream ss;
+    auto& pattern = cursor_.in_window->GetSearchPattern();
+    if (!pattern.empty()) {
+        ss << "searching " << pattern << " ";
+        Window::SearchState state =
+            cursor_.in_window->CursorGoNextSearchResult();
+        if (state.total == 0) {
+            ss << "[No result]";
+        } else {
+            ss << "[" << state.i << "/" << state.total << "]";
+        }
+    } else {
+        ss << "No searching pattern";
+    }
+    peel_->SetContent(ss.str());
+}
+
+void Editor::SearchPrev() {
+    assert(mode_ == Mode::kFind);
+    peel_->SetContent("");
+    std::stringstream ss;
+    auto& pattern = cursor_.in_window->GetSearchPattern();
+    if (!pattern.empty()) {
+        ss << "searching " << pattern << " ";
+        Window::SearchState state =
+            cursor_.in_window->CursorGoPrevSearchResult();
+        if (state.total == 0) {
+            ss << "[No result]";
+        } else {
+            ss << "[" << state.i << "/" << state.total << "]";
+        }
+    } else {
+        ss << "No searching pattern";
+    }
+    peel_->SetContent(ss.str());
+}
+
 }  // namespace mango

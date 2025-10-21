@@ -8,16 +8,34 @@ using tm = Terminal;
 using ki = Terminal::KeyInfo;
 using sk = Terminal::SpecialKey;
 
-const std::unordered_map<std::string_view, Terminal::KeyInfo> kKeyStrToKeyInfo =
-    {
+// only support ascii keystr
+static const std::unordered_map<std::string_view, Terminal::KeyInfo>
+    kKeyStrToKeyInfo = {
+        // esc
+        {"<esc>", {ki::CreateSpecialKey(sk::kEsc)}},
+        {"<c-[>", {ki::CreateSpecialKey(sk::kCtrlLsqBracket)}},  // same <esc>
+        {"<c-3>", {ki::CreateSpecialKey(sk::kCtrl3)}},           // same <esc>
+
+        // traditioncal ascii control code
+        {"<c-a>", {ki::CreateSpecialKey(sk::kCtrlA, tm::kCtrl)}},
         {"<c-b>", {ki::CreateSpecialKey(sk::kCtrlB, tm::kCtrl)}},
+        {"<c-c>", {ki::CreateSpecialKey(sk::kCtrlC, tm::kCtrl)}},
+        {"<c-f>", {ki::CreateSpecialKey(sk::kCtrlF, tm::kCtrl)}},
+        {"<c-i>", {ki::CreateSpecialKey(sk::kCtrlI, tm::kCtrl)}},
+        {"<tab>", {ki::CreateSpecialKey(sk::kTab, tm::kCtrl)}},  // same <c-i>
+        {"<enter>", {ki::CreateSpecialKey(sk::kEnter, tm::kCtrl)}},
+        {"<c-m>",
+         {ki::CreateSpecialKey(sk::kCtrlM, tm::kCtrl)}},  // same <enter>
         {"<c-n>", {ki::CreateSpecialKey(sk::kCtrlN, tm::kCtrl)}},
         {"<c-p>", {ki::CreateSpecialKey(sk::kCtrlP, tm::kCtrl)}},
         {"<c-q>", {ki::CreateSpecialKey(sk::kCtrlQ, tm::kCtrl)}},
         {"<c-s>", {ki::CreateSpecialKey(sk::kCtrlS, tm::kCtrl)}},
         {"<bs>", {ki::CreateSpecialKey(sk::kBackspace2, tm::kCtrl)}},
-        {"<tab>", {ki::CreateSpecialKey(sk::kTab, tm::kCtrl)}},
-        {"<enter>", {ki::CreateSpecialKey(sk::kEnter, tm::kCtrl)}},
+        {"<c-8>", {ki::CreateSpecialKey(sk::kCtrl8, tm::kCtrl)}},  // same <bs>
+        {"<s-tab>", {ki::CreateSpecialKey(sk::kBackTab, tm::kCtrl)}},
+        {"<space>", {ki::CreateSpecialKey(sk::kSpace, tm::kCtrl)}},
+
+        // functional key
         {"<up>", {ki::CreateSpecialKey(sk::kArrowUp)}},
         {"<down>", {ki::CreateSpecialKey(sk::kArrowDown)}},
         {"<left>", {ki::CreateSpecialKey(sk::kArrowLeft)}},
@@ -30,12 +48,14 @@ const std::unordered_map<std::string_view, Terminal::KeyInfo> kKeyStrToKeyInfo =
         {"<c-pgdn>", {ki::CreateSpecialKey(sk::kPgdn, tm::kCtrl)}},
 };
 
-KeymapManager::KeymapManager(Mode& mode) : mode_(mode) {}
+KeymapManager::KeymapManager(Mode& mode) : mode_(mode) {
+    assert(roots_.size() == static_cast<size_t>(Mode::_COUNT));
+}
 
 Result KeymapManager::ParseKeymap(const std::string& seq,
                                   std::vector<Terminal::KeyInfo>& keys) {
     int start = -1;
-    for (int i = 0; i < seq.size(); i++) {
+    for (size_t i = 0; i < seq.size(); i++) {
         if (seq[i] == '<') {
             if (start != -1) {
                 return kError;
@@ -46,25 +66,31 @@ Result KeymapManager::ParseKeymap(const std::string& seq,
                 return kError;
             }
 
-            keys.push_back(kKeyStrToKeyInfo.at(
-                {seq.c_str() + start, static_cast<size_t>(i - start + 1)}));
+            std::string_view key = {seq.c_str() + start, i - start + 1};
+            auto iter = kKeyStrToKeyInfo.find(key);
+            if (iter == kKeyStrToKeyInfo.end()) {
+                std::string key_copy(key);
+                throw KeyNotPredefinedException("Didn't predefine %s",
+                                                key_copy.c_str());
+            }
+            keys.push_back(iter->second);
             start = -1;
         } else if (start == -1) {
-            keys.push_back(kKeyStrToKeyInfo.at({seq.c_str() + i, 1}));
+            keys.push_back(Terminal::KeyInfo::CreateNormalKey(seq[i]));
         }
     }
     return kOk;
 }
 
-Result KeymapManager::AddKeymap(const std::string& seq, KeymapHandler handler,
+Result KeymapManager::AddKeymap(const std::string& seq, Keymap handler,
                                 const std::vector<Mode>& modes) {
     std::vector<Terminal::KeyInfo> keys;
     Result res = ParseKeymap(seq, keys);
     if (res != kOk) {
         return res;
     }
-    for (Mode mode : modes) {
-        Node* node = &roots_[static_cast<int>(mode)];
+    for (size_t i = 0; i < modes.size(); i++) {
+        Node* node = &roots_[static_cast<size_t>(modes[i])];
         for (const Terminal::KeyInfo& key_info : keys) {
             auto iter = node->nexts.find(key_info.ToNumber());
             if (iter == node->nexts.end()) {
@@ -73,7 +99,11 @@ Result KeymapManager::AddKeymap(const std::string& seq, KeymapHandler handler,
             node = node->nexts[key_info.ToNumber()];
         }
         node->end = true;
-        node->handler = std::move(handler);
+        if (i == modes.size() - 1) {
+            node->handler = std::move(handler);
+        } else {
+            node->handler = handler;
+        }
     }
     return res;
 }
@@ -116,8 +146,7 @@ Result KeymapManager::RemoveKeymap(const std::string& seq,
     return res;
 }
 
-Result KeymapManager::FeedKey(const Terminal::KeyInfo& key,
-                              KeymapHandler*& handler) {
+Result KeymapManager::FeedKey(const Terminal::KeyInfo& key, Keymap*& handler) {
     if (cur_ == nullptr) {
         cur_ = &roots_[static_cast<int>(mode_)];
         last_mode_ = mode_;

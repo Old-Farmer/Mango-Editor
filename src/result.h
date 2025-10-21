@@ -11,11 +11,14 @@ enum Result {
     kError,
     kTermOutOfBounds,
     kBufferNoBackupFile,
-    kBufferCannotRead,
+    kBufferCannotLoad,
+    kBufferReadOnly,
     kEof,
     kKeymapError,
     kKeymapDone,
     kKeymapMatched,
+    kCommandNotExist,
+    kCommandInvalidArgs,
 };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};

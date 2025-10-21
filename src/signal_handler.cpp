@@ -22,7 +22,7 @@ static sighandler_t Signal(int signum, sighandler_t handler) {
     action.sa_flags = SA_RESTART;  // restart syscalls if possible
 
     if (sigaction(signum, &action, &old_action) < 0) {
-        throw SignalException("%s", strerror(errno));
+        throw SignalRegisterException("%s", strerror(errno));
     }
     return (old_action.sa_handler);
 }

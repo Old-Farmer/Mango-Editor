@@ -6,14 +6,12 @@
 #include "exception.h"
 
 namespace mango {
-    FILE* logging_file;
+FILE* logging_file;
 
-    constexpr const char* kloggingFilePath = "mango.log";
-
-    void LogInit() {
-        logging_file = fopen(kloggingFilePath, "a+");
-        if (logging_file == nullptr) {
-            throw LoggingException("Log file can't open: %s", strerror(errno));
-        }
+void LogInit(const std::string& file) {
+    logging_file = fopen(file.c_str(), "a+");
+    if (logging_file == nullptr) {
+        throw LoggingException("Log file can't open: %s", strerror(errno));
     }
 }
+}  // namespace mango

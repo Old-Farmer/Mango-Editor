@@ -10,7 +10,9 @@ namespace mango {
 
 extern FILE* logging_file;
 
-void LogInit();
+constexpr std::string_view kloggingFilePath = "mango.log";
+
+void LogInit(const std::string& file);
 
 inline std::string GetTime(const char* format = "%Y-%m-%d %H:%M:%S") {
     std::stringstream ss;
@@ -20,11 +22,11 @@ inline std::string GetTime(const char* format = "%Y-%m-%d %H:%M:%S") {
     return ss.str();
 }
 
-#define MANGO_DEBUG_PREFIX "[DEBUG]"
-#define MANGO_INFO_PREFIX "[INFO]"
-#define MANGO_WARN_PREFIX "[WARN]"
-#define MANGO_ERROR_PREFIX "[ERROR]"
-#define MANGO_UNKNOWN_PREFIX "[UNKNOWN]"
+constexpr std::string_view kDebugPrefix = "[DEBUG]";
+constexpr std::string_view kInfoPrefix = "[INFO]";
+constexpr std::string_view kWarnPrefix = "[WARN]";
+constexpr std::string_view kErrorPrefix = "[ERROR]";
+constexpr std::string_view kUnknownPrefix = "[UNKNOWN]";
 
 enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
@@ -32,15 +34,15 @@ enum class LogLevel { kDebug, kInfo, kWarn, kError };
     do {                                                                    \
         std::stringstream ss;                                               \
         if constexpr ((level) == LogLevel::kDebug) {                        \
-            ss << MANGO_DEBUG_PREFIX;                                       \
+            ss << kDebugPrefix;                                             \
         } else if constexpr ((level) == LogLevel::kInfo) {                  \
-            ss << MANGO_INFO_PREFIX;                                        \
+            ss << kInfoPrefix;                                              \
         } else if constexpr ((level) == LogLevel::kWarn) {                  \
-            ss << MANGO_WARN_PREFIX;                                        \
+            ss << kWarnPrefix;                                              \
         } else if constexpr ((level) == LogLevel::kError) {                 \
-            ss << MANGO_ERROR_PREFIX;                                       \
+            ss << kErrorPrefix;                                             \
         } else {                                                            \
-            ss << MANGO_UNKNOWN_PREFIX;                                     \
+            ss << kUnknownPrefix;                                           \
         }                                                                   \
         ss << "(" << __builtin_FILE() << ":" << __LINE__ << ":" << __func__ \
            << ")" << " " << GetTime() << ": ";                              \

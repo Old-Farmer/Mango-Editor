@@ -10,8 +10,8 @@
 
 namespace mango {
 
-StatusLine::StatusLine(Cursor* cursor, Options* options)
-    : cursor_(cursor), options_(options) {}
+StatusLine::StatusLine(Cursor* cursor, Options* options, Mode* mode)
+    : cursor_(cursor), options_(options), mode_(mode) {}
 
 void StatusLine::Draw() {
     CharacterType t = kReverse;
@@ -19,14 +19,16 @@ void StatusLine::Draw() {
     term_->Print(0, row_, options_->attr_table[t],
                  std::string(width_, kSpaceChar).c_str());
 
-    std::string cursor_in_info;
-    if (cursor_->in_window != nullptr) {
-        Buffer* b = cursor_->in_window->frame_.buffer_;
-        cursor_in_info = (b->path().empty() ? "[new file]" : b->path()) +
-                         BufferStateString[static_cast<int>(b->state())];
+    Buffer* b;
+    if (IsPeel(*mode_)) {
+        b = cursor_->restore_from_peel->frame_.buffer_;
     } else {
-        cursor_in_info = "[Mango Peel]";
+        b = cursor_->in_window->frame_.buffer_;
     }
+    std::string cursor_in_info =
+        (b->path().Empty() ? std::string("[new file]")
+                           : std::string(b->path().ThisPath().data())) +
+        BufferStateString[static_cast<int>(b->state())];
 
     Result res = term_->Print(options_->status_line_left_indent, row_,
                               options_->attr_table[t], cursor_in_info.c_str());
@@ -35,7 +37,16 @@ void StatusLine::Draw() {
     }
 
     std::stringstream ss;
-    ss << "  " << cursor_->line << "," << cursor_->character_in_line;
+    int64_t line, character_in_line;
+    if (IsPeel(*mode_)) {
+        line = cursor_->restore_from_peel->frame_.buffer_->cursor_state_line_;
+        character_in_line = cursor_->restore_from_peel->frame_.buffer_
+                                ->cursor_state_character_in_line_;
+    } else {
+        line = cursor_->line;
+        character_in_line = cursor_->character_in_line;
+    }
+    ss << "  " << line << "," << character_in_line;
     // all is ascii character, so str len == width
     res = term_->Print(
         width_ - ss.str().length() - options_->status_line_right_indent, row_,

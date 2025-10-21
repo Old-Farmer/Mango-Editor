@@ -45,6 +45,13 @@ class FileCreateException : public IOException {
         : IOException(format, args...) {}
 };
 
+class FSException : public Exception {
+   public:
+    template <typename... Args>
+    FSException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
 class LoggingException : public Exception {
    public:
     template <typename... Args>
@@ -52,10 +59,17 @@ class LoggingException : public Exception {
         : Exception(format, args...) {}
 };
 
-class SignalException : public Exception {
+class SignalRegisterException : public Exception {
    public:
     template <typename... Args>
-    SignalException(const char* format, Args... args)
+    SignalRegisterException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
+class KeyNotPredefinedException : public Exception {
+   public:
+    template <typename... Args>
+    KeyNotPredefinedException(const char* format, Args... args)
         : Exception(format, args...) {}
 };
 

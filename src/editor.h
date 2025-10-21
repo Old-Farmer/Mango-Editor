@@ -1,9 +1,10 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
 
 #include "buffer.h"
+#include "buffer_manager.h"
+#include "command_manager.h"
 #include "cursor.h"
 #include "keymap_manager.h"
 #include "mango_peel.h"
@@ -14,6 +15,7 @@
 
 namespace mango {
 
+class InitOptions;
 class Options;
 
 class Editor {
@@ -26,32 +28,38 @@ class Editor {
 
     // Make sure that options is static lifetime
     // throws TermException
-    void Loop(std::unique_ptr<Options> options);
+    void Loop(std::unique_ptr<Options> options,
+              std::unique_ptr<InitOptions> init_options);
 
+    static Editor& GetInstance();
+
+    void Help();
+    void Quit();
+
+   private:
     void InitKeymaps();
+    void InitCommands();
     void HandleKey();
     void HandleMouse();
     void HandleResize();
 
     void Draw();
     void PreProcess();
-
-    void Quit();
-
     void Resize(int width, int height);
 
-    Window* LocateWindow(int s_col, int s_row);
+    void GotoPeel();
+    void ExitFromMode();
+    void SearchNext();
+    void SearchPrev();
 
-    static Editor& GetInstance();
+    // helper methods
+    Window* LocateWindow(int s_col, int s_row);
 
    private:
     MouseState moust_state_ = MouseState::kReleased;
     Mode mode_ = Mode::kEdit;
 
-    // Buffers
-    std::unordered_map<int64_t, Buffer> buffers_;
-    Buffer buffer_list_head_ = Buffer();
-    Buffer* buffer_list_tail_ = &buffer_list_head_;
+    BufferManager buffer_manager_;
 
     // Now only support one window in the screen
     // TODO: mutiple window logic
@@ -67,6 +75,7 @@ class Editor {
     std::unique_ptr<StatusLine> status_line_;
 
     KeymapManager keymap_manager_{mode_};
+    CommandManager command_manager;
 
     Terminal& term_ = Terminal::GetInstance();
 };

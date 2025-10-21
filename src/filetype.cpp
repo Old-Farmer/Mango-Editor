@@ -1,21 +1,66 @@
 #include "filetype.h"
 
 #include <unordered_map>
+#include <string>
 
 namespace mango {
 
-Filetype DecideFiletype(std::string& path) {
-    std::string::size_type pos = path.find_last_of('.');
+constexpr std::string_view kDefaultFileType = "text";
+
+// clang-format off
+static const std::unordered_map<std::string_view, std::string_view> kSuffixToFiletype = {
+    {"c", "c"},
+    {"cpp", "cpp"},
+    {"cc", "cpp"},
+    {"cxx", "cpp"},
+    {"h", "cpp"},
+    {"hpp", "cpp"},
+    {"hh", "cpp"},
+    {"hxx", "cpp"},
+    {"rs", "rust"},
+    {"go", "go"},
+    {"java", "java"},
+    {"kt", "kotlin"},
+    {"cs", "csharp"},
+    {"py", "python"},
+    {"lua", "lua"},
+    {"js", "javascript"},
+    {"ts", "typescript"},
+    {"bash", "bash"},
+    {"sh", "shell"},
+    {"txt", kDefaultFileType},
+    {"json", "json"},
+    {"toml", "toml"},
+    {"yaml", "yaml"},
+    {"md", "markdown"},
+    {"cmake", "cmake"},
+};
+
+// file name is prior to suffix
+static const std::unordered_map<std::string_view, std::string_view> kNameToFiletype = {
+    {"CMakeLists.txt", "cmake"},
+};
+// clang-format on
+
+std::string_view DecideFiletype(std::string_view file_name) {
+    auto iter = kNameToFiletype.find(file_name);
+    if (iter != kNameToFiletype.end()) {
+        return iter->second;
+    }
+
+    std::string::size_type pos = file_name.find_last_of('.');
     if (pos == std::string::npos) {
-        return Filetype::kText;
+        return kDefaultFileType;
     }
 
     // TODO: regex and better
-    std::string_view suffix(path.c_str() + pos + 1, path.size() - pos - 1);
-    if (suffix == "c") {
-        return Filetype::kC;
+    std::string_view suffix(file_name.data() + pos + 1,
+                            file_name.size() - pos - 1);
+    auto iter2 = kSuffixToFiletype.find(suffix);
+    if (iter2 == kSuffixToFiletype.end()) {
+        return kDefaultFileType;
     }
-    return Filetype::kText;
+    return iter2->second;
 }
 
 }  // namespace mango
