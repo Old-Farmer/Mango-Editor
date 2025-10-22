@@ -5,12 +5,12 @@
 
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept
-    : frame_(buffer, cursor, options) {}
+    : frame_(buffer, cursor, options), cursor_(cursor) {}
 
 void Window::Draw() { frame_.Draw(); }
 
 void Window::MakeCursorVisible() {
-    assert(frame_.cursor_->in_window == this);
+    assert(cursor_->in_window == this);
     frame_.MakeCursorVisible();
 }
 
@@ -23,7 +23,7 @@ void Window::SetCursorHint(size_t s_row, size_t s_col) {
 }
 
 void Window::ScrollRows(int64_t count) {
-    frame_.ScrollRows(count, frame_.cursor_->in_window == this);
+    frame_.ScrollRows(count, cursor_->in_window == this);
 }
 
 void Window::ScrollCols(int64_t count) { frame_.ScrollCols(count); }
@@ -51,21 +51,23 @@ void Window::AddStringAtCursor(std::string str) {
 void Window::TabAtCursor() { frame_.TabAtCursor(); }
 
 void Window::NextBuffer() {
-    Buffer* next = frame_.buffer_->next_;
-    if (next) {
-        DetachBuffer();
-        frame_.buffer_ = next;
-        frame_.buffer_->RestoreCursorState(*frame_.cursor_);
+    if (frame_.buffer_->IsLastBuffer()) {
+        return;
     }
+    Buffer* next = frame_.buffer_->next_;
+    DetachBuffer();
+    frame_.buffer_ = next;
+    frame_.buffer_->RestoreCursorState(*cursor_);
 }
 
 void Window::PrevBuffer() {
-    Buffer* prev = frame_.buffer_->prev_;
-    if (prev && prev->prev_) {  // not head
-        DetachBuffer();
-        frame_.buffer_ = prev;
-        frame_.buffer_->RestoreCursorState(*frame_.cursor_);
+    if (frame_.buffer_->IsFirstBuffer()) {
+        return;
     }
+    Buffer* prev = frame_.buffer_->prev_;
+    DetachBuffer();
+    frame_.buffer_ = prev;
+    frame_.buffer_->RestoreCursorState(*cursor_);
 }
 
 void Window::AttachBuffer(Buffer* buffer) {
@@ -73,12 +75,12 @@ void Window::AttachBuffer(Buffer* buffer) {
         DetachBuffer();
     }
     frame_.buffer_ = buffer;
-    frame_.buffer_->RestoreCursorState(*frame_.cursor_);
+    frame_.buffer_->RestoreCursorState(*cursor_);
 }
 
 void Window::DetachBuffer() {
     if (frame_.buffer_) {
-        frame_.buffer_->SaveCursorState(*frame_.cursor_);
+        frame_.buffer_->SaveCursorState(*cursor_);
         frame_.buffer_ = nullptr;
         DestorySearchContext();
     }
@@ -116,34 +118,33 @@ Window::SearchState Window::CursorGoNextSearchResult() {
         int64_t mid = left + (right - left) / 2;
         size_t line = search_result_[mid].line;
         size_t byte_offset = search_result_[mid].byte_offset;
-        if (line == frame_.cursor_->line &&
-            byte_offset == frame_.cursor_->byte_offset) {
+        if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
             if (static_cast<size_t>(mid) == search_result_.size() - 1) {
                 mid = 0;
             } else {
                 mid++;
             }
-            frame_.cursor_->line = search_result_[mid].line;
-            frame_.cursor_->byte_offset = search_result_[mid].byte_offset;
-            frame_.cursor_->DontHoldColWant();
+            cursor_->line = search_result_[mid].line;
+            cursor_->byte_offset = search_result_[mid].byte_offset;
+            cursor_->DontHoldColWant();
             return {static_cast<size_t>(mid + 1), search_result_.size()};
-        } else if (frame_.cursor_->line < line ||
-                   (frame_.cursor_->line == line &&
-                    frame_.cursor_->byte_offset < byte_offset)) {
+        } else if (cursor_->line < line ||
+                   (cursor_->line == line &&
+                    cursor_->byte_offset < byte_offset)) {
             right = mid - 1;
         } else {
             left = mid + 1;
         }
     }
     if (static_cast<size_t>(left) == search_result_.size()) {
-        frame_.cursor_->line = search_result_[0].line;
-        frame_.cursor_->byte_offset = search_result_[0].byte_offset;
-        frame_.cursor_->DontHoldColWant();
+        cursor_->line = search_result_[0].line;
+        cursor_->byte_offset = search_result_[0].byte_offset;
+        cursor_->DontHoldColWant();
         return {1, search_result_.size()};
     }
-    frame_.cursor_->line = search_result_[left].line;
-    frame_.cursor_->byte_offset = search_result_[left].byte_offset;
-    frame_.cursor_->DontHoldColWant();
+    cursor_->line = search_result_[left].line;
+    cursor_->byte_offset = search_result_[left].byte_offset;
+    cursor_->DontHoldColWant();
     return {static_cast<size_t>(left + 1), search_result_.size()};
 }
 
@@ -167,20 +168,19 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
         int64_t mid = left + (right - left) / 2;
         size_t line = search_result_[mid].line;
         size_t byte_offset = search_result_[mid].byte_offset;
-        if (line == frame_.cursor_->line &&
-            byte_offset == frame_.cursor_->byte_offset) {
+        if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
             if (mid == 0) {
                 mid = search_result_.size() - 1;
             } else {
                 mid--;
             }
-            frame_.cursor_->line = search_result_[mid].line;
-            frame_.cursor_->byte_offset = search_result_[mid].byte_offset;
-            frame_.cursor_->DontHoldColWant();
+            cursor_->line = search_result_[mid].line;
+            cursor_->byte_offset = search_result_[mid].byte_offset;
+            cursor_->DontHoldColWant();
             return {static_cast<size_t>(mid + 1), search_result_.size()};
-        } else if (frame_.cursor_->line < line ||
-                   (frame_.cursor_->line == line &&
-                    frame_.cursor_->byte_offset < byte_offset)) {
+        } else if (cursor_->line < line ||
+                   (cursor_->line == line &&
+                    cursor_->byte_offset < byte_offset)) {
             right = mid - 1;
         } else {
             left = mid + 1;
@@ -188,38 +188,15 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
     }
     if (static_cast<size_t>(left) == 0) {
         size_t last = search_result_.size() - 1;
-        frame_.cursor_->line = search_result_[last].line;
-        frame_.cursor_->byte_offset = search_result_[last].byte_offset;
-        frame_.cursor_->DontHoldColWant();
+        cursor_->line = search_result_[last].line;
+        cursor_->byte_offset = search_result_[last].byte_offset;
+        cursor_->DontHoldColWant();
         return {last, search_result_.size()};
     }
-    frame_.cursor_->line = search_result_[left - 1].line;
-    frame_.cursor_->byte_offset = search_result_[left - 1].byte_offset;
-    frame_.cursor_->DontHoldColWant();
+    cursor_->line = search_result_[left - 1].line;
+    cursor_->byte_offset = search_result_[left - 1].byte_offset;
+    cursor_->DontHoldColWant();
     return {static_cast<size_t>(left), search_result_.size()};
-}
-
-Window Window::CreateListHead() noexcept { return Window(); }
-
-void Window::AppendToList(Window*& tail) noexcept {
-    assert(tail->next_ == nullptr);
-
-    tail->next_ = this;
-    prev_ = tail;
-    next_ = nullptr;
-
-    tail = this;
-}
-
-void Window::RemoveFromList() noexcept {
-    if (next_ == nullptr) {
-        prev_->next_ = next_;
-        prev_ = nullptr;
-        return;
-    }
-    // Must have a dummy head
-    next_->prev_ = prev_;
-    next_ = nullptr;
 }
 
 int64_t Window::AllocId() noexcept { return cur_window_id_++; }

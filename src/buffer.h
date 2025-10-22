@@ -74,6 +74,7 @@ class Buffer {
    public:
     Buffer();
     Buffer(std::string path, bool read_only = false);
+    Buffer(Path path, bool read_only = false);
     MANGO_DELETE_COPY(Buffer);
     MANGO_DEFAULT_MOVE(Buffer);
 
@@ -117,8 +118,10 @@ class Buffer {
     int64_t version() { return version_; }
 
     // Buffer list op
-    void AppendToList(Buffer*& tail) noexcept;
+    void AppendToList(Buffer* tail) noexcept;
     void RemoveFromList() noexcept;
+    bool IsLastBuffer();
+    bool IsFirstBuffer();
 
     void SaveCursorState(Cursor& cursor);
     void RestoreCursorState(Cursor& cursor);
@@ -147,7 +150,7 @@ class Buffer {
     bool read_only_ = false;
     int64_t version_;
 
-    int64_t id_;
+    int64_t id_ = AllocId();
 
     static int64_t cur_buffer_id_;
 };

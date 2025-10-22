@@ -11,16 +11,16 @@ enum class MouseState : int {
 
 enum class BufferState : int {
     kModified = 0,
-    kNotModified,
-    kCannotRead,
-    kHaveNotRead,
-    kCannotCreate,
-    kReadOnly
+    kNotModified = 1,
+    kCannotRead = 2,
+    kHaveNotRead = 3,
+    kCannotCreate = 4,
+    kReadOnly = 5
 };
 
-constexpr const char* BufferStateString[] = {
-    "[Modified]",    "", "[Can't Read]", "[Haven't Read]",
-    "[Can' Create]", "", "[Read Only]"};
+constexpr const char* BufferStateString[] = {"[Modified]",    "",
+                                             "[Can't Read]",  "[Haven't Read]",
+                                             "[Can' Create]", "[Read Only]"};
 
 enum class Mode : int {
     kEdit = 0,

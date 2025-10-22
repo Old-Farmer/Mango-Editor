@@ -57,11 +57,6 @@ class Window {
     SearchState CursorGoNextSearchResult();
     SearchState CursorGoPrevSearchResult();
 
-    // window list op
-    static Window CreateListHead() noexcept;
-    void AppendToList(Window*& tail) noexcept;
-    void RemoveFromList() noexcept;
-
    private:
     static int64_t AllocId() noexcept;
     Window() {}  // only for list head
@@ -69,10 +64,9 @@ class Window {
    public:
     Frame frame_;
 
-    Window* next_ = nullptr;
-    Window* prev_ = nullptr;
-
    private:
+    Cursor* cursor_;
+
     std::vector<ByteRange> search_result_;
     std::string search_pattern_;
     int64_t search_buffer_version_ = -1;

@@ -51,6 +51,8 @@ const std::string& Path::AbsolutePath() const noexcept {
 
 const std::string& Path::GetCwd() noexcept { return cwd_; }
 
+const std::string& Path::GetAppRoot() noexcept { return app_root_; }
+
 const std::string& Path::GetCwdSys() {
     cwd_version_++;
     char buf[PATH_MAX + 1];
@@ -62,7 +64,31 @@ const std::string& Path::GetCwdSys() {
     return cwd_;
 }
 
+const std::string& Path::GetAppRootSys() {
+    char buf[PATH_MAX + 1];
+    ssize_t len = readlink("/proc/self/exe", buf, PATH_MAX + 1);
+    if (len == -1) {
+        throw FSException("GetAppRootSys Error: %s", strerror(errno));
+    }
+    buf[len] = '\0';
+    app_root_ = std::string(buf);
+    auto pos = app_root_.find_last_of(kSlashChar, app_root_.size() - 1);
+    if (pos == std::string::npos) {
+        throw FSException("%",
+                          "GetAppRootSys Error: find_last_of can't find a /");
+    }
+    pos = app_root_.find_last_of(kSlashChar, pos - 1);
+    if (pos == std::string::npos) {
+        throw FSException(
+            "%", "GetAppRootSys Error: find_last_of can't find another /");
+    }
+    app_root_.resize(pos);
+    return app_root_;
+}
+
 std::string Path::cwd_ = "";
 int64_t Path::cwd_version_ = 0;
+
+std::string Path::app_root_ = "";
 
 }  // namespace mango

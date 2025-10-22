@@ -26,4 +26,10 @@ namespace mango {
 // a string_view must terminated by a '\0'
 using zstring_view = std::string_view;
 
+template <typename T>
+struct List {
+    T head;
+    T tail;
+};
+
 }  // namespace mango

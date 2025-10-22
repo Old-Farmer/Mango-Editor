@@ -20,6 +20,7 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<c-a>", {ki::CreateSpecialKey(sk::kCtrlA, tm::kCtrl)}},
         {"<c-b>", {ki::CreateSpecialKey(sk::kCtrlB, tm::kCtrl)}},
         {"<c-c>", {ki::CreateSpecialKey(sk::kCtrlC, tm::kCtrl)}},
+        {"<c-d>", {ki::CreateSpecialKey(sk::kCtrlD, tm::kCtrl)}},
         {"<c-f>", {ki::CreateSpecialKey(sk::kCtrlF, tm::kCtrl)}},
         {"<c-i>", {ki::CreateSpecialKey(sk::kCtrlI, tm::kCtrl)}},
         {"<tab>", {ki::CreateSpecialKey(sk::kTab, tm::kCtrl)}},  // same <c-i>

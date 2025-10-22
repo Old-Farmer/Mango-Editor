@@ -36,6 +36,11 @@ class Editor {
     void Help();
     void Quit();
 
+    void GotoPeel();
+    void ExitFromMode();
+    void SearchNext();
+    void SearchPrev();
+
    private:
     void InitKeymaps();
     void InitCommands();
@@ -46,11 +51,6 @@ class Editor {
     void Draw();
     void PreProcess();
     void Resize(int width, int height);
-
-    void GotoPeel();
-    void ExitFromMode();
-    void SearchNext();
-    void SearchPrev();
 
     // helper methods
     Window* LocateWindow(int s_col, int s_row);
@@ -63,8 +63,7 @@ class Editor {
 
     // Now only support one window in the screen
     // TODO: mutiple window logic
-    Window window_list_head_ = Window::CreateListHead();
-    Window* window_list_tail_ = &window_list_head_;
+    std::unique_ptr<Window> window_;
 
     bool quit_ = false;
 

@@ -88,10 +88,13 @@ void File::Fsync() {
 
 int64_t Buffer::cur_buffer_id_ = 0;
 
-Buffer::Buffer() : id_(AllocId()) { lines_.push_back({}); }
+Buffer::Buffer() {}
 
 Buffer::Buffer(std::string path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only), id_(AllocId()) {}
+    : path_(std::move(path)), read_only_(read_only) {}
+
+Buffer::Buffer(Path path, bool read_only)
+    : path_(std::move(path)), read_only_(read_only) {}
 
 void Buffer::Load() {
     try {
@@ -268,26 +271,23 @@ std::vector<ByteRange> Buffer::Search(const std::string& pattern) {
     return res;
 }
 
-void Buffer::AppendToList(Buffer*& tail) noexcept {
-    assert(tail->next_ == nullptr);
-
-    tail->next_ = this;
-    prev_ = tail;
-    next_ = nullptr;
-
-    tail = this;
+void Buffer::AppendToList(Buffer* tail) noexcept {
+    tail->prev_->next_ = this;
+    prev_ = tail->prev_;
+    next_ = tail;
+    tail->prev_ = this;
 }
 
 void Buffer::RemoveFromList() noexcept {
-    if (next_ == nullptr) {
-        prev_->next_ = next_;
-        prev_ = nullptr;
-        return;
-    }
-    // Must have a dummy head
+    // Must have a dummy head and tail_
     next_->prev_ = prev_;
+    prev_->next_ = next_;
     next_ = nullptr;
+    prev_ = nullptr;
 }
+
+bool Buffer::IsLastBuffer() { return next_->next_ == nullptr; }
+bool Buffer::IsFirstBuffer() { return prev_->prev_ == nullptr; }
 
 void Buffer::SaveCursorState(Cursor& cursor) {
     cursor_state_line_ = cursor.line;

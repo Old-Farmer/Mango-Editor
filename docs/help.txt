@@ -5,6 +5,7 @@
 # General
 
 - <ctrl-q> quit
+- <c-p> to go to peel(command)
 
 ### Navigation
 
@@ -20,7 +21,6 @@
 - <c-b><c-p> or <c-pgup> previous buffer
 - <c-f> to search, <c-n> <c-p> to jump to search result when in search mode
 - <esc> to escape to edit mode
-- <c-p> to go to peel(command)
 
 ### Edit
 
@@ -33,3 +33,9 @@
 
 - left click
 - scroll up/down
+
+## Commands
+
+- "s <search-pattern>" search string
+- "h" goto help
+- "e <path>" goto and edit the file

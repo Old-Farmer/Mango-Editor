@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+
 #include "buffer.h"
 #include "utils.h"
 
@@ -11,7 +12,8 @@ class Path;
 
 class BufferManager {
    public:
-    MANGO_DEFAULT_CONSTRUCT_DESTRUCT(BufferManager);
+    BufferManager();
+    ~BufferManager() = default;
     MANGO_DELETE_COPY(BufferManager);
     MANGO_DELETE_MOVE(BufferManager);
 
@@ -24,8 +26,8 @@ class BufferManager {
 
    private:
     std::unordered_map<int64_t, Buffer> buffers_;
-    Buffer buffer_list_head_ = Buffer();
-    Buffer* buffer_list_tail_ = &buffer_list_head_;
+    Buffer list_head_;
+    Buffer list_tail_;
 };
 
 }  // namespace mango

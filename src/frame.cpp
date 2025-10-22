@@ -136,7 +136,7 @@ void Frame::MakeCursorVisible() {
     if (row < b_view_line_) {
         b_view_line_ = row;
     } else if (row - b_view_line_ >= height_) {
-        b_view_line_ = row + 2 - height_;
+        b_view_line_ = row + 1 - height_;
     }
 
     cursor_->s_row = row - b_view_line_ + row_;

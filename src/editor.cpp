@@ -3,6 +3,7 @@
 #include <inttypes.h>
 
 #include "coding.h"
+#include "constants.h"
 #include "fs.h"
 #include "options.h"
 #include "term.h"
@@ -21,12 +22,15 @@ void Editor::Loop(std::unique_ptr<Options> options,
     try {
         Path::GetCwdSys();
         MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
+        Path::GetAppRootSys();
+        MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
         // Create all buffers
         for (const char* path : init_options->begin_files) {
             buffer_manager_.AddBuffer(Buffer(path));
         }
     } catch (FSException& e) {
         // TODO: notify user
+        throw;
     }
 
     // Create the first window.
@@ -37,11 +41,11 @@ void Editor::Loop(std::unique_ptr<Options> options,
     } else {
         buf = buffer_manager_.AddBuffer({});
     }
-    auto win = new Window(buf, &cursor_, options_.get());
-    win->AppendToList(window_list_tail_);
+    MANGO_LOG_DEBUG("buffer %s", buf->path().ThisPath().data());
+    window_ = std::make_unique<Window>(buf, &cursor_, options_.get());
 
     // Set Cursor in the first window
-    cursor_.in_window = window_list_head_.next_;
+    cursor_.in_window = window_.get();
 
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
@@ -83,6 +87,18 @@ void Editor::InitKeymaps() {
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeymap("<c-b><c-p>",
                               {[this] { cursor_.in_window->PrevBuffer(); }});
+    keymap_manager_.AddKeymap(
+        "<c-b><c-d>", {[this] {
+            Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
+            if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
+                cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer({}));
+            } else if (cur_buffer->IsFirstBuffer()) {
+                cursor_.in_window->NextBuffer();
+            } else {
+                cursor_.in_window->PrevBuffer();
+            }
+            buffer_manager_.RemoveBuffer(cur_buffer);
+        }});
     keymap_manager_.AddKeymap("<c-pgdn>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeymap("<c-pgup>",
@@ -134,8 +150,11 @@ void Editor::InitKeymaps() {
                                   Result res = command_manager.EvalCommand(
                                       peel_->GetContent(), args, c);
                                   if (res != kOk) {
+                                      peel_->SetContent("Wrong Command");
+                                      ExitFromMode();
                                       return;
                                   }
+                                  ExitFromMode();
                                   c->f(args);
                               }},
                               {Mode::kPeelCommand});
@@ -179,19 +198,34 @@ void Editor::InitKeymaps() {
 }
 
 void Editor::InitCommands() {
-    command_manager.AddCommand({"h", "", {}, [](CommandArgs args) {}, 0});
-    command_manager.AddCommand({"e",
+    command_manager.AddCommand({"h",
                                 "",
                                 {},
-                                [](CommandArgs args) {
-
+                                [this](CommandArgs args) {
+                                    (void)args;
+                                    Help();
                                 },
-                                1});
+                                0});
+    command_manager.AddCommand(
+        {"e",
+         "",
+         {Type::kString},
+         [this](CommandArgs args) {
+             const std::string& path_str = std::get<std::string>(args[0]);
+             Path path(path_str);
+             Buffer* b = buffer_manager_.FindBuffer(path);
+             if (b) {
+                 cursor_.in_window->AttachBuffer(b);
+                 return;
+             }
+             cursor_.in_window->AttachBuffer(
+                 buffer_manager_.AddBuffer(Buffer(path)));
+         },
+         1});
     command_manager.AddCommand({"s",
                                 "",
                                 {Type::kString},
                                 [this](CommandArgs args) {
-                                    ExitFromMode();
                                     mode_ = Mode::kFind;
                                     MANGO_LOG_DEBUG(
                                         "search %s",
@@ -295,7 +329,7 @@ void Editor::HandleMouse() {
 
 // TODO: support multi window
 void Editor::Resize(int width, int height) {
-    Window* first_win = window_list_head_.next_;
+    Window* first_win = window_.get();
     first_win->frame_.col_ = 0;
     first_win->frame_.row_ = 0;
     first_win->frame_.width_ = width;
@@ -324,11 +358,8 @@ void Editor::Draw() {
         return;
     }
 
-    for (Window* window = window_list_head_.next_; window != nullptr;
-         window = window->next_) {
-        if (window->frame_.buffer_->IsLoad()) {
-            window->Draw();
-        }
+    if (window_->frame_.buffer_->IsLoad()) {
+        window_->Draw();
     }
 
     status_line_->Draw();
@@ -340,25 +371,23 @@ void Editor::Draw() {
 
 void Editor::PreProcess() {
     // Try Load All Buffers in all windows
-    for (Window* window = window_list_head_.next_; window != nullptr;
-         window = window->next_) {
-        if (window->frame_.buffer_->state() == BufferState::kHaveNotRead) {
-            try {
-                window->frame_.buffer_->Load();
-            } catch (FileCreateException& e) {
-                window->frame_.buffer_->state() = BufferState::kCannotCreate;
-                MANGO_LOG_ERROR("%s", e.what());
-                // TODO: Notify the user
-            } catch (IOException& e) {
-                window->frame_.buffer_->state() = BufferState::kCannotRead;
-                MANGO_LOG_ERROR(
-                    "buffer %s : %s",
-                    window->frame_.buffer_->path().AbsolutePath().c_str(),
-                    e.what());
-                // TODO: Notify the user
-            }
+    if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
+        try {
+            window_->frame_.buffer_->Load();
+        } catch (FileCreateException& e) {
+            window_->frame_.buffer_->state() = BufferState::kCannotCreate;
+            MANGO_LOG_ERROR("%s", e.what());
+            // TODO: Notify the user
+        } catch (IOException& e) {
+            window_->frame_.buffer_->state() = BufferState::kCannotRead;
+            MANGO_LOG_ERROR(
+                "buffer %s : %s",
+                window_->frame_.buffer_->path().AbsolutePath().c_str(),
+                e.what());
+            // TODO: Notify the user
         }
     }
+
     if (!IsPeel(mode_)) {
         cursor_.in_window->MakeCursorVisible();
     } else {
@@ -367,11 +396,8 @@ void Editor::PreProcess() {
 }
 
 Window* Editor::LocateWindow(int s_col, int s_row) {
-    for (Window* win = window_list_head_.next_; win != nullptr;
-         win = win->next_) {
-        if (win->frame_.In(s_col, s_row)) {
-            return win;
-        }
+    if (window_->frame_.In(s_col, s_row)) {
+        return window_.get();
     }
     return nullptr;
 }
@@ -381,7 +407,16 @@ Editor& Editor::GetInstance() {
     return editor;
 }
 
-void Editor::Help() {}
+void Editor::Help() {
+    auto p = Path(Path::GetAppRoot() + kSlash + kHelpPath);
+    Buffer* b = buffer_manager_.FindBuffer(p);
+    if (b) {
+        cursor_.in_window->AttachBuffer(b);
+        return;
+    }
+    b = buffer_manager_.AddBuffer(Buffer(p, true));
+    cursor_.in_window->AttachBuffer(b);
+}
 
 void Editor::Quit() { quit_ = true; }
 
@@ -398,9 +433,7 @@ void Editor::GotoPeel() {
 }
 
 void Editor::ExitFromMode() {
-    MANGO_LOG_DEBUG("enter ExitFromMode");
     if (IsPeel(mode_)) {
-        peel_->SetContent("");
         assert(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
         cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
@@ -409,7 +442,6 @@ void Editor::ExitFromMode() {
         assert(cursor_.in_window);
         cursor_.in_window->DestorySearchContext();
     }
-    MANGO_LOG_DEBUG("exit from mode");
     mode_ = Mode::kEdit;
 }
 
