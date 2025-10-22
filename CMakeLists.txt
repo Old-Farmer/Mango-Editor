@@ -73,6 +73,8 @@ target_sources(
   "${SRC_DIR}/buffer.cpp"
   "${SRC_DIR}/cmd_parse.h"
   "${SRC_DIR}/cmd_parse.cpp"
+  "${SRC_DIR}/cmp_menu.h"
+  "${SRC_DIR}/cmp_menu.cpp"
   "${SRC_DIR}/coding.h"
   "${SRC_DIR}/coding.cpp"
   "${SRC_DIR}/command_manager.h"

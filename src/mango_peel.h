@@ -41,8 +41,6 @@ class MangoPeel {
 
     void SetContent(std::string content);
     const std::string& GetContent();
-    // Result DoCommand();
-    // Result Hide();
 
    public:
     Frame frame_;

@@ -2,6 +2,8 @@
 
 ## Keymaps
 
+Use <c-k> as a general leader key.
+
 # General
 
 - <ctrl-q> quit
@@ -19,6 +21,7 @@
 - <down> down arrow to move cursor down
 - <c-b><c-n> or <c-pgdn> next buffer
 - <c-b><c-p> or <c-pgup> previous buffer
+- <c-b><c-d> delete buffer
 - <c-f> to search, <c-n> <c-p> to jump to search result when in search mode
 - <esc> to escape to edit mode
 
@@ -28,6 +31,14 @@
 - <enter> insert a new line
 - <tab> tab to insert tab/spaces (see src/options.h)
 - <ctrl-s> save
+
+### Code Completion(demo)
+
+- <c-k><c-i> trigger code completion
+- <c-n> or <down> select next cmp entry
+- <c-p> or <up> select prev cmp entry
+- <enter> accept this entry
+- <esc> cancel completion
 
 ## Mouse
 

@@ -10,3 +10,7 @@ TEST_CASE("test wcwidth") {
     REQUIRE(Terminal::WCWidth('\n') == -1);
     REQUIRE(Terminal::WCWidth(12) == -1);
 }
+
+TEST_CASE("test stringwidth") {
+    REQUIRE(Terminal::StringWidth("你好12") == 4 + 2);
+}

@@ -27,6 +27,7 @@ enum class Mode : int {
     kPeelCommand,  // user is inputting sth
     kPeelShow,     // peel shows some multirow output
     kFind,
+    kCmp,
 
     _COUNT,  // not mode, just for count
 };

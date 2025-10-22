@@ -2,6 +2,8 @@
 
 #include <stack>
 
+#include "coding.h"
+
 namespace mango {
 
 using tm = Terminal;
@@ -17,6 +19,15 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<c-3>", {ki::CreateSpecialKey(sk::kCtrl3)}},           // same <esc>
 
         // traditioncal ascii control code
+        {"<c-~>", {ki::CreateSpecialKey(sk::kCtrlTilde, tm::kCtrl)}},
+        {"<c-space>",
+         {ki::CreateSpecialKey(
+             sk::kCtrlTilde,
+             tm::kCtrl)}},  // NOTE:
+                            // 1. In Windows Terminal, same as
+                            // <c-~>; 2. in alacritty, no effect.
+                            // TODO: maybe some detection?
+
         {"<c-a>", {ki::CreateSpecialKey(sk::kCtrlA, tm::kCtrl)}},
         {"<c-b>", {ki::CreateSpecialKey(sk::kCtrlB, tm::kCtrl)}},
         {"<c-c>", {ki::CreateSpecialKey(sk::kCtrlC, tm::kCtrl)}},
@@ -24,6 +35,9 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<c-f>", {ki::CreateSpecialKey(sk::kCtrlF, tm::kCtrl)}},
         {"<c-i>", {ki::CreateSpecialKey(sk::kCtrlI, tm::kCtrl)}},
         {"<tab>", {ki::CreateSpecialKey(sk::kTab, tm::kCtrl)}},  // same <c-i>
+        {"<c-j>", {ki::CreateSpecialKey(sk::kCtrlJ, tm::kCtrl)}},
+        {"<c-k>", {ki::CreateSpecialKey(sk::kCtrlK, tm::kCtrl)}},
+        {"<c-l>", {ki::CreateSpecialKey(sk::kCtrlL, tm::kCtrl)}},
         {"<enter>", {ki::CreateSpecialKey(sk::kEnter, tm::kCtrl)}},
         {"<c-m>",
          {ki::CreateSpecialKey(sk::kCtrlM, tm::kCtrl)}},  // same <enter>
@@ -34,7 +48,7 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<bs>", {ki::CreateSpecialKey(sk::kBackspace2, tm::kCtrl)}},
         {"<c-8>", {ki::CreateSpecialKey(sk::kCtrl8, tm::kCtrl)}},  // same <bs>
         {"<s-tab>", {ki::CreateSpecialKey(sk::kBackTab, tm::kCtrl)}},
-        {"<space>", {ki::CreateSpecialKey(sk::kSpace, tm::kCtrl)}},
+        {"<space>", {ki::CreateNormalKey(kSpaceChar)}},
 
         // functional key
         {"<up>", {ki::CreateSpecialKey(sk::kArrowUp)}},

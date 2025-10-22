@@ -17,6 +17,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, options_.get(), &mode_);
     peel_ = std::make_unique<MangoPeel>(&cursor_, options_.get());
+    cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, options_.get());
 
     // Init cwd
     try {
@@ -82,68 +83,19 @@ void Editor::Loop(std::unique_ptr<Options> options,
 void Editor::InitKeymaps() {
     std::vector<Mode> efp = {Mode::kEdit, Mode::kFind, Mode::kPeelCommand};
 
+    // quit
     keymap_manager_.AddKeymap("<c-q>", {[this] { Quit(); }}, kAllModes);
-    keymap_manager_.AddKeymap("<c-b><c-n>",
-                              {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeymap("<c-b><c-p>",
-                              {[this] { cursor_.in_window->PrevBuffer(); }});
-    keymap_manager_.AddKeymap(
-        "<c-b><c-d>", {[this] {
-            Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
-            if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
-                cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer({}));
-            } else if (cur_buffer->IsFirstBuffer()) {
-                cursor_.in_window->NextBuffer();
-            } else {
-                cursor_.in_window->PrevBuffer();
-            }
-            buffer_manager_.RemoveBuffer(cur_buffer);
-        }});
-    keymap_manager_.AddKeymap("<c-pgdn>",
-                              {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeymap("<c-pgup>",
-                              {[this] { cursor_.in_window->PrevBuffer(); }});
-    keymap_manager_.AddKeymap("<c-p>", {[this] { SearchPrev(); }},
-                              {Mode::kFind});
-    keymap_manager_.AddKeymap("<c-n>", {[this] { SearchNext(); }},
-                              {Mode::kFind});
+
+    // peel
     keymap_manager_.AddKeymap("<c-p>", {[this] { GotoPeel(); }}, {Mode::kEdit});
     keymap_manager_.AddKeymap(
         "<esc>", {[this] { ExitFromMode(); }},
         {Mode::kPeelCommand, Mode::kFind, Mode::kPeelShow});
     keymap_manager_.AddKeymap(
-        "<c-s>", {[this] {
-            try {
-                Result res = cursor_.in_window->frame_.buffer_->Write();
-                if (res == kBufferNoBackupFile) {
-                    // TODO: notify user
-                } else if (res == kBufferCannotLoad) {
-                    // TODO: notify user
-                }
-            } catch (IOException& e) {
-                MANGO_LOG_ERROR("%s", e.what());
-                // TODO: notify user
-            }
-        }});
-    keymap_manager_.AddKeymap("<c-f>", {
-                                           [this] {
-                                               GotoPeel();
-                                               peel_->AddStringAtCursor("s ");
-                                           },
-                                       });
-    keymap_manager_.AddKeymap(
-        "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }},
-        kDefaultsModes);
-    keymap_manager_.AddKeymap(
         "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
         {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<tab>",
-                              {[this] { cursor_.in_window->TabAtCursor(); }});
     keymap_manager_.AddKeymap("<tab>", {[this] { peel_->TabAtCursor(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap(
-        "<enter>",
-        {[this] { cursor_.in_window->AddStringAtCursor(kNewLine); }});
     keymap_manager_.AddKeymap("<enter>", {[this] {
                                   CommandArgs args;
                                   Command* c;
@@ -162,31 +114,122 @@ void Editor::InitKeymaps() {
                                   // TODO
                               }},
                               {Mode::kPeelShow});
-    keymap_manager_.AddKeymap(
-        "<space>", {[this] { cursor_.in_window->AddStringAtCursor(kSpace); }});
-    keymap_manager_.AddKeymap("<space>",
-                              {[this] { peel_->AddStringAtCursor(kSpace); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<left>",
-                              {[this] { cursor_.in_window->CursorGoLeft(); }});
     keymap_manager_.AddKeymap("<left>", {[this] { peel_->CursorGoLeft(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<right>",
-                              {[this] { cursor_.in_window->CursorGoRight(); }});
     keymap_manager_.AddKeymap("<right>", {[this] { peel_->CursorGoRight(); }},
                               {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
+                              {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},
+                              {Mode::kPeelCommand});
+
+    // Buffer manangement
+    keymap_manager_.AddKeymap("<c-b><c-n>",
+                              {[this] { cursor_.in_window->NextBuffer(); }});
+    keymap_manager_.AddKeymap("<c-b><c-p>",
+                              {[this] { cursor_.in_window->PrevBuffer(); }});
+    keymap_manager_.AddKeymap(
+        "<c-b><c-d>", {[this] {
+            Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
+            if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
+                cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer({}));
+            } else if (cur_buffer->IsFirstBuffer()) {
+                cursor_.in_window->NextBuffer();
+            } else {
+                cursor_.in_window->PrevBuffer();
+            }
+            buffer_manager_.RemoveBuffer(cur_buffer);
+        }});
+
+    keymap_manager_.AddKeymap("<c-pgdn>",
+                              {[this] { cursor_.in_window->NextBuffer(); }});
+    keymap_manager_.AddKeymap("<c-pgup>",
+                              {[this] { cursor_.in_window->PrevBuffer(); }});
+
+    // search
+    keymap_manager_.AddKeymap("<c-f>", {
+                                           [this] {
+                                               GotoPeel();
+                                               peel_->AddStringAtCursor("s ");
+                                           },
+                                       });
+    keymap_manager_.AddKeymap("<c-p>", {[this] { SearchPrev(); }},
+                              {Mode::kFind});
+    keymap_manager_.AddKeymap("<c-n>", {[this] { SearchNext(); }},
+                              {Mode::kFind});
+
+    // cmp
+    keymap_manager_.AddKeymap(
+        "<c-k><c-i>", {[this] {
+            // Trigger completion, A simple demo
+            // TODO: support better
+            TriggerCmp(
+                [this](size_t size) {
+                    std::stringstream ss;
+                    ss << "User select " << size;
+                    peel_->SetContent(ss.str());
+                },
+                [this] { peel_->SetContent("User cancel cmp"); },
+                {"hello", "yes", "good"});
+        }},
+        {Mode::kEdit});
+    keymap_manager_.AddKeymap("<c-p>", {[this] { cmp_menu_->SelectPrev(); }},
+                              {Mode::kCmp});
+    keymap_manager_.AddKeymap("<c-n>", {[this] { cmp_menu_->SelectNext(); }},
+                              {Mode::kCmp});
+    keymap_manager_.AddKeymap("<up>", {[this] { cmp_menu_->SelectPrev(); }},
+                              {Mode::kCmp});
+    keymap_manager_.AddKeymap("<down>", {[this] { cmp_menu_->SelectNext(); }},
+                              {Mode::kCmp});
+    keymap_manager_.AddKeymap("<esc>", {[this] {
+                                  cmp_menu_->Clear();
+                                  cmp_cancel_callback_();
+                                  ExitFromMode();
+                              }},
+                              {Mode::kCmp});
+    keymap_manager_.AddKeymap("<enter>", {[this] {
+                                  cmp_accept_callback_(cmp_menu_->Accept());
+                                  ExitFromMode();
+                              }},
+                              {Mode::kCmp});
+
+    // edit
+    keymap_manager_.AddKeymap(
+        "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }},
+        kDefaultsModes);
+    keymap_manager_.AddKeymap("<tab>",
+                              {[this] { cursor_.in_window->TabAtCursor(); }});
+    keymap_manager_.AddKeymap(
+        "<enter>",
+        {[this] { cursor_.in_window->AddStringAtCursor(kNewLine); }});
+    keymap_manager_.AddKeymap(
+        "<c-s>", {[this] {
+            try {
+                Result res = cursor_.in_window->frame_.buffer_->Write();
+                if (res == kBufferNoBackupFile) {
+                    // TODO: notify user
+                } else if (res == kBufferCannotLoad) {
+                    // TODO: notify user
+                }
+            } catch (IOException& e) {
+                MANGO_LOG_ERROR("%s", e.what());
+                // TODO: notify user
+            }
+        }});
+
+    // naviagtion
+    keymap_manager_.AddKeymap("<left>",
+                              {[this] { cursor_.in_window->CursorGoLeft(); }});
+    keymap_manager_.AddKeymap("<right>",
+                              {[this] { cursor_.in_window->CursorGoRight(); }});
     keymap_manager_.AddKeymap("<up>",
                               {[this] { cursor_.in_window->CursorGoUp(); }});
     keymap_manager_.AddKeymap("<down>",
                               {[this] { cursor_.in_window->CursorGoDown(); }});
     keymap_manager_.AddKeymap("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
-    keymap_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
-                              {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<end>",
                               {[this] { cursor_.in_window->CursorGoEnd(); }});
-    keymap_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},
-                              {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<pgdn>", {[this] {
                                   cursor_.in_window->ScrollRows(
                                       cursor_.in_window->frame_.height_ - 1);
@@ -195,6 +238,7 @@ void Editor::InitKeymaps() {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
+
 }
 
 void Editor::InitCommands() {
@@ -251,7 +295,8 @@ void Editor::HandleKey() {
     MANGO_LOG_DEBUG(
         "ctrl %d shift %d alt %d motion %d special key %d codepoint %" PRIu32
         " char %s",
-        ctrl, shift, alt, motion, key_info.special_key, key_info.codepoint, c);
+        ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
+        key_info.codepoint, c);
 #endif  // !NDEBUG
 
     Keymap* handler;
@@ -366,6 +411,9 @@ void Editor::Draw() {
 
     peel_->frame_.Draw();
 
+    // Put it at last so it can override some parts
+    cmp_menu_->Draw();
+
     term_.Present();
 }
 
@@ -441,6 +489,9 @@ void Editor::ExitFromMode() {
         peel_->SetContent("");
         assert(cursor_.in_window);
         cursor_.in_window->DestorySearchContext();
+    } else if (mode_ == Mode::kCmp) {
+        mode_ = mode_trigger_cmp_;
+        return;
     }
     mode_ = Mode::kEdit;
 }
@@ -483,6 +534,17 @@ void Editor::SearchPrev() {
         ss << "No searching pattern";
     }
     peel_->SetContent(ss.str());
+}
+
+void Editor::TriggerCmp(std::function<void(size_t)> accept_call_back,
+                        std::function<void(void)> cancel_call_back,
+                        std::vector<std::string> entries) {
+    cmp_accept_callback_ = std::move(accept_call_back);
+    cmp_cancel_callback_ = std::move(cancel_call_back);
+    mode_trigger_cmp_ = mode_;
+    cmp_menu_->SetEntries(std::move(entries));
+    cmp_menu_->visible() = true;
+    mode_ = Mode::kCmp;
 }
 
 }  // namespace mango

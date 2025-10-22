@@ -10,11 +10,12 @@ enum class Action : int { kQuit = 0 };
 
 enum CharacterType : int {
     kNormal = 0,
-    kReverse = 1,
+    kReverse,
     kSelection,
     kKeyword,
     kString,
-    kComment
+    kComment,
+    kMenu,
 };
 
 // Some options only useful when the program just starts
@@ -39,13 +40,17 @@ struct Options {
         {Terminal::kYellow, Terminal::kDefault},    // key word
         {Terminal::kGreen, Terminal::kDefault},     // string
         {Terminal::kCyan, Terminal::kDefault},      // comment
+        {Terminal::kDefault, Terminal::kMagenta},  // menu
     };
 
     int tabstop = 4;
     bool tabspace = true;
 
-    int status_line_left_indent = 2;
-    int status_line_right_indent = 2;
+    size_t status_line_left_indent = 2;
+    size_t status_line_right_indent = 2;
+
+    size_t cmp_menu_max_height = 8;
+    size_t cmp_menu_max_width = 20;
 };
 
 }  // namespace mango

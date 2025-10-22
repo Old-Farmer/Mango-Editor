@@ -52,6 +52,22 @@ TEST_CASE("keymap_manager test") {
         res = manager.FeedKey(a, h2);
         REQUIRE(res == mango::kKeymapDone);
     }
+
+    SECTION("override test 2") {
+        manager.AddKeymap("<c-k><c-i>", h);
+        manager.AddKeymap("<tab>", h);
+
+        auto c_k = Terminal::KeyInfo::CreateSpecialKey(
+            Terminal::SpecialKey::kCtrlK, Terminal::kCtrl);
+        auto c_i = Terminal::KeyInfo::CreateSpecialKey(
+            Terminal::SpecialKey::kCtrlI, Terminal::kCtrl);
+
+        Result res;
+        res = manager.FeedKey(c_k, h2);
+        REQUIRE(res == mango::kKeymapMatched);
+        res = manager.FeedKey(c_i, h2);
+        REQUIRE(res == mango::kKeymapDone);
+    }
 }
 
 TEST_CASE("command_manager test") {

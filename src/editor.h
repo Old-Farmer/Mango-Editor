@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "buffer_manager.h"
+#include "cmp_menu.h"
 #include "command_manager.h"
 #include "cursor.h"
 #include "keymap_manager.h"
@@ -38,6 +39,9 @@ class Editor {
 
     void GotoPeel();
     void ExitFromMode();
+    void TriggerCmp(std::function<void(size_t)> accept_call_back,
+                    std::function<void(void)> cancel_call_back,
+                    std::vector<std::string> entries);
     void SearchNext();
     void SearchPrev();
 
@@ -60,21 +64,25 @@ class Editor {
     Mode mode_ = Mode::kEdit;
 
     BufferManager buffer_manager_;
+    KeymapManager keymap_manager_{mode_};
+    CommandManager command_manager;
 
+    Cursor cursor_;
     // Now only support one window in the screen
     // TODO: mutiple window logic
     std::unique_ptr<Window> window_;
+    std::unique_ptr<StatusLine> status_line_;
+    std::unique_ptr<MangoPeel> peel_;
+    std::unique_ptr<CmpMenu> cmp_menu_;
 
     bool quit_ = false;
 
-    Cursor cursor_;
     std::unique_ptr<Options> options_;
 
-    std::unique_ptr<MangoPeel> peel_;
-    std::unique_ptr<StatusLine> status_line_;
-
-    KeymapManager keymap_manager_{mode_};
-    CommandManager command_manager;
+    // Cmp context
+    std::function<void(size_t)> cmp_accept_callback_ = nullptr;
+    std::function<void()> cmp_cancel_callback_ = nullptr;
+    Mode mode_trigger_cmp_;
 
     Terminal& term_ = Terminal::GetInstance();
 };

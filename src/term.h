@@ -144,7 +144,7 @@ class Terminal {
     }
 
     // throws TermException
-    int Height() {
+    size_t Height() {
         int ret = tb_height();
         if (ret < 0) {
             MANGO_LOG_ERROR("%s", tb_strerror(ret));
@@ -154,7 +154,7 @@ class Terminal {
     }
 
     // throws TermException
-    int Width() {
+    size_t Width() {
         int ret = tb_width();
         if (ret < 0) {
             MANGO_LOG_ERROR("%s", tb_strerror(ret));
@@ -359,16 +359,11 @@ class Terminal {
     // 2 for 2 col
     static int WCWidth(uint32_t ch) noexcept { return tb_wcwidth(ch); }
 
-    static int64_t StringWidth(const std::string& str);
+    static size_t StringWidth(const std::string& str);
 
    private:
     tb_event event_;
     bool shutdown_ = false;
 };
-
-inline bool operator==(const Terminal::KeyInfo& l, const Terminal::KeyInfo& r) {
-    return l.codepoint == r.codepoint && l.special_key == r.special_key &&
-           l.mod == r.mod;
-}
 
 }  // namespace mango

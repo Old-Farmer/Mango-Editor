@@ -32,15 +32,16 @@ void Terminal::Shutdown() {
     }
 }
 
-int64_t Terminal::StringWidth(const std::string& str) {
+size_t Terminal::StringWidth(const std::string& str) {
     std::vector<uint32_t> character;
-    int64_t offset = 0;
-    int64_t width = 0;
-    while (offset < static_cast<int64_t>(str.size())) {
+    size_t offset = 0;
+    size_t width = 0;
+    while (offset < str.size()) {
         int len, c_width;
         Result res = NextCharacterInUtf8(str, offset, character, len, c_width);
         assert(res == kOk);
         width += c_width;
+        offset += len;
     }
     return width;
 }
