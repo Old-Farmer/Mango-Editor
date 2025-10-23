@@ -202,8 +202,6 @@ class Buffer {
     size_t cursor_state_character_in_line_ =
         0;  // for status line to show the state, no need to restore
 
-    Pos last_pos = {0, 0};
-
     using HistoryList = std::list<BufferEditHistoryItem>;
     using HistoryListIter = HistoryList::iterator;
     // Use unique ptr to avoid a issue when std::list is moved, its iterator

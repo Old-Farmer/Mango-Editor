@@ -265,7 +265,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos, bool record) {
 
                 lines_.erase(lines_.begin() + end.line);
 
-                end.byte_offset = lines_[end.line].line_str.size();
+                end.byte_offset = lines_[end.line - 1].line_str.size();
             } else if (end.byte_offset == 0) {
                 // Merge two lines
                 assert(lines_.size() > end.line);
@@ -285,7 +285,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos, bool record) {
                 assert(lines_[end.line].line_str.size() >= end.byte_offset);
                 lines_[end.line].line_str.erase(0, end.byte_offset);
 
-                end.byte_offset = lines_[end.line].line_str.size();
+                end.byte_offset = lines_[end.line - 1].line_str.size();
             }
         } else {
             assert(lines_.size() > end.line);
@@ -324,15 +324,40 @@ void Buffer::Record(BufferEditHistoryItem item) {
     if (edit_history_cursor_ != edit_history_->end()) {
         assert(!edit_history_->empty());
         edit_history_->erase(edit_history_cursor_, edit_history_->end());
+        edit_history_cursor_ = edit_history_->end();
     }
 
+    // No item in history, return fast
     assert(options_->buffer_hitstory_max_item_cnt > 0);
+    if (edit_history_->size() == 0) {
+        edit_history_->push_back(std::move(item));
+        return;
+    }
+
+    // Can we merge adjacent edits?
+    BufferEditHistoryItem& last_item = edit_history_->back();
+    if (last_item.origin.str.empty() && item.origin.str.empty() &&
+        last_item.origin.range.begin == item.origin.range.end) {
+        // adjacent deletes
+        last_item.origin.range.begin = item.origin.range.begin;
+        last_item.reverse.range.begin = item.reverse.range.begin;
+        last_item.reverse.range.end = item.reverse.range.end;
+        last_item.reverse.str.insert(0, item.reverse.str);
+        return;
+    } else if (last_item.origin.range.begin == last_item.origin.range.end &&
+               item.origin.range.begin == item.origin.range.end &&
+               last_item.reverse.range.end == item.reverse.range.begin) {
+        // adjacent adds
+        last_item.reverse.range.end = item.reverse.range.end;
+        last_item.origin.str.append(item.origin.str);
+        return;
+    }
+    // THINK IT: adjacent replaces need to be merged?
+
     if (edit_history_->size() == options_->buffer_hitstory_max_item_cnt) {
         edit_history_->pop_front();
     }
     edit_history_->push_back(std::move(item));
-    edit_history_cursor_ = edit_history_->end();
-    // TODO: Merge adjacent edits
 }
 
 Result Buffer::Add(const Pos& pos, std::string str, Pos& out_pos) {
