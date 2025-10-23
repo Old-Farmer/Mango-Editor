@@ -52,6 +52,7 @@ void ParseCmdArgs(int argc, char* argv[], Options* options,
     for (auto file : init_options->begin_files) {
         MANGO_LOG_DEBUG("cmd args: file name: %s", file);
     }
+    (void)options;
 }
 
 }  // namespace mango

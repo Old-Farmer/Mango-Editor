@@ -50,6 +50,9 @@ void Window::AddStringAtCursor(std::string str) {
 
 void Window::TabAtCursor() { frame_.TabAtCursor(); }
 
+void Window::Redo() { frame_.Redo(); }
+void Window::Undo() { frame_.Undo(); }
+
 void Window::NextBuffer() {
     if (frame_.buffer_->IsLastBuffer()) {
         return;
@@ -116,16 +119,16 @@ Window::SearchState Window::CursorGoNextSearchResult() {
     int64_t left = 0, right = search_result_.size() - 1;
     while (left <= right) {
         int64_t mid = left + (right - left) / 2;
-        size_t line = search_result_[mid].line;
-        size_t byte_offset = search_result_[mid].byte_offset;
+        size_t line = search_result_[mid].begin.line;
+        size_t byte_offset = search_result_[mid].begin.byte_offset;
         if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
             if (static_cast<size_t>(mid) == search_result_.size() - 1) {
                 mid = 0;
             } else {
                 mid++;
             }
-            cursor_->line = search_result_[mid].line;
-            cursor_->byte_offset = search_result_[mid].byte_offset;
+            cursor_->line = search_result_[mid].begin.line;
+            cursor_->byte_offset = search_result_[mid].begin.byte_offset;
             cursor_->DontHoldColWant();
             return {static_cast<size_t>(mid + 1), search_result_.size()};
         } else if (cursor_->line < line ||
@@ -137,13 +140,13 @@ Window::SearchState Window::CursorGoNextSearchResult() {
         }
     }
     if (static_cast<size_t>(left) == search_result_.size()) {
-        cursor_->line = search_result_[0].line;
-        cursor_->byte_offset = search_result_[0].byte_offset;
+        cursor_->line = search_result_[0].begin.line;
+        cursor_->byte_offset = search_result_[0].begin.byte_offset;
         cursor_->DontHoldColWant();
         return {1, search_result_.size()};
     }
-    cursor_->line = search_result_[left].line;
-    cursor_->byte_offset = search_result_[left].byte_offset;
+    cursor_->line = search_result_[left].begin.line;
+    cursor_->byte_offset = search_result_[left].begin.byte_offset;
     cursor_->DontHoldColWant();
     return {static_cast<size_t>(left + 1), search_result_.size()};
 }
@@ -166,16 +169,16 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
     int64_t left = 0, right = search_result_.size() - 1;
     while (left <= right) {
         int64_t mid = left + (right - left) / 2;
-        size_t line = search_result_[mid].line;
-        size_t byte_offset = search_result_[mid].byte_offset;
+        size_t line = search_result_[mid].begin.line;
+        size_t byte_offset = search_result_[mid].begin.byte_offset;
         if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
             if (mid == 0) {
                 mid = search_result_.size() - 1;
             } else {
                 mid--;
             }
-            cursor_->line = search_result_[mid].line;
-            cursor_->byte_offset = search_result_[mid].byte_offset;
+            cursor_->line = search_result_[mid].begin.line;
+            cursor_->byte_offset = search_result_[mid].begin.byte_offset;
             cursor_->DontHoldColWant();
             return {static_cast<size_t>(mid + 1), search_result_.size()};
         } else if (cursor_->line < line ||
@@ -188,13 +191,13 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
     }
     if (static_cast<size_t>(left) == 0) {
         size_t last = search_result_.size() - 1;
-        cursor_->line = search_result_[last].line;
-        cursor_->byte_offset = search_result_[last].byte_offset;
+        cursor_->line = search_result_[last].begin.line;
+        cursor_->byte_offset = search_result_[last].begin.byte_offset;
         cursor_->DontHoldColWant();
         return {last, search_result_.size()};
     }
-    cursor_->line = search_result_[left - 1].line;
-    cursor_->byte_offset = search_result_[left - 1].byte_offset;
+    cursor_->line = search_result_[left - 1].begin.line;
+    cursor_->byte_offset = search_result_[left - 1].begin.byte_offset;
     cursor_->DontHoldColWant();
     return {static_cast<size_t>(left), search_result_.size()};
 }

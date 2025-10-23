@@ -40,7 +40,7 @@ struct Options {
         {Terminal::kYellow, Terminal::kDefault},    // key word
         {Terminal::kGreen, Terminal::kDefault},     // string
         {Terminal::kCyan, Terminal::kDefault},      // comment
-        {Terminal::kDefault, Terminal::kMagenta},  // menu
+        {Terminal::kDefault, Terminal::kMagenta},   // menu
     };
 
     int tabstop = 4;
@@ -51,6 +51,9 @@ struct Options {
 
     size_t cmp_menu_max_height = 8;
     size_t cmp_menu_max_width = 20;
+
+    // NOTE: must greater than 0
+    size_t buffer_hitstory_max_item_cnt = 50;
 };
 
 }  // namespace mango

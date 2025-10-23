@@ -44,9 +44,10 @@ class Frame {
     void CursorGoEnd();
 
     void DeleteCharacterBeforeCursor();
-    // Only single "\n" or a no "\n" string is permitted
     void AddStringAtCursor(std::string str);
     void TabAtCursor();
+    void Redo();
+    void Undo();
 
    public:
     size_t width_ = 0;

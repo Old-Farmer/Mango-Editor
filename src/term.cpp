@@ -26,7 +26,8 @@ void Terminal::Shutdown() {
     if (!shutdown_) {
         // TODO: restore the cursor state for some special terminals(e.g.
         // alacritty)
-        int ret = tb_shutdown();
+        int ret;
+        ret = tb_shutdown();
         assert(ret == TB_OK);
         shutdown_ = true;
     }

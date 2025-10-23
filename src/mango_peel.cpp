@@ -6,7 +6,7 @@
 namespace mango {
 
 MangoPeel::MangoPeel(Cursor* cursor, Options* options)
-    : frame_(&buffer_, cursor, options) {
+    : frame_(&buffer_, cursor, options), buffer_(options) {
     buffer_.Load();
 }
 
@@ -53,7 +53,8 @@ void MangoPeel::TabAtCursor() { frame_.TabAtCursor(); }
 
 void MangoPeel::SetContent(std::string content) {
     buffer_.Clear();
-    buffer_.AddStringInLineAfter(0, 0, std::move(content));
+    Pos pos;
+    buffer_.Add({0, 0}, std::move(content), pos);
 }
 
 const std::string& MangoPeel::GetContent() {

@@ -36,6 +36,8 @@ class Window {
     void DeleteCharacterBeforeCursor();
     void AddStringAtCursor(std::string str);
     void TabAtCursor();
+    void Redo();
+    void Undo();
 
     void NextBuffer();
     void PrevBuffer();
@@ -67,7 +69,7 @@ class Window {
    private:
     Cursor* cursor_;
 
-    std::vector<ByteRange> search_result_;
+    std::vector<Range> search_result_;
     std::string search_pattern_;
     int64_t search_buffer_version_ = -1;
 

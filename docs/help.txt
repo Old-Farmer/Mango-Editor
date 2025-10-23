@@ -31,6 +31,8 @@ Use <c-k> as a general leader key.
 - <enter> insert a new line
 - <tab> tab to insert tab/spaces (see src/options.h)
 - <ctrl-s> save
+- <c-z> undo
+- <c-y> redo
 
 ### Code Completion(demo)
 

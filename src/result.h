@@ -19,6 +19,8 @@ enum Result {
     kKeymapMatched,
     kCommandNotExist,
     kCommandInvalidArgs,
+    kCmpNoSuggest,
+    kNoHistoryAvailable,
 };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};

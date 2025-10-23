@@ -3,12 +3,14 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <gsl/util>
 
 #include "coding.h"
 #include "cursor.h"
 #include "exception.h"
 #include "filetype.h"
 #include "logging.h"
+#include "options.h"
 
 namespace mango {
 
@@ -88,13 +90,13 @@ void File::Fsync() {
 
 int64_t Buffer::cur_buffer_id_ = 0;
 
-Buffer::Buffer() {}
+Buffer::Buffer(Options* options) : options_(options) {}
 
-Buffer::Buffer(std::string path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only) {}
+Buffer::Buffer(Options* options, std::string path, bool read_only)
+    : path_(std::move(path)), read_only_(read_only), options_(options) {}
 
-Buffer::Buffer(Path path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only) {}
+Buffer::Buffer(Options* options, Path path, bool read_only)
+    : path_(std::move(path)), read_only_(read_only), options_(options) {}
 
 void Buffer::Load() {
     try {
@@ -178,85 +180,243 @@ Result Buffer::Write() {
     return kOk;
 }
 
-Result Buffer::DeleteCharacterInLineBefore(size_t line, size_t byte_offset,
-                                           size_t& deleted_bytes) {
-    assert(byte_offset != 0);
+void Buffer::Edit(const BufferEdit& edit, Pos& pos) {
+    if (edit.str.empty()) {
+        // delete
+        DeleteInner(edit.range, pos, false);
+    } else if (edit.range.begin == edit.range.end) {
+        // add
+        AddInner(edit.range.begin, edit.str, pos);
+    } else {
+        // replace
+        ReplaceInner(edit.range, edit.str, pos, false);
+    }
+}
+
+void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& out_pos) {
+    auto _ = gsl::finally([this] { Modified(); });
+
+    size_t i = 0;
+    out_pos = pos;
+    std::vector<size_t> new_line_offset;
+    for (; i < str.size(); i++) {
+        if (str[i] == kNewLineChar) {
+            new_line_offset.push_back(i);
+        }
+    }
+    // No newline, just insert
+    if (new_line_offset.empty()) {
+        assert(lines_.size() > out_pos.line);
+        assert(lines_[out_pos.line].line_str.size() >= out_pos.byte_offset);
+
+        lines_[out_pos.line].line_str.insert(out_pos.byte_offset, str);
+        out_pos.byte_offset += str.size();
+        return;
+    }
+
+    // Have newline
+    assert(lines_.size() > out_pos.line);
+    assert(lines_[out_pos.line].line_str.size() >= out_pos.byte_offset);
+
+    std::string line_after_pos =
+        lines_[out_pos.line].line_str.substr(out_pos.byte_offset);
+    lines_[out_pos.line].line_str.erase(out_pos.byte_offset);
+    i = 0;
+    for (size_t offset : new_line_offset) {
+        if (offset != i) {
+            assert(lines_.size() > out_pos.line);
+
+            lines_[out_pos.line].line_str.append(str, i, offset - i);
+        }
+        out_pos.line++;
+        out_pos.byte_offset = 0;
+
+        assert(lines_.size() >= out_pos.line);
+
+        // Use Line() instead of {} to prevent c++ infer as init list
+        lines_.insert(lines_.begin() + out_pos.line, Line());
+        i = offset + 1;
+    }
+    if (new_line_offset.back() != str.size() - 1) {
+        assert(lines_.size() > out_pos.line);
+
+        size_t left_size = str.size() - (new_line_offset.back() + 1);
+        lines_[out_pos.line].line_str.append(str, new_line_offset.back() + 1,
+                                             left_size);
+        out_pos.byte_offset = lines_[out_pos.line].line_str.size();
+    }
+    lines_[out_pos.line].line_str.append(line_after_pos);
+}
+
+std::string Buffer::DeleteInner(const Range& range, Pos& pos, bool record) {
+    auto _ = gsl::finally([this] { Modified(); });
+
+    std::string old_str;
+
+    Pos end = range.end;
+    while (range.begin.line <= end.line) {
+        if (range.begin.line < end.line) {
+            if (end.byte_offset == lines_[end.line].line_str.size()) {
+                // whole line deleted
+                assert(lines_.size() > end.line);
+                if (record)
+                    old_str.insert(
+                        0, std::string(kNewLine) + lines_[end.line].line_str);
+
+                lines_.erase(lines_.begin() + end.line);
+
+                end.byte_offset = lines_[end.line].line_str.size();
+            } else if (end.byte_offset == 0) {
+                // Merge two lines
+                assert(lines_.size() > end.line);
+                if (record) old_str.insert(0, kNewLine);
+
+                end.byte_offset = lines_[end.line - 1].line_str.size();
+
+                lines_[end.line - 1].line_str.append(lines_[end.line].line_str);
+                lines_.erase(lines_.begin() + end.line);
+            } else {
+                // Delete the part of the line before end.byte_offset
+                if (record)
+                    old_str.insert(0, lines_[end.line].line_str, 0,
+                                   end.byte_offset);
+
+                assert(lines_.size() > end.line);
+                assert(lines_[end.line].line_str.size() >= end.byte_offset);
+                lines_[end.line].line_str.erase(0, end.byte_offset);
+
+                end.byte_offset = lines_[end.line].line_str.size();
+            }
+        } else {
+            assert(lines_.size() > end.line);
+            assert(lines_[end.line].line_str.size() >= end.byte_offset);
+            if (record)
+                old_str.insert(0, lines_[end.line].line_str,
+                               range.begin.byte_offset,
+                               end.byte_offset - range.begin.byte_offset);
+
+            lines_[end.line].line_str.erase(
+                range.begin.byte_offset,
+                end.byte_offset - range.begin.byte_offset);
+        }
+
+        if (end.line == 0) {
+            break;
+        }
+        end.line--;
+    }
+
+    pos = range.begin;
+    return old_str;
+}
+
+std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
+                                 Pos& pos, bool record) {
+    Pos out_pos;
+    std::string old_str = DeleteInner(range, out_pos, record);
+    AddInner(out_pos, str, pos);
+    return old_str;
+}
+
+void Buffer::Record(BufferEditHistoryItem item) {
+    // Delete all history iterms after cursor(include the item which cursor
+    // points to)
+    if (edit_history_cursor_ != edit_history_->end()) {
+        assert(!edit_history_->empty());
+        edit_history_->erase(edit_history_cursor_, edit_history_->end());
+    }
+
+    assert(options_->buffer_hitstory_max_item_cnt > 0);
+    if (edit_history_->size() == options_->buffer_hitstory_max_item_cnt) {
+        edit_history_->pop_front();
+    }
+    edit_history_->push_back(std::move(item));
+    edit_history_cursor_ = edit_history_->end();
+    // TODO: Merge adjacent edits
+}
+
+Result Buffer::Add(const Pos& pos, std::string str, Pos& out_pos) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
     if (read_only()) {
         return kBufferReadOnly;
     }
-
-    std::vector<uint32_t> charater;
-    int len, character_width;
-    Result ret = PrevCharacterInUtf8(lines_[line].line_str, byte_offset,
-                                     charater, len, character_width);
-    assert(ret == kOk);
-    lines_[line].line_str.erase(byte_offset - len, len);
-    deleted_bytes = len;
-    Modified();
+    AddInner(pos, str, out_pos);
+    BufferEditHistoryItem item;
+    item.origin.range = {pos, pos};
+    item.origin.str = std::move(str);
+    item.reverse.range = {pos, out_pos};
+    Record(std::move(item));
     return kOk;
 }
-Result Buffer::AddStringInLineAfter(size_t line, size_t byte_offset,
-                                    std::string str) {
+
+Result Buffer::Delete(const Range& range, Pos& pos) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
     if (read_only()) {
         return kBufferReadOnly;
     }
-
-    lines_[line].line_str.insert(byte_offset, std::move(str));
-    Modified();
+    std::string old_str = DeleteInner(range, pos, true);
+    BufferEditHistoryItem item;
+    item.origin.range = range;
+    item.reverse.range = {pos, pos};
+    item.reverse.str = std::move(old_str);
+    Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::DeletLine(size_t line) {
+Result Buffer::Replace(const Range& range, std::string str, Pos& pos) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
     if (read_only()) {
         return kBufferReadOnly;
     }
-
-    lines_.erase(lines_.begin() + line);
-    Modified();
+    std::string old_str = ReplaceInner(range, str, pos, true);
+    BufferEditHistoryItem item;
+    item.origin.range = range;
+    item.origin.str = std::move(str);
+    item.reverse.range = {range.begin, pos};
+    item.reverse.str = std::move(old_str);
+    Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::NewLine(size_t line, size_t byte_offset) {
-    if (!IsLoad()) {
-        return kBufferCannotLoad;
+Result Buffer::Redo(Pos& pos) {
+    if (edit_history_->empty()) {
+        return kNoHistoryAvailable;
     }
-    if (read_only()) {
-        return kBufferReadOnly;
+    if (edit_history_cursor_ == edit_history_->end()) {
+        return kNoHistoryAvailable;
     }
 
-    std::string new_line = lines_[line].line_str.substr(
-        byte_offset, lines_[line].line_str.size() - byte_offset);
-    lines_.insert(lines_.begin() + line + 1, std::move(new_line));
-    lines_[line].line_str.resize(byte_offset);
-    Modified();
+    Edit(edit_history_cursor_->origin, pos);
+    edit_history_cursor_++;
     return kOk;
 }
 
-Result Buffer::MergeLine(size_t line) {
-    if (!IsLoad()) {
-        return kBufferCannotLoad;
+Result Buffer::Undo(Pos& pos) {
+    if (edit_history_->empty()) {
+        return kNoHistoryAvailable;
     }
-    if (read_only()) {
-        return kBufferReadOnly;
+    if (edit_history_cursor_ == edit_history_->begin()) {
+        return kNoHistoryAvailable;
     }
 
-    lines_[line].line_str.append(lines_[line + 1].line_str);
-    lines_.erase(lines_.begin() + line + 1);
-    Modified();
+    if (edit_history_cursor_ == edit_history_->end()) {
+        edit_history_cursor_ = --edit_history_->end();
+    } else {
+        edit_history_cursor_--;
+    }
+
+    Edit(edit_history_cursor_->reverse, pos);
     return kOk;
 }
 
-std::vector<ByteRange> Buffer::Search(const std::string& pattern) {
-    std::vector<ByteRange> res;
+std::vector<Range> Buffer::Search(const std::string& pattern) {
+    std::vector<Range> res;
     for (size_t line = 0; line < lines_.size(); line++) {
         size_t pos = 0;
         while (true) {
@@ -264,7 +424,7 @@ std::vector<ByteRange> Buffer::Search(const std::string& pattern) {
             if (pos == std::string::npos) {
                 break;
             }
-            res.push_back({line, pos, pattern.size()});
+            res.push_back({{line, pos}, {line, pos + pattern.size()}});
             pos += pattern.size();
         }
     }

@@ -4,7 +4,8 @@
 
 namespace mango {
 
-BufferManager::BufferManager() {
+BufferManager::BufferManager()
+    : list_head_(nullptr), list_tail_(nullptr) {
     list_head_.prev_ = nullptr;
     list_tail_.next_ = nullptr;
     list_head_.next_ = &list_tail_;

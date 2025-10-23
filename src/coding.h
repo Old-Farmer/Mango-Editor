@@ -12,6 +12,7 @@ constexpr uint32_t kReplacementChar = 0xFFFD;  // �
 constexpr uint32_t kTabChar = '\t';
 constexpr uint32_t kTildeChar = '~';
 constexpr uint32_t kSlashChar = '/';
+constexpr uint32_t kNewLineChar = '\n';
 
 constexpr const char* kSpace = " ";
 constexpr const char* kNewLine = "\n";

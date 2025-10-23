@@ -1,5 +1,3 @@
-#pragma once
-
 #include "command_manager.h"
 
 #include <cassert>

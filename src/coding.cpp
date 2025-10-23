@@ -28,11 +28,11 @@ Result NextCharacterInUtf8(const std::string& str, int offset,
         }
         character[0] = kReplacementChar;
         width = 1;
-        assert(("width == -1", false));
+        assert(((void)"width == -1", false));
     } else if (width == 0) {
         character[0] = kReplacementChar;
         width = 1;
-        assert(("width == 0", false));
+        assert(((void)"width == 0", false));
     }
     return kOk;
 }
@@ -57,11 +57,11 @@ Result PrevCharacterInUtf8(const std::string& str, int offset,
                 }
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(("width == -1", false));
+                assert(((void)"width == -1", false));
             } else if (width == 0) {
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(("width == 0", false));
+                assert(((void)"width == 0", false));
             }
             break;
         }

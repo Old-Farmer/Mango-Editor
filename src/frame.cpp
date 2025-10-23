@@ -1,6 +1,7 @@
 #include "frame.h"
 
 #include <stdint.h>
+
 #include <gsl/util>
 
 #include "buffer.h"
@@ -298,45 +299,35 @@ void Frame::CursorGoEnd() {
 }
 
 void Frame::DeleteCharacterBeforeCursor() {
+    Range range;
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
             return;
         }
-        int64_t prev_line_size =
-            buffer_->lines()[cursor_->line - 1].line_str.size();
-        if (buffer_->MergeLine(cursor_->line - 1) != kOk) {
-            return;
-        }
-
-        cursor_->line = cursor_->line - 1;
-        cursor_->byte_offset = prev_line_size;
+        range = {{cursor_->line - 1,
+                  buffer_->lines()[cursor_->line - 1].line_str.size()},
+                 {cursor_->line, 0}};
     } else {
-        size_t len;
-        if (buffer_->DeleteCharacterInLineBefore(
-                cursor_->line, cursor_->byte_offset, len) != kOk) {
-            return;
-        }
-        cursor_->byte_offset -= len;
+        range = {{cursor_->line, cursor_->byte_offset - 1},
+                 {cursor_->line, cursor_->byte_offset}};
     }
+    Pos pos;
+    if (buffer_->Delete(range, pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
 }
 
 void Frame::AddStringAtCursor(std::string str) {
-    if (str == kNewLine) {
-        if (buffer_->NewLine(cursor_->line, cursor_->byte_offset) != kOk) {
-            return;
-        }
-
-        cursor_->line++;
-        cursor_->byte_offset = 0;
-    } else {
-        auto size = str.size();
-        if (buffer_->AddStringInLineAfter(cursor_->line, cursor_->byte_offset,
-                                          std::move(str)) != kOk) {
-            return;
-        }
-        cursor_->byte_offset += size;
+    Pos pos;
+    if (buffer_->Add({cursor_->line, cursor_->byte_offset}, std::move(str),
+                     pos) != kOk) {
+        return;
     }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
 }
 
@@ -362,6 +353,26 @@ void Frame::TabAtCursor() {
     }
     int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
     AddStringAtCursor(std::string(need_space, kSpaceChar));
+}
+
+void Frame::Redo() {
+    Pos pos;
+    if (buffer_->Redo(pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
+}
+
+void Frame::Undo() {
+    Pos pos;
+    if (buffer_->Undo(pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
 }
 
 }  // namespace mango

@@ -27,7 +27,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
         MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
         // Create all buffers
         for (const char* path : init_options->begin_files) {
-            buffer_manager_.AddBuffer(Buffer(path));
+            buffer_manager_.AddBuffer(Buffer(options_.get(), path));
         }
     } catch (FSException& e) {
         // TODO: notify user
@@ -40,7 +40,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     if (buffer_manager_.FirstBuffer() != nullptr) {
         buf = buffer_manager_.FirstBuffer();
     } else {
-        buf = buffer_manager_.AddBuffer({});
+        buf = buffer_manager_.AddBuffer({options_.get()});
     }
     MANGO_LOG_DEBUG("buffer %s", buf->path().ThisPath().data());
     window_ = std::make_unique<Window>(buf, &cursor_, options_.get());
@@ -112,6 +112,7 @@ void Editor::InitKeymaps() {
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<enter>", {[this] {
                                   // TODO
+                                  void(this);
                               }},
                               {Mode::kPeelShow});
     keymap_manager_.AddKeymap("<left>", {[this] { peel_->CursorGoLeft(); }},
@@ -132,7 +133,8 @@ void Editor::InitKeymaps() {
         "<c-b><c-d>", {[this] {
             Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
             if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
-                cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer({}));
+                cursor_.in_window->AttachBuffer(
+                    buffer_manager_.AddBuffer({options_.get()}));
             } else if (cur_buffer->IsFirstBuffer()) {
                 cursor_.in_window->NextBuffer();
             } else {
@@ -216,6 +218,8 @@ void Editor::InitKeymaps() {
                 // TODO: notify user
             }
         }});
+    keymap_manager_.AddKeymap("<c-z>", {[this] { cursor_.in_window->Undo(); }});
+    keymap_manager_.AddKeymap("<c-y>", {[this] { cursor_.in_window->Redo(); }});
 
     // naviagtion
     keymap_manager_.AddKeymap("<left>",
@@ -238,7 +242,6 @@ void Editor::InitKeymaps() {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
-
 }
 
 void Editor::InitCommands() {
@@ -263,7 +266,7 @@ void Editor::InitCommands() {
                  return;
              }
              cursor_.in_window->AttachBuffer(
-                 buffer_manager_.AddBuffer(Buffer(path)));
+                 buffer_manager_.AddBuffer(Buffer(options_.get(), path)));
          },
          1});
     command_manager.AddCommand({"s",
@@ -462,7 +465,7 @@ void Editor::Help() {
         cursor_.in_window->AttachBuffer(b);
         return;
     }
-    b = buffer_manager_.AddBuffer(Buffer(p, true));
+    b = buffer_manager_.AddBuffer(Buffer(options_.get(), p, true));
     cursor_.in_window->AttachBuffer(b);
 }
 

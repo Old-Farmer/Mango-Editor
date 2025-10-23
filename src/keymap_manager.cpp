@@ -45,6 +45,8 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<c-p>", {ki::CreateSpecialKey(sk::kCtrlP, tm::kCtrl)}},
         {"<c-q>", {ki::CreateSpecialKey(sk::kCtrlQ, tm::kCtrl)}},
         {"<c-s>", {ki::CreateSpecialKey(sk::kCtrlS, tm::kCtrl)}},
+        {"<c-y>", {ki::CreateSpecialKey(sk::kCtrlY, tm::kCtrl)}},
+        {"<c-z>", {ki::CreateSpecialKey(sk::kCtrlZ, tm::kCtrl)}},
         {"<bs>", {ki::CreateSpecialKey(sk::kBackspace2, tm::kCtrl)}},
         {"<c-8>", {ki::CreateSpecialKey(sk::kCtrl8, tm::kCtrl)}},  // same <bs>
         {"<s-tab>", {ki::CreateSpecialKey(sk::kBackTab, tm::kCtrl)}},
