@@ -1,11 +1,13 @@
 #include "window.h"
 
 #include "buffer.h"
+#include "coding.h"
 #include "cursor.h"
+#include "options.h"
 
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept
-    : frame_(buffer, cursor, options), cursor_(cursor) {}
+    : frame_(buffer, cursor, options), cursor_(cursor), options_(options) {}
 
 void Window::Draw() { frame_.Draw(); }
 
@@ -41,11 +43,57 @@ void Window::CursorGoHome() { frame_.CursorGoHome(); }
 void Window::CursorGoEnd() { frame_.CursorGoEnd(); }
 
 void Window::DeleteCharacterBeforeCursor() {
-    frame_.DeleteCharacterBeforeCursor();
+    Buffer* buffer = frame_.buffer_;
+    Range range;
+    if (cursor_->byte_offset == 0) {  // first byte
+        if (cursor_->line == 0) {
+            return;
+        }
+        range = {{cursor_->line - 1,
+                  buffer->lines()[cursor_->line - 1].line_str.size()},
+                 {cursor_->line, 0}};
+    } else {
+        if (options_->tabspace) {
+            bool all_space = true;
+            const std::string& line = buffer->lines()[cursor_->line].line_str;
+            for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
+                 byte_offset++) {
+                if (line[byte_offset] != kSpaceChar) {
+                    all_space = false;
+                    break;
+                }
+            }
+            if (!all_space) {
+                range = {{cursor_->line, cursor_->byte_offset - 1},
+                         {cursor_->line, cursor_->byte_offset}};
+            } else {
+                range = {{cursor_->line, (cursor_->byte_offset - 1) / 4 * 4},
+                         {cursor_->line, cursor_->byte_offset}};
+            }
+        } else {
+            range = {{cursor_->line, cursor_->byte_offset - 1},
+                     {cursor_->line, cursor_->byte_offset}};
+        }
+    }
+    Pos pos;
+    if (buffer->Delete(range, pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
 }
 
 void Window::AddStringAtCursor(std::string str) {
-    frame_.AddStringAtCursor(std::move(str));
+    if (options_->auto_indent && str == kNewLine &&
+        frame_.buffer_->lines()[cursor_->line].line_str.size() ==
+            cursor_->byte_offset) {
+        // Want to create a new line ?
+        // TODO: auto indent
+        frame_.AddStringAtCursor(std::move(str));
+    } else {
+        frame_.AddStringAtCursor(std::move(str));
+    }
 }
 
 void Window::TabAtCursor() { frame_.TabAtCursor(); }

@@ -68,6 +68,7 @@ class Window {
 
    private:
     Cursor* cursor_;
+    Options* options_;
 
     std::vector<Range> search_result_;
     std::string search_pattern_;
