@@ -66,7 +66,8 @@ void Frame::Draw() {
                 if (highlight_i == -1) {
                     highlight_i = LocateInPos(*syntax_highlight, {b_view_r, 0});
                 } else {
-                    while (highlight_i < syntax_highlight->size() &&
+                    while (highlight_i <
+                               static_cast<int>(syntax_highlight->size()) &&
                            (*syntax_highlight)[highlight_i].range.PosAfter(
                                {b_view_r, 0})) {
                         highlight_i++;
@@ -114,7 +115,8 @@ void Frame::Draw() {
                         Terminal::AttrPair attr;
                         // Decide attr
                         if (syntax_highlight == nullptr ||
-                            syntax_highlight->size() == highlight_i) {
+                            static_cast<int64_t>(syntax_highlight->size()) ==
+                                highlight_i) {
                             attr = options_->attr_table[kNormal];
                         } else {
                             if ((*syntax_highlight)[highlight_i].range.PosIn(
@@ -143,7 +145,8 @@ void Frame::Draw() {
 
                 // Try goto next syntax highlight range
                 if (syntax_highlight) {
-                    while (highlight_i < syntax_highlight->size() &&
+                    while (highlight_i <
+                               static_cast<int64_t>(syntax_highlight->size()) &&
                            (*syntax_highlight)[highlight_i].range.PosAfter(
                                {b_view_r, offset})) {
                         highlight_i++;
@@ -373,8 +376,9 @@ void Frame::DeleteCharacterBeforeCursor() {
     } else {
         std::vector<uint32_t> charater;
         int len, character_width;
-        Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line_str, cursor_->byte_offset,
-                                         charater, len, character_width);
+        Result ret = PrevCharacterInUtf8(
+            buffer_->lines()[cursor_->line].line_str, cursor_->byte_offset,
+            charater, len, character_width);
         assert(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};
