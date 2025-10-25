@@ -4,7 +4,7 @@
 
 Use <c-k> as a general leader key.
 
-### General
+# General
 
 - <ctrl-q> quit
 - <c-p> to go to peel(command)
