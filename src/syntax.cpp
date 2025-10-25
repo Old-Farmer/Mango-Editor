@@ -184,7 +184,7 @@ void SyntaxParser::OnBufferDelete(const Buffer* buffer) {
     buffer_context_.erase(iter);
 }
 
-SyntaxContext* SyntaxParser::GetBufferSyntaxContext(const Buffer* buffer) {
+const SyntaxContext* SyntaxParser::GetBufferSyntaxContext(const Buffer* buffer) {
     auto iter = buffer_context_.find(buffer->id());
     if (iter == buffer_context_.end()) {
         return nullptr;

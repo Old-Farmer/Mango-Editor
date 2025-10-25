@@ -35,7 +35,10 @@ class Window {
     void CursorGoEnd();
 
     void DeleteCharacterBeforeCursor();
+    void DeleteSelection();
     void AddStringAtCursor(std::string str);
+    void TryAutoIndent();
+    void TryAutoPair(std::string str);
     void TabAtCursor();
     void Redo();
     void Undo();

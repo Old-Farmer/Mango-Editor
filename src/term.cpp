@@ -24,11 +24,15 @@ void Terminal::Init() {
 
 void Terminal::Shutdown() {
     if (!shutdown_) {
-        // TODO: restore the cursor state for some special terminals(e.g.
-        // alacritty)
         int ret;
         ret = tb_shutdown();
         assert(ret == TB_OK);
+
+        // Restore cursor
+        // NOTE: only work on some terminals
+        printf("\e[0 q");
+        fflush(stdout);
+
         shutdown_ = true;
     }
 }

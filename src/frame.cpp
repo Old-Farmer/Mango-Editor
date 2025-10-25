@@ -390,25 +390,31 @@ void Frame::DeleteCharacterBeforeCursor() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
-    parser_->HighlightAfterEdit(buffer_);
+    UpdateHighlight();
 }
 
-void Frame::AddStringAtCursor(std::string str) {
+void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
     Pos pos;
     if (buffer_->Add({cursor_->line, cursor_->byte_offset}, std::move(str),
                      pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
+    if (cursor_pos == nullptr) {
+        cursor_->line = pos.line;
+        cursor_->byte_offset = pos.byte_offset;
+    } else {
+        cursor_->line = cursor_pos->line;
+        cursor_->byte_offset = cursor_pos->byte_offset;
+    }
     cursor_->DontHoldColWant();
-    parser_->HighlightAfterEdit(buffer_);
+    UpdateHighlight();
 }
 
 void Frame::TabAtCursor() {
+    auto _ = gsl::finally([this] { UpdateHighlight(); });
+
     if (!options_->tabspace) {
         AddStringAtCursor(kTab);
-        parser_->HighlightAfterEdit(buffer_);
         return;
     }
 
@@ -428,7 +434,6 @@ void Frame::TabAtCursor() {
     }
     int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
     AddStringAtCursor(std::string(need_space, kSpaceChar));
-    parser_->HighlightAfterEdit(buffer_);
 }
 
 void Frame::Redo() {
@@ -439,7 +444,7 @@ void Frame::Redo() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
-    parser_->HighlightAfterEdit(buffer_);
+    UpdateHighlight();
 }
 
 void Frame::Undo() {
@@ -451,6 +456,11 @@ void Frame::Undo() {
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
     parser_->HighlightAfterEdit(buffer_);
+    UpdateHighlight();
+}
+
+void Frame::UpdateHighlight() {
+    if (parser_) parser_->HighlightAfterEdit(buffer_);
 }
 
 }  // namespace mango

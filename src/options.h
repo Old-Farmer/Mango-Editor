@@ -50,6 +50,8 @@ struct Options {
 
     bool auto_indent = true;
 
+    bool auto_pair = true;
+
     size_t status_line_left_indent = 2;
     size_t status_line_right_indent = 2;
 

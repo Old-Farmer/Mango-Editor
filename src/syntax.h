@@ -34,7 +34,7 @@ class SyntaxParser {
     void HighlightInit(const Buffer* buffer);
     void HighlightAfterEdit(Buffer* buffer);
     void OnBufferDelete(const Buffer* buffer);
-    SyntaxContext* GetBufferSyntaxContext(const Buffer* buffer);
+    const SyntaxContext* GetBufferSyntaxContext(const Buffer* buffer);
 
    private:
     TSQuery* GetQuery(zstring_view filetype);

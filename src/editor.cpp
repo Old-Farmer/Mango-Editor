@@ -61,6 +61,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     init_options.reset();
 
     // Event Loop
+    // TODO: support custom cursor blinking
     while (!quit_) {
         PreProcess();
         Draw();

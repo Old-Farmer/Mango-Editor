@@ -1,5 +1,7 @@
 #include "window.h"
 
+#include <gsl/util>
+
 #include "buffer.h"
 #include "coding.h"
 #include "cursor.h"
@@ -57,41 +59,81 @@ void Window::DeleteCharacterBeforeCursor() {
         range = {{cursor_->line - 1,
                   buffer->lines()[cursor_->line - 1].line_str.size()},
                  {cursor_->line, 0}};
-    } else {
-        if (options_->tabspace) {
-            bool all_space = true;
-            const std::string& line = buffer->lines()[cursor_->line].line_str;
-            for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
-                 byte_offset++) {
-                if (line[byte_offset] != kSpaceChar) {
-                    all_space = false;
-                    break;
-                }
+    } else if (options_->tabspace) {
+        bool all_space = true;
+        const std::string& line = buffer->lines()[cursor_->line].line_str;
+        for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
+             byte_offset++) {
+            if (line[byte_offset] != kSpaceChar) {
+                all_space = false;
+                break;
             }
-            if (!all_space) {
-                std::vector<uint32_t> charater;
-                int len, character_width;
-                Result ret = PrevCharacterInUtf8(
-                    frame_.buffer_->lines()[cursor_->line].line_str,
-                    cursor_->byte_offset, charater, len, character_width);
-                assert(ret == kOk);
-                range = {{cursor_->line, cursor_->byte_offset - len},
-                         {cursor_->line, cursor_->byte_offset}};
-            } else {
-                range = {{cursor_->line, (cursor_->byte_offset - 1) / 4 * 4},
-                         {cursor_->line, cursor_->byte_offset}};
-            }
+        }
+        if (all_space) {
+            range = {{cursor_->line, (cursor_->byte_offset - 1) / 4 * 4},
+                     {cursor_->line, cursor_->byte_offset}};
         } else {
-            std::vector<uint32_t> charater;
-            int len, character_width;
-            Result ret = PrevCharacterInUtf8(
-                frame_.buffer_->lines()[cursor_->line].line_str,
-                cursor_->byte_offset, charater, len, character_width);
-            assert(ret == kOk);
+            goto slow;
+        }
+    } else {
+    slow:
+        const std::string& cur_line =
+            frame_.buffer_->lines()[cursor_->line].line_str;
+        std::vector<uint32_t> charater;
+        int len, character_width;
+        Result ret = PrevCharacterInUtf8(cur_line, cursor_->byte_offset,
+                                         charater, len, character_width);
+        assert(ret == kOk);
+        if (cur_line.size() <= cursor_->byte_offset) {
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line, cursor_->byte_offset}};
+        } else {
+            // may delete pairs
+            char this_char = cur_line[cursor_->byte_offset];
+            switch (charater[0]) {
+                case kLeftBraceChar: {
+                    if (this_char == kRightBraceChar) {
+                        range = {{cursor_->line, cursor_->byte_offset - 1},
+                                 {cursor_->line, cursor_->byte_offset + 1}};
+                    }
+                    break;
+                }
+                case kLeftParenthesisChar: {
+                    if (this_char == kRightParenthesisChar) {
+                        range = {{cursor_->line, cursor_->byte_offset - 1},
+                                 {cursor_->line, cursor_->byte_offset + 1}};
+                    }
+                    break;
+                }
+                case kLeftSquareBracketChar: {
+                    if (this_char == kRightSquareBracketChar) {
+                        range = {{cursor_->line, cursor_->byte_offset - 1},
+                                 {cursor_->line, cursor_->byte_offset + 1}};
+                    }
+                    break;
+                }
+                case kSingleQuoteChar: {
+                    if (this_char == kSingleQuoteChar) {
+                        range = {{cursor_->line, cursor_->byte_offset - 1},
+                                 {cursor_->line, cursor_->byte_offset + 1}};
+                    }
+                    break;
+                }
+                case kDoubleQuoteChar: {
+                    if (this_char == kDoubleQuoteChar) {
+                        range = {{cursor_->line, cursor_->byte_offset - 1},
+                                 {cursor_->line, cursor_->byte_offset + 1}};
+                    }
+                    break;
+                }
+                default: {
+                    range = {{cursor_->line, cursor_->byte_offset - len},
+                             {cursor_->line, cursor_->byte_offset}};
+                }
+            }
         }
     }
+
     Pos pos;
     if (buffer->Delete(range, pos) != kOk) {
         return;
@@ -103,15 +145,60 @@ void Window::DeleteCharacterBeforeCursor() {
 }
 
 void Window::AddStringAtCursor(std::string str) {
-    if (options_->auto_indent && str == kNewLine &&
-        frame_.buffer_->lines()[cursor_->line].line_str.size() ==
-            cursor_->byte_offset) {
-        // Want to create a new line ?
-        // TODO: auto indent
-        frame_.AddStringAtCursor(std::move(str));
+    if (options_->auto_indent && str == kNewLine) {
+        TryAutoIndent();
+    } else if (options_->auto_pair &&
+               (str == kLeftBrace || str == kLeftParenthesis ||
+                str == kLeftSquareBracket || str == kSingleQuote ||
+                str == kDoubleQuote)) {
+        TryAutoPair(std::move(str));
     } else {
         frame_.AddStringAtCursor(std::move(str));
     }
+}
+
+void Window::TryAutoPair(std::string str) {
+    // Use char is ok here, we only test some ascii characters
+    char at_cursor = 0;
+    if (frame_.buffer_->lines()[cursor_->line].line_str.size() !=
+        cursor_->byte_offset) {
+        at_cursor = frame_.buffer_->lines()[cursor_->line]
+                        .line_str[cursor_->byte_offset];
+    }
+    if (str == kLeftBrace) {
+        if (at_cursor == kRightBraceChar) {
+            goto out;
+        }
+        str += kLeftBrace;
+    } else if (str == kLeftParenthesis) {
+        if (at_cursor == kRightParenthesisChar) {
+            goto out;
+        }
+        str += kRightParenthesis;
+    } else if (str == kLeftSquareBracket) {
+        if (at_cursor == kRightSquareBracketChar) {
+            goto out;
+        }
+        str += kRightSquareBracket;
+    } else if (str == kSingleQuote) {
+        if (at_cursor == kSingleQuoteChar) {
+            goto out;
+        }
+        str += kSingleQuote;
+    } else if (str == kDoubleQuote) {
+        if (at_cursor == kDoubleQuoteChar) {
+            goto out;
+        }
+        str += kDoubleQuote;
+    }
+out:
+    Pos pos = {cursor_->line, cursor_->byte_offset + 1};
+    frame_.AddStringAtCursor(std::move(str), &pos);
+}
+
+void Window::TryAutoIndent() {
+    const std::string& line = frame_.buffer_->lines()[cursor_->line].line_str;
+    frame_.AddStringAtCursor(kNewLine);
 }
 
 void Window::TabAtCursor() { frame_.TabAtCursor(); }

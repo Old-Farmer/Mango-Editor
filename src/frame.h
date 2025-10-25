@@ -10,13 +10,15 @@ class Buffer;
 class Cursor;
 class Options;
 class SyntaxParser;
+struct Pos;
 
 // Frame is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
 class Frame {
    public:
     Frame() {}
-    Frame(Buffer* buffer, Cursor* cursor, Options* options, SyntaxParser* parser) noexcept;
+    Frame(Buffer* buffer, Cursor* cursor, Options* options,
+          SyntaxParser* parser) noexcept;
     ~Frame() = default;
     MANGO_DELETE_COPY(Frame);
     MANGO_DEFAULT_MOVE(Frame);
@@ -45,10 +47,14 @@ class Frame {
     void CursorGoEnd();
 
     void DeleteCharacterBeforeCursor();
-    void AddStringAtCursor(std::string str);
+    // if cursor_pos != nullptr then cursor will set to cursor_pos
+    void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
     void TabAtCursor();
     void Redo();
     void Undo();
+
+   private:
+    void UpdateHighlight();
 
    public:
     size_t width_ = 0;
