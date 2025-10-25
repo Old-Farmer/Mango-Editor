@@ -41,8 +41,8 @@ Result PrevCharacterInUtf8(const std::string& str, int offset,
                            std::vector<uint32_t>& character, int& byte_len,
                            int& width) {
     character.resize(1);
+    offset--;
     while (offset >= 0) {
-        offset--;
         if (IsUtf8BeginByte(str[offset])) {
             byte_len = Utf8ToUnicode(&str[offset], character[0]);
             if (byte_len < 0) {
@@ -65,6 +65,7 @@ Result PrevCharacterInUtf8(const std::string& str, int offset,
             }
             break;
         }
+        offset--;
     }
     return kOk;
 }

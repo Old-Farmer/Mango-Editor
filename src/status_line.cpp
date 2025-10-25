@@ -27,7 +27,8 @@ void StatusLine::Draw() {
     }
     std::string cursor_in_info =
         (b->path().Empty() ? std::string("[new file]")
-                           : std::string(b->path().ThisPath().data())) +
+                           : std::string(b->path().ThisPath().data(),
+                                         b->path().ThisPath().size())) +
         BufferStateString[static_cast<int>(b->state())];
 
     Result res = term_->Print(options_->status_line_left_indent, row_,

@@ -55,7 +55,23 @@ FetchContent_Declare(
     SOURCE_DIR "${THIRD_PARTY_DIR}/Catch2"
 )
 
-FetchContent_MakeAvailable(termbox2 GSL json Catch2)
+# tree-sitter
+FetchContent_Declare(
+    treesitter
+    GIT_REPOSITORY "https://github.com/tree-sitter/tree-sitter.git"
+    GIT_TAG master
+    SOURCE_DIR "${THIRD_PARTY_DIR}/tree-sitter"
+)
+set(TREESITTER_LIB "${THIRD_PARTY_DIR}/tree-sitter/libtree-sitter.a")
+set(TREESITTER_INCLUDE_DIR "${THIRD_PARTY_DIR}/tree-sitter/lib/include")
+add_custom_target(build_treesitter
+    COMMAND make
+    WORKING_DIRECTORY "${THIRD_PARTY_DIR}/tree-sitter"
+    COMMENT "Building tree-sitter library"
+    BYPRODUCTS "${TREESITTER_LIB}"
+)
+
+FetchContent_MakeAvailable(termbox2 GSL json Catch2 treesitter)
 
 # TODO: use ICU and support grapheme cluster
 # # ICU
@@ -63,8 +79,8 @@ FetchContent_MakeAvailable(termbox2 GSL json Catch2)
 
 # Mango library
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
-add_library(mango_lib)
-add_dependencies(mango_lib build_termbox2)
+add_library(mango_lib STATIC)
+add_dependencies(mango_lib build_termbox2 build_treesitter)
 target_sources(
   mango_lib PUBLIC
   "${SRC_DIR}/buffer_manager.h"
@@ -91,6 +107,8 @@ target_sources(
   "${SRC_DIR}/frame.cpp"
   "${SRC_DIR}/fs.h"
   "${SRC_DIR}/fs.cpp"
+  "${SRC_DIR}/syntax.h"
+  "${SRC_DIR}/syntax.cpp"
   "${SRC_DIR}/keymap_manager.h"
   "${SRC_DIR}/keymap_manager.cpp"
   "${SRC_DIR}/logging.h"
@@ -113,15 +131,24 @@ target_sources(
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )
+# TODO: better script for more languages
+target_sources(
+  mango_lib PUBLIC
+  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-c/src/parser.c"
+  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-cpp/src/parser.c"
+  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-cpp/src/scanner.c"
+  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-json/src/parser.c"
+)
 target_link_libraries(
   mango_lib
   PUBLIC ${TERMBOX2_LIB} 
   PUBLIC Microsoft.GSL::GSL 
   PUBLIC nlohmann_json::nlohmann_json
+  PUBLIC ${TREESITTER_LIB}
 )
 target_include_directories(
   mango_lib 
-  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}"
+  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${TREESITTER_INCLUDE_DIR}"
 )
 
 target_compile_definitions(mango_lib PUBLIC TB_OPT_ATTR_W=64 TB_OPT_EGC)

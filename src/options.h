@@ -12,9 +12,10 @@ enum CharacterType : int {
     kNormal = 0,
     kReverse,
     kSelection,
-    kKeyword,
-    kString,
-    kComment,
+    kKeyword,  // "keyword"
+    kString,   // "string"
+    kComment,  // "comment"
+    kNumber,   // "number"
     kMenu,
 };
 
@@ -40,11 +41,14 @@ struct Options {
         {Terminal::kYellow, Terminal::kDefault},    // key word
         {Terminal::kGreen, Terminal::kDefault},     // string
         {Terminal::kCyan, Terminal::kDefault},      // comment
+        {Terminal::kBlue, Terminal::kDefault},      // number
         {Terminal::kDefault, Terminal::kMagenta},   // menu
     };
 
     int tabstop = 4;
     bool tabspace = true;
+
+    bool auto_indent = true;
 
     size_t status_line_left_indent = 2;
     size_t status_line_right_indent = 2;

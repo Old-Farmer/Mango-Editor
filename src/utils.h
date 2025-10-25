@@ -26,6 +26,10 @@ namespace mango {
 // a string_view must terminated by a '\0'
 using zstring_view = std::string_view;
 
+inline const char* zstring_view_c_str(const zstring_view& str) {
+    return str.data();
+}
+
 template <typename T>
 struct List {
     T head;

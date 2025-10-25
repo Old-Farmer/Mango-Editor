@@ -2,13 +2,14 @@
 
 #include <unordered_map>
 #include <string>
+#include "utils.h"
 
 namespace mango {
 
-constexpr std::string_view kDefaultFileType = "text";
+constexpr zstring_view kDefaultFileType = "text";
 
 // clang-format off
-static const std::unordered_map<std::string_view, std::string_view> kSuffixToFiletype = {
+static const std::unordered_map<zstring_view, zstring_view> kSuffixToFiletype = {
     {"c", "c"},
     {"cpp", "cpp"},
     {"cc", "cpp"},
@@ -37,12 +38,12 @@ static const std::unordered_map<std::string_view, std::string_view> kSuffixToFil
 };
 
 // file name is prior to suffix
-static const std::unordered_map<std::string_view, std::string_view> kNameToFiletype = {
+static const std::unordered_map<zstring_view, zstring_view> kNameToFiletype = {
     {"CMakeLists.txt", "cmake"},
 };
 // clang-format on
 
-std::string_view DecideFiletype(std::string_view file_name) {
+zstring_view DecideFiletype(std::string_view file_name) {
     auto iter = kNameToFiletype.find(file_name);
     if (iter != kNameToFiletype.end()) {
         return iter->second;

@@ -19,6 +19,8 @@ void Editor::Loop(std::unique_ptr<Options> options,
     peel_ = std::make_unique<MangoPeel>(&cursor_, options_.get());
     cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, options_.get());
 
+    syntax_parser_ = std::make_unique<SyntaxParser>(options_.get());
+
     // Init cwd
     try {
         Path::GetCwdSys();
@@ -42,8 +44,9 @@ void Editor::Loop(std::unique_ptr<Options> options,
     } else {
         buf = buffer_manager_.AddBuffer({options_.get()});
     }
-    MANGO_LOG_DEBUG("buffer %s", buf->path().ThisPath().data());
-    window_ = std::make_unique<Window>(buf, &cursor_, options_.get());
+    MANGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
+    window_ = std::make_unique<Window>(buf, &cursor_, options_.get(),
+                                       syntax_parser_.get());
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
@@ -99,7 +102,7 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeymap("<enter>", {[this] {
                                   CommandArgs args;
                                   Command* c;
-                                  Result res = command_manager.EvalCommand(
+                                  Result res = command_manager_.EvalCommand(
                                       peel_->GetContent(), args, c);
                                   if (res != kOk) {
                                       peel_->SetContent("Wrong Command");
@@ -140,6 +143,7 @@ void Editor::InitKeymaps() {
             } else {
                 cursor_.in_window->PrevBuffer();
             }
+            syntax_parser_->OnBufferDelete(cur_buffer);
             buffer_manager_.RemoveBuffer(cur_buffer);
         }});
 
@@ -245,15 +249,15 @@ void Editor::InitKeymaps() {
 }
 
 void Editor::InitCommands() {
-    command_manager.AddCommand({"h",
-                                "",
-                                {},
-                                [this](CommandArgs args) {
-                                    (void)args;
-                                    Help();
-                                },
-                                0});
-    command_manager.AddCommand(
+    command_manager_.AddCommand({"h",
+                                 "",
+                                 {},
+                                 [this](CommandArgs args) {
+                                     (void)args;
+                                     Help();
+                                 },
+                                 0});
+    command_manager_.AddCommand(
         {"e",
          "",
          {Type::kString},
@@ -269,19 +273,19 @@ void Editor::InitCommands() {
                  buffer_manager_.AddBuffer(Buffer(options_.get(), path)));
          },
          1});
-    command_manager.AddCommand({"s",
-                                "",
-                                {Type::kString},
-                                [this](CommandArgs args) {
-                                    mode_ = Mode::kFind;
-                                    MANGO_LOG_DEBUG(
-                                        "search %s",
-                                        std::get<std::string>(args[0]).c_str());
-                                    cursor_.in_window->BuildSearchContext(
-                                        std::get<std::string>(args[0]));
-                                    SearchNext();
-                                },
-                                1});
+    command_manager_.AddCommand(
+        {"s",
+         "",
+         {Type::kString},
+         [this](CommandArgs args) {
+             mode_ = Mode::kFind;
+             MANGO_LOG_DEBUG("search %s",
+                             std::get<std::string>(args[0]).c_str());
+             cursor_.in_window->BuildSearchContext(
+                 std::get<std::string>(args[0]));
+             SearchNext();
+         },
+         1});
 }
 
 void Editor::HandleKey() {
@@ -425,6 +429,7 @@ void Editor::PreProcess() {
     if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
         try {
             window_->frame_.buffer_->Load();
+            syntax_parser_->HighlightInit(window_->frame_.buffer_);
         } catch (FileCreateException& e) {
             window_->frame_.buffer_->state() = BufferState::kCannotCreate;
             MANGO_LOG_ERROR("%s", e.what());

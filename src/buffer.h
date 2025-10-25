@@ -9,6 +9,7 @@
 #include "fs.h"
 #include "result.h"
 #include "state.h"
+#include "tree_sitter/api.h"
 #include "utils.h"
 
 namespace mango {
@@ -21,9 +22,9 @@ class File {
     // mode is same as C file stdio api
     // "r" for readonly
     // "w" for writeonly
+    // create_if_not_exist only meaningful to read
     // throws IOException, FileCreateException
-    File(const std::string& path, const char* mode,
-         bool create_if_not_exist = true);
+    File(const std::string& path, const char* mode, bool create_if_not_exist);
     ~File();
 
     MANGO_DELETE_COPY(File);
@@ -37,6 +38,10 @@ class File {
     // kOk means ok
     // kEof means EOF
     Result ReadLine(std::string& buf);
+
+    // Read all file contents to a string.
+    // throw IOException
+    std::string ReadAll();
 
     // throws IOException
     void Truncate(size_t size);
@@ -72,6 +77,20 @@ inline bool operator==(const Pos& pos1, const Pos& pos2) noexcept {
 struct Range {
     Pos begin;
     Pos end;
+
+    bool PosBefore(const Pos& pos) const {
+        return pos.line < begin.line ||
+               (pos.line == begin.line && pos.byte_offset < begin.byte_offset);
+    }
+    bool PosAfter(const Pos& pos) const {
+        return pos.line > end.line ||
+               (pos.line == end.line && pos.byte_offset >= end.byte_offset);
+    }
+
+    // Pos is in Range ?
+    bool PosIn(const Pos& pos) const {
+        return !(PosAfter(pos) || PosBefore(pos));
+    }
 };
 
 // This class reprensents edit operations to the buffer.
@@ -125,9 +144,12 @@ class Buffer {
    private:
     // Some operations used inner
     // if record is true, some info will be kept so reverse op can be done.
+    // if record_ts_edit is true, ts edit will be kept for treesittier
     void Edit(const BufferEdit& edit, Pos& pos);
-    void AddInner(const Pos& pos, const std::string& str, Pos& out_pos);
-    std::string DeleteInner(const Range& range, Pos& pos, bool record);
+    void AddInner(const Pos& pos, const std::string& str, Pos& out_pos,
+                  bool record_ts_edit);
+    std::string DeleteInner(const Range& range, Pos& pos, bool record,
+                            bool record_ts_edit);
     std::string ReplaceInner(const Range& range, const std::string& str,
                              Pos& pos, bool record);
 
@@ -152,22 +174,26 @@ class Buffer {
     // Not support regex, only plain text
     std::vector<Range> Search(const std::string& pattern);
 
-    int64_t id() const { return id_; }
-    const std::vector<Line>& lines() { return lines_; }
-    size_t LineCnt() { return lines_.size(); }
+    // return an global offset of a pos
+    size_t Offset(const Pos& pos) const;
+
+    int64_t id() const noexcept { return id_; }
+    const std::vector<Line>& lines() const { return lines_; }
+    size_t LineCnt() const noexcept { return lines_.size(); }
     Path& path() { return path_; }
     BufferState& state() { return state_; };
-    bool IsLoad() {
+    bool IsLoad() const noexcept {
         return state_ == BufferState::kModified ||
                state_ == BufferState::kNotModified ||
                state_ == BufferState::kReadOnly;
     }
-    bool read_only() { return read_only_; }
-    int64_t version() { return version_; }
-    size_t cursor_state_line() { return cursor_state_line_; }
-    size_t cursor_state_character_in_line() {
+    bool read_only() const noexcept { return read_only_; }
+    int64_t version() const noexcept { return version_; }
+    size_t cursor_state_line() const noexcept { return cursor_state_line_; }
+    size_t cursor_state_character_in_line() const noexcept {
         return cursor_state_character_in_line_;
     }
+    zstring_view filetype() const noexcept { return filetype_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -177,6 +203,8 @@ class Buffer {
 
     void SaveCursorState(Cursor& cursor);
     void RestoreCursorState(Cursor& cursor);
+
+    TSInputEdit GetEditForTreeSitter();
 
    private:
     static int64_t AllocId() { return cur_buffer_id_++; }
@@ -191,7 +219,7 @@ class Buffer {
     std::vector<Line> lines_;
 
     Path path_;
-    std::string_view filetype_;
+    zstring_view filetype_;
     BufferState state_ = BufferState::kHaveNotRead;
     bool read_only_ = false;
     int64_t version_;
@@ -209,6 +237,10 @@ class Buffer {
     std::unique_ptr<HistoryList> edit_history_ =
         std::make_unique<HistoryList>();
     HistoryListIter edit_history_cursor_ = edit_history_->end();
+
+    // Just for tree-sitter
+    TSInputEdit ts_edit_;
+    bool after_get_edit_modified = false;
 
     Options* options_;
 

@@ -6,7 +6,7 @@
 namespace mango {
 
 MangoPeel::MangoPeel(Cursor* cursor, Options* options)
-    : frame_(&buffer_, cursor, options), buffer_(options) {
+    : frame_(&buffer_, cursor, options, nullptr), buffer_(options) {
     buffer_.Load();
 }
 

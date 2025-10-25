@@ -8,15 +8,43 @@
 #include "coding.h"
 #include "cursor.h"
 #include "options.h"
+#include "syntax.h"
 
 namespace mango {
 
-Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options) noexcept
-    : buffer_(buffer), cursor_(cursor), options_(options) {}
+Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options,
+             SyntaxParser* parser) noexcept
+    : buffer_(buffer), cursor_(cursor), parser_(parser), options_(options) {}
+
+static int64_t LocateInPos(const std::vector<Highlight>& highlight,
+                           const Pos& pos) {
+    int64_t left = 0, right = highlight.size() - 1;
+    while (left <= right) {
+        int64_t mid = left + (right - left) / 2;
+        if (highlight[mid].range.PosIn(pos)) {
+            return mid;
+        } else if (highlight[mid].range.PosBefore(pos)) {
+            right = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+    return left;
+}
 
 void Frame::Draw() {
     assert(buffer_ != nullptr);
     assert(buffer_->IsLoad());
+
+    int64_t highlight_i = -1;
+    const std::vector<Highlight>* syntax_highlight = nullptr;
+    if (parser_) {
+        auto syntax_context = parser_->GetBufferSyntaxContext(buffer_);
+        if (syntax_context) {
+            syntax_highlight = &syntax_context->syntax_highlight;
+        }
+    }
+
     if (wrap_) {
         // TODO: wrap the content
         assert(false);
@@ -34,6 +62,17 @@ void Frame::Draw() {
                 continue;
             }
 
+            if (syntax_highlight) {
+                if (highlight_i == -1) {
+                    highlight_i = LocateInPos(*syntax_highlight, {b_view_r, 0});
+                } else {
+                    while (highlight_i < syntax_highlight->size() &&
+                           (*syntax_highlight)[highlight_i].range.PosAfter(
+                               {b_view_r, 0})) {
+                        highlight_i++;
+                    }
+                }
+            }
             const std::string& cur_line = lines[b_view_r].line_str;
             std::vector<uint32_t> character;
             size_t cur_b_view_c = 0;
@@ -71,10 +110,25 @@ void Frame::Draw() {
                         character_width = 0;
                     } else {
                         int screen_c = cur_b_view_c - b_view_col_ + col_;
+
+                        Terminal::AttrPair attr;
+                        // Decide attr
+                        if (syntax_highlight == nullptr ||
+                            syntax_highlight->size() == highlight_i) {
+                            attr = options_->attr_table[kNormal];
+                        } else {
+                            if ((*syntax_highlight)[highlight_i].range.PosIn(
+                                    {b_view_r, offset})) {
+                                attr = (*syntax_highlight)[highlight_i].attr;
+                            } else {
+                                attr = options_->attr_table[kNormal];
+                            }
+                        }
+
                         // Just in view, render the character
-                        int ret = term_->SetCell(
-                            screen_c, screen_r, character.data(),
-                            character.size(), options_->attr_table[kNormal]);
+                        int ret =
+                            term_->SetCell(screen_c, screen_r, character.data(),
+                                           character.size(), attr);
                         if (ret == kTermOutOfBounds) {
                             // User resize the screen now, just skip the left
                             // cols in this row
@@ -86,6 +140,15 @@ void Frame::Draw() {
                 }
                 offset += byte_len;
                 cur_b_view_c += character_width;
+
+                // Try goto next syntax highlight range
+                if (syntax_highlight) {
+                    while (highlight_i < syntax_highlight->size() &&
+                           (*syntax_highlight)[highlight_i].range.PosAfter(
+                               {b_view_r, offset})) {
+                        highlight_i++;
+                    }
+                }
             }
         }
     }
@@ -105,7 +168,7 @@ void Frame::MakeCursorVisible() {
     size_t cur_b_view_c = 0;
     size_t offset = 0;
     cursor_->character_in_line = 0;
-    while (offset < cur_line.size() && offset != cursor_->byte_offset) {
+    while (offset < cursor_->byte_offset) {
         int character_width;
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
@@ -308,7 +371,12 @@ void Frame::DeleteCharacterBeforeCursor() {
                   buffer_->lines()[cursor_->line - 1].line_str.size()},
                  {cursor_->line, 0}};
     } else {
-        range = {{cursor_->line, cursor_->byte_offset - 1},
+        std::vector<uint32_t> charater;
+        int len, character_width;
+        Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line_str, cursor_->byte_offset,
+                                         charater, len, character_width);
+        assert(ret == kOk);
+        range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};
     }
     Pos pos;
@@ -318,6 +386,7 @@ void Frame::DeleteCharacterBeforeCursor() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
+    parser_->HighlightAfterEdit(buffer_);
 }
 
 void Frame::AddStringAtCursor(std::string str) {
@@ -329,11 +398,13 @@ void Frame::AddStringAtCursor(std::string str) {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
+    parser_->HighlightAfterEdit(buffer_);
 }
 
 void Frame::TabAtCursor() {
     if (!options_->tabspace) {
         AddStringAtCursor(kTab);
+        parser_->HighlightAfterEdit(buffer_);
         return;
     }
 
@@ -353,6 +424,7 @@ void Frame::TabAtCursor() {
     }
     int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
     AddStringAtCursor(std::string(need_space, kSpaceChar));
+    parser_->HighlightAfterEdit(buffer_);
 }
 
 void Frame::Redo() {
@@ -363,6 +435,7 @@ void Frame::Redo() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
+    parser_->HighlightAfterEdit(buffer_);
 }
 
 void Frame::Undo() {
@@ -373,6 +446,7 @@ void Frame::Undo() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
+    parser_->HighlightAfterEdit(buffer_);
 }
 
 }  // namespace mango

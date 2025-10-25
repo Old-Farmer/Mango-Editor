@@ -4,10 +4,15 @@
 #include "coding.h"
 #include "cursor.h"
 #include "options.h"
+#include "syntax.h"
 
 namespace mango {
-Window::Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept
-    : frame_(buffer, cursor, options), cursor_(cursor), options_(options) {}
+Window::Window(Buffer* buffer, Cursor* cursor, Options* options,
+               SyntaxParser* parser) noexcept
+    : frame_(buffer, cursor, options, parser),
+      cursor_(cursor),
+      options_(options),
+      parser_(parser) {}
 
 void Window::Draw() { frame_.Draw(); }
 
@@ -64,14 +69,26 @@ void Window::DeleteCharacterBeforeCursor() {
                 }
             }
             if (!all_space) {
-                range = {{cursor_->line, cursor_->byte_offset - 1},
+                std::vector<uint32_t> charater;
+                int len, character_width;
+                Result ret = PrevCharacterInUtf8(
+                    frame_.buffer_->lines()[cursor_->line].line_str,
+                    cursor_->byte_offset, charater, len, character_width);
+                assert(ret == kOk);
+                range = {{cursor_->line, cursor_->byte_offset - len},
                          {cursor_->line, cursor_->byte_offset}};
             } else {
                 range = {{cursor_->line, (cursor_->byte_offset - 1) / 4 * 4},
                          {cursor_->line, cursor_->byte_offset}};
             }
         } else {
-            range = {{cursor_->line, cursor_->byte_offset - 1},
+            std::vector<uint32_t> charater;
+            int len, character_width;
+            Result ret = PrevCharacterInUtf8(
+                frame_.buffer_->lines()[cursor_->line].line_str,
+                cursor_->byte_offset, charater, len, character_width);
+            assert(ret == kOk);
+            range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line, cursor_->byte_offset}};
         }
     }
@@ -82,6 +99,7 @@ void Window::DeleteCharacterBeforeCursor() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
+    parser_->HighlightAfterEdit(buffer);
 }
 
 void Window::AddStringAtCursor(std::string str) {

@@ -11,6 +11,7 @@
 #include "mango_peel.h"
 #include "state.h"
 #include "status_line.h"
+#include "syntax.h"
 #include "utils.h"
 #include "window.h"
 
@@ -65,7 +66,8 @@ class Editor {
 
     BufferManager buffer_manager_;
     KeymapManager keymap_manager_{mode_};
-    CommandManager command_manager;
+    CommandManager command_manager_;
+    std::unique_ptr<SyntaxParser> syntax_parser_;
 
     Cursor cursor_;
     // Now only support one window in the screen

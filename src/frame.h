@@ -9,13 +9,14 @@ namespace mango {
 class Buffer;
 class Cursor;
 class Options;
+class SyntaxParser;
 
 // Frame is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
 class Frame {
    public:
     Frame() {}
-    Frame(Buffer* buffer, Cursor* cursor, Options* options) noexcept;
+    Frame(Buffer* buffer, Cursor* cursor, Options* options, SyntaxParser* parser) noexcept;
     ~Frame() = default;
     MANGO_DELETE_COPY(Frame);
     MANGO_DEFAULT_MOVE(Frame);
@@ -70,6 +71,7 @@ class Frame {
     bool wrap_ = false;
 
    private:
+    SyntaxParser* parser_;
     Options* options_;
     Terminal* term_ = &Terminal::GetInstance();
 };

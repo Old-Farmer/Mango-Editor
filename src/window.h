@@ -7,7 +7,8 @@ namespace mango {
 
 class Window {
    public:
-    Window(Buffer* buffer, Cursor* cursor, Options* options) noexcept;
+    Window(Buffer* buffer, Cursor* cursor, Options* options,
+           SyntaxParser* parser) noexcept;
     ~Window() = default;
     MANGO_DELETE_COPY(Window);
     MANGO_DEFAULT_MOVE(Window);
@@ -49,13 +50,13 @@ class Window {
 
     // Search relevant
     struct SearchState {
-        size_t i = 0; // from 1 instead of zero
+        size_t i = 0;  // from 1 instead of zero
         size_t total = 0;
     };
     //
     void BuildSearchContext(std::string pattern);
     void DestorySearchContext();
-    const std::string& GetSearchPattern() {return search_pattern_;}
+    const std::string& GetSearchPattern() { return search_pattern_; }
     SearchState CursorGoNextSearchResult();
     SearchState CursorGoPrevSearchResult();
 
@@ -69,6 +70,7 @@ class Window {
    private:
     Cursor* cursor_;
     Options* options_;
+    SyntaxParser* parser_;
 
     std::vector<Range> search_result_;
     std::string search_pattern_;

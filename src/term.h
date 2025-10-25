@@ -53,6 +53,7 @@ class Terminal {
         Attr fg;
         Attr bg;
 
+        AttrPair() = default;
         AttrPair(Attr _fg, Attr _bg) : fg(_fg), bg(_bg) {}
     };
 
