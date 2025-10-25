@@ -21,7 +21,7 @@ This project is far from mature. Do not use it in the production environment.
 - simple edit
 - simple syntax highlighting with tree-sitter(only a few languages now)
 
-See docs/help.txt for more infomation
+See docs/help.md for more infomation
 
 ## Build
 
