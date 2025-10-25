@@ -169,7 +169,7 @@ void Window::TryAutoPair(std::string str) {
         if (at_cursor == kRightBraceChar) {
             goto out;
         }
-        str += kLeftBrace;
+        str += kRightBrace;
     } else if (str == kLeftParenthesis) {
         if (at_cursor == kRightParenthesisChar) {
             goto out;
@@ -197,7 +197,71 @@ out:
 }
 
 void Window::TryAutoIndent() {
-    const std::string& line = frame_.buffer_->lines()[cursor_->line].line_str;
+/*     const std::string& line = frame_.buffer_->lines()[cursor_->line].line_str;
+    std::string indent = "";
+    std::string str = kNewLine;
+    // keep with this line's indent
+    size_t i = 0;
+    size_t cur_indent = 0;
+    for (; i < line.size(); i++) {
+        if (line[i] == kSpaceChar) {
+            cur_indent++;
+            indent.push_back(line[i]);
+        } else if (line[i] == kTabChar) {
+            cur_indent =
+                (cur_indent / options_->tabstop + 1) * options_->tabstop;
+            indent.push_back(line[i]);
+        } else {
+            break;
+        }
+    }
+    Pos cursor_pos;
+    bool maunally_set_cursor_pos = false;
+    str += indent;
+    zstring_view ft = frame_.buffer_->filetype();
+    if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
+        // traditional languages, try to check () {} []
+        for (int64_t i = cursor_->byte_offset - 1; i >= 0; i--) {
+            char want_right;
+            if (line[i] == kLeftBraceChar) {
+                want_right = kRightBraceChar;
+            } else if (line[i] == kLeftParenthesisChar) {
+                want_right = kRightParenthesisChar;
+            } else if (line[i] == kLeftSquareBracketChar) {
+                want_right = kRightSquareBracketChar;
+            } else if (line[i] == kSpaceChar) {
+                continue;
+            } else {
+                break;
+            }
+
+            if (options_->tabspace) {
+                int need_space =
+                    (cur_indent / options_->tabstop + 1) * options_->tabstop -
+                    cur_indent;
+                str += std::string(need_space, kSpaceChar);
+            } else {
+                str += kTab;
+            }
+            for (i = cursor_->byte_offset; i < line.size(); i++) {
+                if (line[i] == want_right) {
+                    cursor_pos.line = cursor_->line + 1;
+                    cursor_pos.byte_offset = str.size() - 1;
+                    maunally_set_cursor_pos = true;
+                    str += kNewLine + indent;
+                    break;
+                } else if (line[i] != kSpaceChar) {
+                    break;
+                }
+            }
+            break;
+        }
+    }
+    if (maunally_set_cursor_pos) {
+        frame_.AddStringAtCursor(std::move(str), &cursor_pos);
+    } else {
+        frame_.AddStringAtCursor(std::move(str));
+    } */
     frame_.AddStringAtCursor(kNewLine);
 }
 
