@@ -16,7 +16,6 @@ namespace mango {
 struct Highlight {
     Range range;
     Terminal::AttrPair attr;
-    int8_t priority;
 };
 
 struct SyntaxContext {
@@ -31,8 +30,8 @@ class SyntaxParser {
     MANGO_DELETE_COPY(SyntaxParser);
     MANGO_DELETE_MOVE(SyntaxParser);
 
-    void HighlightInit(const Buffer* buffer);
-    void HighlightAfterEdit(Buffer* buffer);
+    void SyntaxHighlightInit(const Buffer* buffer);
+    void SyntaxHighlightAfterEdit(Buffer* buffer);
     void OnBufferDelete(const Buffer* buffer);
     const SyntaxContext* GetBufferSyntaxContext(const Buffer* buffer);
 

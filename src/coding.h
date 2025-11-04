@@ -21,6 +21,7 @@ constexpr uint32_t kLeftBraceChar = '{';
 constexpr uint32_t kRightBraceChar = '}';
 constexpr uint32_t kSingleQuoteChar = '\'';
 constexpr uint32_t kDoubleQuoteChar = '\"';
+constexpr uint32_t kReturnChar = '\r';
 
 constexpr const char* kSpace = " ";
 constexpr const char* kNewLine = "\n";

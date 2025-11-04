@@ -314,6 +314,12 @@ void Editor::HandleKey() {
         // not handled by the keymap manager
         if (!key_info.IsSpecialKey() && key_info.mod == 0) {
             uint32_t codepoint = key_info.codepoint;
+
+            // filter some characters
+            if (codepoint == kReturnChar) {
+                return;
+            }
+
             char c[7];
             int len = UnicodeToUtf8(codepoint, c);
             assert(len > 0);
@@ -430,7 +436,7 @@ void Editor::PreProcess() {
     if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
         try {
             window_->frame_.buffer_->Load();
-            syntax_parser_->HighlightInit(window_->frame_.buffer_);
+            syntax_parser_->SyntaxHighlightInit(window_->frame_.buffer_);
         } catch (FileCreateException& e) {
             window_->frame_.buffer_->state() = BufferState::kCannotCreate;
             MANGO_LOG_ERROR("%s", e.what());

@@ -120,14 +120,12 @@ void SyntaxParser::GenerateHighlight(TSQuery* query, TSTree* tree,
                 continue;
             }
             context.syntax_highlight.push_back(
-                {{{start.row, start.column}, {end.row, end.column}},
-                 attr,
-                 100});
+                {{{start.row, start.column}, {end.row, end.column}}, attr});
         }
     }
 }
 
-void SyntaxParser::HighlightInit(const Buffer* buffer) {
+void SyntaxParser::SyntaxHighlightInit(const Buffer* buffer) {
     std::vector<Highlight> highlight;
     auto filetype = buffer->filetype();
     TSQuery* query = GetQuery(filetype);
@@ -154,7 +152,7 @@ void SyntaxParser::HighlightInit(const Buffer* buffer) {
     GenerateHighlight(query, tree, buffer);
 }
 
-void SyntaxParser::HighlightAfterEdit(Buffer* buffer) {
+void SyntaxParser::SyntaxHighlightAfterEdit(Buffer* buffer) {
     auto iter = buffer_context_.find(buffer->id());
     if (iter == buffer_context_.end()) {
         return;
@@ -184,7 +182,8 @@ void SyntaxParser::OnBufferDelete(const Buffer* buffer) {
     buffer_context_.erase(iter);
 }
 
-const SyntaxContext* SyntaxParser::GetBufferSyntaxContext(const Buffer* buffer) {
+const SyntaxContext* SyntaxParser::GetBufferSyntaxContext(
+    const Buffer* buffer) {
     auto iter = buffer_context_.find(buffer->id());
     if (iter == buffer_context_.end()) {
         return nullptr;

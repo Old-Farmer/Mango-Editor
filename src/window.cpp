@@ -141,7 +141,7 @@ void Window::DeleteCharacterBeforeCursor() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
-    parser_->HighlightAfterEdit(buffer);
+    parser_->SyntaxHighlightAfterEdit(buffer);
 }
 
 void Window::AddStringAtCursor(std::string str) {

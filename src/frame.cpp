@@ -395,24 +395,20 @@ void Frame::DeleteCharacterBeforeCursor() {
 
 void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
     Pos pos;
+    if (cursor_pos != nullptr) {
+        pos = *cursor_pos;
+    }
     if (buffer_->Add({cursor_->line, cursor_->byte_offset}, std::move(str),
-                     pos) != kOk) {
+                     cursor_pos != nullptr, pos) != kOk) {
         return;
     }
-    if (cursor_pos == nullptr) {
-        cursor_->line = pos.line;
-        cursor_->byte_offset = pos.byte_offset;
-    } else {
-        cursor_->line = cursor_pos->line;
-        cursor_->byte_offset = cursor_pos->byte_offset;
-    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
     UpdateHighlight();
 }
 
 void Frame::TabAtCursor() {
-    auto _ = gsl::finally([this] { UpdateHighlight(); });
-
     if (!options_->tabspace) {
         AddStringAtCursor(kTab);
         return;
@@ -455,12 +451,12 @@ void Frame::Undo() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
-    parser_->HighlightAfterEdit(buffer_);
+    parser_->SyntaxHighlightAfterEdit(buffer_);
     UpdateHighlight();
 }
 
 void Frame::UpdateHighlight() {
-    if (parser_) parser_->HighlightAfterEdit(buffer_);
+    if (parser_) parser_->SyntaxHighlightAfterEdit(buffer_);
 }
 
 }  // namespace mango

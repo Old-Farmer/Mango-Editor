@@ -54,7 +54,7 @@ void MangoPeel::TabAtCursor() { frame_.TabAtCursor(); }
 void MangoPeel::SetContent(std::string content) {
     buffer_.Clear();
     Pos pos;
-    buffer_.Add({0, 0}, std::move(content), pos);
+    buffer_.Add({0, 0}, std::move(content), false, pos);
 }
 
 const std::string& MangoPeel::GetContent() {

@@ -104,6 +104,11 @@ struct BufferEdit {
     std::string str;
 };
 
+struct BufferEditWithPosHint : BufferEdit {
+    std::optional<Pos> pos_hint;  // only used for redoing an Add, just to some
+                                  // special conditions like autopairs...
+};
+
 // A class which represents a file contents in memory.
 // The Buffer may not be backed by a file.
 // A file backup buffer can be read only, and a no file backup buffer can't be
@@ -117,8 +122,8 @@ struct BufferEdit {
 // TODO: Windows support
 class Buffer {
     struct BufferEditHistoryItem {
-        BufferEdit origin;
-        BufferEdit reverse;
+        BufferEditWithPosHint origin;
+        BufferEditWithPosHint reverse;
     };
 
    public:
@@ -145,13 +150,13 @@ class Buffer {
     // Some operations used inner
     // if record is true, some info will be kept so reverse op can be done.
     // if record_ts_edit is true, ts edit will be kept for treesittier
-    void Edit(const BufferEdit& edit, Pos& pos);
-    void AddInner(const Pos& pos, const std::string& str, Pos& out_pos,
+    void Edit(const BufferEdit& edit, Pos& pos_hint);
+    void AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
                   bool record_ts_edit);
-    std::string DeleteInner(const Range& range, Pos& pos, bool record,
-                            bool record_ts_edit);
+    std::string DeleteInner(const Range& range, Pos& pos_hint,
+                            bool record_reverse, bool record_ts_edit);
     std::string ReplaceInner(const Range& range, const std::string& str,
-                             Pos& pos, bool record);
+                             Pos& pos_hint, bool record_reverse);
 
     void Record(BufferEditHistoryItem item);
 
@@ -160,16 +165,18 @@ class Buffer {
     // is undefined.
     // error return kBufferCannotLoad, kBufferReadOnly
     // ok return kOk
-    // pos will be set to the suggest cursor pos
-    Result Add(const Pos& pos, std::string str, Pos& out_pos);
-    Result Delete(const Range& range, Pos& pos);
-    Result Replace(const Range& range, std::string str, Pos& pos);
+    // pos_hint will be set to the suggest cursor pos if use_given_pos_hint is
+    // false or no such parameter
+    Result Add(const Pos& pos, std::string str, bool use_given_pos_hint,
+               Pos& pos_hint);
+    Result Delete(const Range& range, Pos& pos_hint);
+    Result Replace(const Range& range, std::string str, Pos& pos_hint);
 
     // return kNoHistoryAvailable if no action can be done
     // else return kOk
-    // pos will be set to the suggest cursor pos
-    Result Redo(Pos& pos);
-    Result Undo(Pos& pos);
+    // pos_hint will be set to the suggest cursor pos
+    Result Redo(Pos& pos_hint);
+    Result Undo(Pos& pos_hint);
 
     // Not support regex, only plain text
     std::vector<Range> Search(const std::string& pattern);
