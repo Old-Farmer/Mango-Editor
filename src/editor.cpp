@@ -2,7 +2,7 @@
 
 #include <inttypes.h>
 
-#include "coding.h"
+#include "character.h"
 #include "constants.h"
 #include "fs.h"
 #include "options.h"

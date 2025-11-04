@@ -3,7 +3,7 @@
 #include <gsl/util>
 
 #include "buffer.h"
-#include "coding.h"
+#include "character.h"
 #include "cursor.h"
 #include "options.h"
 #include "syntax.h"

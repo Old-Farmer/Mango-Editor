@@ -5,7 +5,7 @@
 #include <cstring>
 #include <gsl/util>
 
-#include "coding.h"
+#include "character.h"
 #include "cursor.h"
 #include "exception.h"
 #include "filetype.h"

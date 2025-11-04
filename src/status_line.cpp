@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "buffer.h"
-#include "coding.h"
+#include "character.h"
 #include "cursor.h"
 #include "options.h"
 #include "window.h"

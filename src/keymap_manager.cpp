@@ -2,7 +2,7 @@
 
 #include <stack>
 
-#include "coding.h"
+#include "character.h"
 
 namespace mango {
 

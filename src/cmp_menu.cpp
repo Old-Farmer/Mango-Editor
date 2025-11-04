@@ -1,6 +1,6 @@
 #include "cmp_menu.h"
 
-#include "coding.h"
+#include "character.h"
 #include "cursor.h"
 #include "options.h"
 
