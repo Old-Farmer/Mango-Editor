@@ -285,12 +285,17 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
 
     std::string old_str;
 
+    std::string line_where_end_pos_locate;
+
     Pos end = range.end;
+    assert(lines_.size() > end.line);
+    assert(range.begin.line < end.line ||
+           (range.begin.line == range.end.line &&
+            range.begin.byte_offset < range.end.byte_offset));
     while (range.begin.line <= end.line) {
         if (range.begin.line < end.line) {
             if (end.byte_offset == lines_[end.line].line_str.size()) {
                 // whole line deleted
-                assert(lines_.size() > end.line);
                 if (record_reverse)
                     old_str.insert(
                         0, std::string(kNewLine) + lines_[end.line].line_str);
@@ -298,29 +303,24 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
                 lines_.erase(lines_.begin() + end.line);
 
                 end.byte_offset = lines_[end.line - 1].line_str.size();
-            } else if (end.byte_offset == 0) {
-                // Merge two lines
-                assert(lines_.size() > end.line);
-                if (record_reverse) old_str.insert(0, kNewLine);
-
-                end.byte_offset = lines_[end.line - 1].line_str.size();
-
-                lines_[end.line - 1].line_str.append(lines_[end.line].line_str);
-                lines_.erase(lines_.begin() + end.line);
             } else {
                 // Delete the part of the line before end.byte_offset
-                if (record_reverse)
+                // and merge with the line where begin pos is located.
+                // But we don't do merge here, we just move away this line and
+                // merge after deletion
+                if (record_reverse && end.byte_offset != 0) {
+                    assert(end.byte_offset < lines_[end.line].line_str.size());
                     old_str.insert(0, lines_[end.line].line_str, 0,
                                    end.byte_offset);
+                }
 
-                assert(lines_.size() > end.line);
-                assert(lines_[end.line].line_str.size() >= end.byte_offset);
-                lines_[end.line].line_str.erase(0, end.byte_offset);
+                line_where_end_pos_locate =
+                    std::move(lines_[end.line].line_str);
 
                 end.byte_offset = lines_[end.line - 1].line_str.size();
+                lines_.erase(lines_.begin() + end.line);
             }
         } else {
-            assert(lines_.size() > end.line);
             assert(lines_[end.line].line_str.size() >= end.byte_offset);
             if (record_reverse)
                 old_str.insert(0, lines_[end.line].line_str,
@@ -336,6 +336,13 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
             break;
         }
         end.line--;
+    }
+
+    // Maybe merge lines
+    if (!line_where_end_pos_locate.empty()) {
+        lines_[range.begin.line].line_str.append(
+            line_where_end_pos_locate, range.end.byte_offset,
+            line_where_end_pos_locate.size() - range.end.byte_offset);
     }
 
     pos_hint = range.begin;
@@ -426,7 +433,9 @@ Result Buffer::Add(const Pos& pos, std::string str, bool use_given_pos_hint,
     BufferEditHistoryItem item;
     item.origin.range = {pos, pos};
     item.origin.str = std::move(str);
-    item.origin.pos_hint = pos_hint;
+    if (use_given_pos_hint) {
+        item.origin.pos_hint = pos_hint;
+    }
 
     item.reverse.range = {pos, orign_pos_hint};
     Record(std::move(item));
