@@ -43,7 +43,7 @@ mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4
 mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4
 
 # Execute app
-./mango
+./mgo
 # Execute test
-./mango_test
+./test
 ```

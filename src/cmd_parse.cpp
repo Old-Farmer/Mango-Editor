@@ -12,7 +12,7 @@ namespace {
 
 constexpr const char* KUsageTemplate =
     "Usage:\n"
-    "  mango [options] [file ...]\n"
+    "  mgo [options] [file ...]\n"
     "\n"
     "Options:\n"
     "   -h(--help) Show usage";

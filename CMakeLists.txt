@@ -154,21 +154,21 @@ target_include_directories(
 target_compile_definitions(mango_lib PUBLIC TB_OPT_ATTR_W=64 TB_OPT_EGC)
 
 # mango executable
-add_executable(mango)
+add_executable(mgo)
 target_sources(
-  mango PUBLIC
+  mgo PUBLIC
   "${SRC_DIR}/main.cpp"
 )
-target_link_libraries(mango PUBLIC mango_lib)
+target_link_libraries(mgo PUBLIC mango_lib)
 
 # Tests
 set(TEST_DIR "${CMAKE_SOURCE_DIR}/test")
 
-add_executable(mango_test)
+add_executable(test)
 target_sources(
-  mango_test PUBLIC
+  test PUBLIC
   "${TEST_DIR}/logging_test.cpp"
   "${TEST_DIR}/term_test.cpp"
   "${TEST_DIR}/xxx_manager_test.cpp"
 )
-target_link_libraries(mango_test PUBLIC mango_lib Catch2::Catch2WithMain)
+target_link_libraries(test PUBLIC mango_lib Catch2::Catch2WithMain)
