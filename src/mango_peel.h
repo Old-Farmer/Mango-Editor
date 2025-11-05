@@ -34,8 +34,11 @@ class MangoPeel {
     void CursorGoDown();
     void CursorGoHome();
     void CursorGoEnd();
+    void CursorGoNextWord();
+    void CursorGoPrevWord();
 
     void DeleteCharacterBeforeCursor();
+    void DeleteWordBeforeCursor();
     void AddStringAtCursor(std::string str);
     void TabAtCursor();
 

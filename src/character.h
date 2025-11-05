@@ -22,6 +22,7 @@ constexpr uint32_t kRightBraceChar = '}';
 constexpr uint32_t kSingleQuoteChar = '\'';
 constexpr uint32_t kDoubleQuoteChar = '\"';
 constexpr uint32_t kReturnChar = '\r';
+constexpr uint32_t kUnderLine = '_';
 
 constexpr const char* kSpace = " ";
 constexpr const char* kNewLine = "\n";
@@ -67,11 +68,28 @@ inline int UnicodeToUtf8(uint32_t in, char* out) {
 // https://unicode.org/reports/tr29/#Default_Grapheme_Cluster_Table
 // 3. make it iterator
 
-Result NextCharacterInUtf8(const std::string& str, int offset,
+// Current only return kOk
+Result NextCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
                            int& width);
 
-Result PrevCharacterInUtf8(const std::string& str, int offset,
+// Current only return kOk
+Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
                            int& width);
+
+// A word contains isalnum + _
+// TODO: support configuration
+
+// next word offset will set to the next word start
+// Current only return kOk
+Result NextWord(const std::string& str, size_t offset,
+                size_t& next_word_offset);
+
+// if current offset - 1 is in a word, prev word offset will set to this word
+// begin offset; else, this function will go prev greedily, until a word
+// character, and set pre word offset just after this word character.
+// Current only return kOk
+Result PrevWord(const std::string& str, size_t offset,
+                size_t& prev_word_offset);
 }  // namespace mango

@@ -364,6 +364,40 @@ void Frame::CursorGoEnd() {
     cursor_->DontHoldColWant();
 }
 
+void Frame::CursorGoNextWord() {
+    assert(buffer_);
+    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    if (cursor_->byte_offset == cur_line->size()) {
+        if (cursor_->line == buffer_->LineCnt() - 1) {
+            return;
+        }
+        cursor_->line++;
+        cursor_->byte_offset = 0;
+        cur_line = &buffer_->lines()[cursor_->line].line_str;
+    }
+    Result res =
+        NextWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
+    assert(res == kOk);
+    cursor_->DontHoldColWant();
+}
+
+void Frame::CursorGoPrevWord() {
+    assert(buffer_);
+    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    if (cursor_->byte_offset == 0) {
+        if (cursor_->line == 0) {
+            return;
+        }
+        cursor_->line--;
+        cur_line = &buffer_->lines()[cursor_->line].line_str;
+        cursor_->byte_offset = cur_line->size();
+    }
+    Result res =
+        PrevWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
+    assert(res == kOk);
+    cursor_->DontHoldColWant();
+}
+
 void Frame::DeleteCharacterBeforeCursor() {
     Range range;
     if (cursor_->byte_offset == 0) {
@@ -385,6 +419,35 @@ void Frame::DeleteCharacterBeforeCursor() {
     }
     Pos pos;
     if (buffer_->Delete(range, pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
+    UpdateHighlight();
+}
+
+void Frame::DeleteWordBeforeCursor() {
+    assert(buffer_);
+    Pos deleted_until;
+    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    if (cursor_->byte_offset == 0) {
+        if (cursor_->line == 0) {
+            return;
+        }
+        deleted_until.line = cursor_->line - 1;
+        cur_line = &buffer_->lines()[cursor_->line - 1].line_str;
+        deleted_until.byte_offset = cur_line->size();
+    } else {
+        deleted_until.line = cursor_->line;
+        deleted_until.byte_offset = cursor_->byte_offset;
+    }
+    Result res = PrevWord(*cur_line, deleted_until.byte_offset,
+                          deleted_until.byte_offset);
+    assert(res == kOk);
+    Pos pos;
+    if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
+                        pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;

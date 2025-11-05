@@ -41,9 +41,15 @@ void MangoPeel::CursorGoHome() { frame_.CursorGoHome(); }
 
 void MangoPeel::CursorGoEnd() { frame_.CursorGoEnd(); }
 
+void MangoPeel::CursorGoNextWord() { frame_.CursorGoNextWord(); }
+
+void MangoPeel::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
+
 void MangoPeel::DeleteCharacterBeforeCursor() {
     frame_.DeleteCharacterBeforeCursor();
 }
+
+void MangoPeel::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 
 void MangoPeel::AddStringAtCursor(std::string str) {
     frame_.AddStringAtCursor(std::move(str));

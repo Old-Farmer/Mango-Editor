@@ -45,8 +45,11 @@ class Frame {
     void CursorGoDown();
     void CursorGoHome();
     void CursorGoEnd();
+    void CursorGoNextWord();
+    void CursorGoPrevWord();
 
     void DeleteCharacterBeforeCursor();
+    void DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
     void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
     void TabAtCursor();

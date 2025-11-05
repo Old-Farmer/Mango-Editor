@@ -17,6 +17,8 @@ Use <c-k> as a general leader key.
 - <pgup> page up
 - <left> left arrow to move cursor left
 - <right> right to move cursor right
+- <c-left> move cursor to the next word
+- <c-right> move cursor to the previous word
 - <up> up arrow to move cursor up
 - <down> down arrow to move cursor down
 - <c-b><c-n> or <c-pgdn> next buffer
@@ -28,6 +30,7 @@ Use <c-k> as a general leader key.
 ### Edit
 
 - <bs> backspace to del a character before cursor
+- <c-w> del a word before cursor
 - <enter> insert a new line
 - <tab> tab to insert tab/spaces (see src/options.h)
 - <ctrl-s> save

@@ -98,6 +98,9 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeymap(
         "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
         {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap(
+        "<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
+        {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<tab>", {[this] { peel_->TabAtCursor(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<enter>", {[this] {
@@ -123,6 +126,12 @@ void Editor::InitKeymaps() {
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<right>", {[this] { peel_->CursorGoRight(); }},
                               {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap(
+        "<c-left>", {[this] { peel_->CursorGoPrevWord(); }},
+        {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap(
+        "<c-right>", {[this] { peel_->CursorGoNextWord(); }},
+        {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},
@@ -202,8 +211,9 @@ void Editor::InitKeymaps() {
 
     // edit
     keymap_manager_.AddKeymap(
-        "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }},
-        kDefaultsModes);
+        "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }});
+    keymap_manager_.AddKeymap(
+        "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
     keymap_manager_.AddKeymap("<tab>",
                               {[this] { cursor_.in_window->TabAtCursor(); }});
     keymap_manager_.AddKeymap(
@@ -231,6 +241,10 @@ void Editor::InitKeymaps() {
                               {[this] { cursor_.in_window->CursorGoLeft(); }});
     keymap_manager_.AddKeymap("<right>",
                               {[this] { cursor_.in_window->CursorGoRight(); }});
+    keymap_manager_.AddKeymap(
+        "<c-left>", {[this] { cursor_.in_window->CursorGoPrevWord(); }});
+    keymap_manager_.AddKeymap(
+        "<c-right>", {[this] { cursor_.in_window->CursorGoNextWord(); }});
     keymap_manager_.AddKeymap("<up>",
                               {[this] { cursor_.in_window->CursorGoUp(); }});
     keymap_manager_.AddKeymap("<down>",
