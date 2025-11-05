@@ -230,6 +230,12 @@ void Window::TryAutoIndent() {
     zstring_view ft = frame_.buffer_->filetype();
     if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
         // traditional languages, try to check () {} []
+        // e.g.
+        // {<cursor>} 
+        // ->
+        // {
+        // <indent><cursor>
+        // }
         for (int64_t i = cursor_->byte_offset - 1; i >= 0; i--) {
             char want_right;
             if (line[i] == kLeftBraceChar) {
