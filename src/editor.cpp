@@ -21,19 +21,9 @@ void Editor::Loop(std::unique_ptr<Options> options,
 
     syntax_parser_ = std::make_unique<SyntaxParser>(options_.get());
 
-    // Init cwd
-    try {
-        Path::GetCwdSys();
-        MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
-        Path::GetAppRootSys();
-        MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
-        // Create all buffers
-        for (const char* path : init_options->begin_files) {
-            buffer_manager_.AddBuffer(Buffer(options_.get(), path));
-        }
-    } catch (FSException& e) {
-        // TODO: notify user
-        throw;
+    // Create all buffers
+    for (const char* path : init_options->begin_files) {
+        buffer_manager_.AddBuffer(Buffer(options_.get(), path));
     }
 
     // Create the first window.
@@ -98,9 +88,9 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeymap(
         "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
         {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap(
-        "<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
-        {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap("<c-w>",
+                              {[this] { peel_->DeleteWordBeforeCursor(); }},
+                              {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<tab>", {[this] { peel_->TabAtCursor(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<enter>", {[this] {
@@ -126,12 +116,12 @@ void Editor::InitKeymaps() {
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<right>", {[this] { peel_->CursorGoRight(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap(
-        "<c-left>", {[this] { peel_->CursorGoPrevWord(); }},
-        {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap(
-        "<c-right>", {[this] { peel_->CursorGoNextWord(); }},
-        {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap("<c-left>",
+                              {[this] { peel_->CursorGoPrevWord(); }},
+                              {Mode::kPeelCommand});
+    keymap_manager_.AddKeymap("<c-right>",
+                              {[this] { peel_->CursorGoNextWord(); }},
+                              {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},

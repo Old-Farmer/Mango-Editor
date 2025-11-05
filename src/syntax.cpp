@@ -21,13 +21,13 @@ namespace {
 const std::unordered_map<std::string_view, std::string>
     kFiletypeToQueryFilePath = {
         {"c",
-         "../third-party/tree-sitter-grammars/tree-sitter-c/queries/"
+         "third-party/tree-sitter-grammars/tree-sitter-c/queries/"
          "highlights.scm"},
         {"cpp",
-         "../third-party/tree-sitter-grammars/tree-sitter-cpp/queries/"
+         "third-party/tree-sitter-grammars/tree-sitter-cpp/queries/"
          "highlights.scm"},
         {"json",
-         "../third-party/tree-sitter-grammars/tree-sitter-json/queries/"
+         "third-party/tree-sitter-grammars/tree-sitter-json/queries/"
          "highlights.scm"},
 };
 
@@ -201,13 +201,16 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
             return nullptr;
         }
         try {
-            File f(iter_ft2query_fpath->second, "r", false);
+            File f(Path::GetAppRoot() + kSlash + iter_ft2query_fpath->second,
+                   "r", false);
             std::string query_str = f.ReadAll();
             // Cpp need C
             if (filetype == "cpp") {
                 auto iter_ft2query_fpath_c = kFiletypeToQueryFilePath.find("c");
                 if (iter_ft2query_fpath_c != kFiletypeToQueryFilePath.end()) {
-                    File f2(iter_ft2query_fpath_c->second, "r", false);
+                    File f2(Path::GetAppRoot() + kSlash +
+                                iter_ft2query_fpath_c->second,
+                            "r", false);
                     std::string query_str_c = f2.ReadAll();
                     query_str += kNewLine + query_str_c;
                 }
@@ -225,8 +228,11 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
             }
             filetype_to_query_[filetype] = query;
         } catch (IOException& e) {
-            MANGO_LOG_ERROR("file %s cannot read: %s",
-                            iter_ft2query_fpath->second.c_str(), e.what());
+            MANGO_LOG_ERROR(
+                "file %s cannot read: %s",
+                (Path::GetAppRoot() + kSlash + iter_ft2query_fpath->second)
+                    .c_str(),
+                e.what());
             return nullptr;
         } catch (std::out_of_range& e) {
             MANGO_LOG_ERROR(
