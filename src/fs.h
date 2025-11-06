@@ -18,6 +18,8 @@ class Path {
     zstring_view ThisPath() noexcept;
     const std::string& AbsolutePath() const noexcept;
 
+    // Cwd and AppRoot all have a slash at the end
+
     static const std::string& GetCwd() noexcept;
     static const std::string& GetAppRoot() noexcept;
 

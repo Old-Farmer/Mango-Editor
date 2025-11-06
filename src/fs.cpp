@@ -17,7 +17,7 @@ Path::Path(std::string str) {
         size_t pos = absolute_path_.find(cwd_);
         in_cwd_ = pos != std::string::npos;
     } else {
-        absolute_path_ = cwd_ + kSlash + std::move(str);
+        absolute_path_ = cwd_ + std::move(str);
         in_cwd_ = true;
     }
 
@@ -60,7 +60,7 @@ const std::string& Path::GetCwdSys() {
     if (ret == nullptr) {
         throw FSException("Getcwd Error: %s", strerror(errno));
     }
-    cwd_ = std::string(buf);
+    cwd_ = std::string(buf) + kSlash;
     return cwd_;
 }
 
@@ -82,7 +82,7 @@ const std::string& Path::GetAppRootSys() {
         throw FSException(
             "%", "GetAppRootSys Error: find_last_of can't find another /");
     }
-    app_root_.resize(pos);
+    app_root_.resize(pos + 1);
     return app_root_;
 }
 

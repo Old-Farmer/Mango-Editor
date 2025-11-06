@@ -201,15 +201,14 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
             return nullptr;
         }
         try {
-            File f(Path::GetAppRoot() + kSlash + iter_ft2query_fpath->second,
-                   "r", false);
+            File f(Path::GetAppRoot() + iter_ft2query_fpath->second, "r",
+                   false);
             std::string query_str = f.ReadAll();
             // Cpp need C
             if (filetype == "cpp") {
                 auto iter_ft2query_fpath_c = kFiletypeToQueryFilePath.find("c");
                 if (iter_ft2query_fpath_c != kFiletypeToQueryFilePath.end()) {
-                    File f2(Path::GetAppRoot() + kSlash +
-                                iter_ft2query_fpath_c->second,
+                    File f2(Path::GetAppRoot() + iter_ft2query_fpath_c->second,
                             "r", false);
                     std::string query_str_c = f2.ReadAll();
                     query_str += kNewLine + query_str_c;
@@ -230,7 +229,7 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
         } catch (IOException& e) {
             MANGO_LOG_ERROR(
                 "file %s cannot read: %s",
-                (Path::GetAppRoot() + kSlash + iter_ft2query_fpath->second)
+                (Path::GetAppRoot() + iter_ft2query_fpath->second)
                     .c_str(),
                 e.what());
             return nullptr;

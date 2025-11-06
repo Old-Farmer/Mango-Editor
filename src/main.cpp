@@ -1,43 +1,48 @@
 #include <cstdio>
 
-#include "character.h"
 #include "cmd_parse.h"
 #include "editor.h"
-#include "exception.h"
 #include "logging.h"
 #include "signal_handler.h"
 #include "term.h"
 
+namespace mango {
+void TerminateHandler() {
+    Terminal::GetInstance().Shutdown();
+    std::exception_ptr exptr = std::current_exception();
+    if (exptr) {
+        try {
+            std::rethrow_exception(exptr);
+        } catch (const std::exception& e) {
+            PrintException(&e);
+        } catch (...) {
+            PrintException(nullptr);
+        }
+    }
+
+    std::abort();
+}
+}  // namespace mango
+
 using namespace mango;
 
 int main(int argc, char* argv[]) {
-    try {
-        SignalHandler signal_handler;
+    SignalHandler signal_handler;
 
-        Path::GetCwdSys();
-        Path::GetAppRootSys();
+    std::set_terminate(TerminateHandler);
 
-        LogInit(std::string(std::string(Path::GetAppRoot()) + kSlash +
-                            zstring_view_c_str(kloggingFilePath)));
+    Path::GetCwdSys();
+    Path::GetAppRootSys();
 
-        MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
-        MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
+    LogInit(std::string(Path::GetAppRoot()) +
+            zstring_view_c_str(kloggingFilePath));
 
-        auto options = std::make_unique<Options>();
-        auto init_options = std::make_unique<InitOptions>();
-        ParseCmdArgs(argc, argv, options.get(), init_options.get());
-        Editor& editor = Editor::GetInstance();
-        editor.Loop(std::move(options), std::move(init_options));
-    } catch (LoggingException& e) {
-        fputs(e.what(), stderr);
-    } catch (FSException& e) {
-        fputs(e.what(), stderr);
-    } catch (Exception& e) {
-        MANGO_LOG_ERROR("%s", e.what());
-        Terminal::GetInstance().Shutdown();
-        fputs(e.what(), stderr);
-    } catch (std::exception& e) {
-        Terminal::GetInstance().Shutdown();
-        fputs(e.what(), stderr);
-    }
+    MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
+    MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
+
+    auto options = std::make_unique<Options>();
+    auto init_options = std::make_unique<InitOptions>();
+    ParseCmdArgs(argc, argv, options.get(), init_options.get());
+    Editor& editor = Editor::GetInstance();
+    editor.Loop(std::move(options), std::move(init_options));
 }

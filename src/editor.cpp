@@ -475,7 +475,7 @@ Editor& Editor::GetInstance() {
 }
 
 void Editor::Help() {
-    auto p = Path(Path::GetAppRoot() + kSlash + kHelpPath);
+    auto p = Path(Path::GetAppRoot() + kHelpPath);
     Buffer* b = buffer_manager_.FindBuffer(p);
     if (b) {
         cursor_.in_window->AttachBuffer(b);

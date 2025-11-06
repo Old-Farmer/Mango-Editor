@@ -1,10 +1,17 @@
 #pragma once
 
 #include <cstdio>
+#include <cstdlib>
 #include <exception>
 #include <memory>
 
 namespace mango {
+
+// Print an exception info.
+// if e != nullptr, the type of e and e.what() will be shown;
+// else, only show the current exception's type.
+// NOTE: This function should only be called in terminate handler.
+void PrintException(const std::exception* e);
 
 class Exception : public std::exception {
    public:
