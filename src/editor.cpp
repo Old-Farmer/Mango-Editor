@@ -25,6 +25,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     for (const char* path : init_options->begin_files) {
         buffer_manager_.AddBuffer(Buffer(options_.get(), path));
     }
+    ASSERT(syntax_parser_ == nullptr);
 
     // Create the first window.
     // If no buffer then create one no file backup buffer.
@@ -69,7 +70,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
         } else if (term_.EventIsResize()) {
             HandleResize();
         } else {
-            assert(false);
+            ASSERT(false);
         }
     }
 }
@@ -326,7 +327,7 @@ void Editor::HandleKey() {
 
             char c[7];
             int len = UnicodeToUtf8(codepoint, c);
-            assert(len > 0);
+            ASSERT(len > 0);
             if (IsPeel(mode_)) {
                 peel_->AddStringAtCursor(c);
             } else {
@@ -488,7 +489,7 @@ void Editor::Help() {
 void Editor::Quit() { quit_ = true; }
 
 void Editor::GotoPeel() {
-    assert(!IsPeel(mode_));
+    ASSERT(!IsPeel(mode_));
 
     peel_->SetContent("");
     cursor_.in_window->frame_.buffer_->SaveCursorState(cursor_);
@@ -501,12 +502,12 @@ void Editor::GotoPeel() {
 
 void Editor::ExitFromMode() {
     if (IsPeel(mode_)) {
-        assert(cursor_.restore_from_peel);
+        ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
         cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
     } else if (mode_ == Mode::kFind) {
         peel_->SetContent("");
-        assert(cursor_.in_window);
+        ASSERT(cursor_.in_window);
         cursor_.in_window->DestorySearchContext();
     } else if (mode_ == Mode::kCmp) {
         mode_ = mode_trigger_cmp_;
@@ -516,7 +517,7 @@ void Editor::ExitFromMode() {
 }
 
 void Editor::SearchNext() {
-    assert(mode_ == Mode::kFind);
+    ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();
@@ -536,7 +537,7 @@ void Editor::SearchNext() {
 }
 
 void Editor::SearchPrev() {
-    assert(mode_ == Mode::kFind);
+    ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();

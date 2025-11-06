@@ -16,7 +16,7 @@ void CmpMenu::SetEntries(std::vector<std::string> entries) {
 }
 
 void CmpMenu::DecideLocAndSize() {
-    assert(entries_.size() > menu_view_line_);
+    ASSERT(entries_.size() > menu_view_line_);
     size_t shown_enties_cnt = std::min(options_->cmp_menu_max_height,
                                        entries_.size() - menu_view_line_);
 
@@ -39,8 +39,8 @@ void CmpMenu::DecideLocAndSize() {
         row_ = cursor_->s_row - height_;
     }
     col_ = cursor_->s_col;
-    assert(row_ < term_->Height());
-    assert(col_ < term_->Width());
+    ASSERT(row_ < term_->Height());
+    ASSERT(col_ < term_->Width());
 
     // Decide width
     entries_width_.resize(height_);
@@ -52,7 +52,7 @@ void CmpMenu::DecideLocAndSize() {
         max_width = std::max(w, max_width);
     }
     // should not be zero
-    assert(max_width != 0);
+    ASSERT(max_width != 0);
     width_ = std::min(std::min(max_width, term_->Width() - col_),
                       options_->cmp_menu_max_width);
 }
@@ -79,7 +79,7 @@ void CmpMenu::Draw() {
             int byte_len;
             Result res = NextCharacterInUtf8(str, offset, character, byte_len,
                                              character_width);
-            assert(res == kOk);
+            ASSERT(res == kOk);
             // TODO: use entries_width
             // for show ... when space is not enough for long width entries
             if (menu_col + character_width <= width_) {

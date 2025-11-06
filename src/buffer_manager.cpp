@@ -1,11 +1,8 @@
 #include "buffer_manager.h"
 
-#include <cassert>
-
 namespace mango {
 
-BufferManager::BufferManager()
-    : list_head_(nullptr), list_tail_(nullptr) {
+BufferManager::BufferManager() : list_head_(nullptr), list_tail_(nullptr) {
     list_head_.prev_ = nullptr;
     list_tail_.next_ = nullptr;
     list_head_.next_ = &list_tail_;
@@ -15,14 +12,14 @@ BufferManager::BufferManager()
 Buffer* BufferManager::AddBuffer(Buffer buffer) {
     int64_t buffer_id = buffer.id();
     auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
-    assert(inserted);
+    ASSERT(inserted);
     iter->second.AppendToList(&list_tail_);
     return &iter->second;
 }
 void BufferManager::RemoveBuffer(Buffer* buffer) {
     buffer->RemoveFromList();
     int64_t id = buffer->id();
-    assert(buffers_.count(id) == 1);
+    ASSERT(buffers_.count(id) == 1);
     buffers_.erase(id);
 }
 

@@ -33,8 +33,8 @@ static int64_t LocateInPos(const std::vector<Highlight>& highlight,
 }
 
 void Frame::Draw() {
-    assert(buffer_ != nullptr);
-    assert(buffer_->IsLoad());
+    ASSERT(buffer_ != nullptr);
+    ASSERT(buffer_->IsLoad());
 
     int64_t highlight_i = -1;
     const std::vector<Highlight>* syntax_highlight = nullptr;
@@ -47,7 +47,7 @@ void Frame::Draw() {
 
     if (wrap_) {
         // TODO: wrap the content
-        assert(false);
+        ASSERT(false);
     } else {
         const std::vector<Line>& lines = buffer_->lines();
         std::vector<uint32_t> codepoints;
@@ -83,7 +83,7 @@ void Frame::Draw() {
                 int byte_len;
                 Result res = NextCharacterInUtf8(cur_line, offset, character,
                                                  byte_len, character_width);
-                assert(res == kOk);
+                ASSERT(res == kOk);
                 if (cur_b_view_c < b_view_col_) {
                     ;
                 } else if (cur_b_view_c >= b_view_col_ &&
@@ -176,7 +176,7 @@ void Frame::MakeCursorVisible() {
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
                                          character_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         offset += byte_len;
         if (character[0] == kTabChar) {
             cur_b_view_c +=
@@ -222,7 +222,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
                                          character_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         if (cur_b_view_c <= target_b_view_col &&
             target_b_view_col < cur_b_view_c + character_width) {
             cursor_->line = cur_b_view_line;
@@ -242,8 +242,8 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
 }
 
 void Frame::SetCursorHint(size_t s_row, size_t s_col) {
-    assert(buffer_);
-    assert(In(s_col, s_row));
+    ASSERT(buffer_);
+    ASSERT(In(s_col, s_row));
 
     auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
@@ -264,7 +264,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
 }
 
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
-    assert(buffer_);
+    ASSERT(buffer_);
     if (count > 0) {
         b_view_line_ =
             std::min(b_view_line_ + count, buffer_->lines().size() - 1);
@@ -283,14 +283,14 @@ void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     } else if (cursor_->line >= b_view_line_ + height_) {
         cursor_->line = b_view_line_ + height_ - 1;
     }
-    assert(cursor_->b_view_col_want.has_value());
+    ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
 void Frame::ScrollCols(int64_t count) { (void)count; }
 
 void Frame::CursorGoRight() {
-    assert(buffer_);
+    ASSERT(buffer_);
     auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
     // end
@@ -304,12 +304,12 @@ void Frame::CursorGoRight() {
     Result ret = NextCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
-    assert(ret == kOk);
+    ASSERT(ret == kOk);
     cursor_->byte_offset += len;
 }
 
 void Frame::CursorGoLeft() {
-    assert(buffer_);
+    ASSERT(buffer_);
     auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
     // home
@@ -322,12 +322,12 @@ void Frame::CursorGoLeft() {
     Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
                                      cursor_->byte_offset, charater, len,
                                      character_width);
-    assert(ret == kOk);
+    ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
 }
 
 void Frame::CursorGoUp() {
-    assert(buffer_);
+    ASSERT(buffer_);
 
     // first line
     if (cursor_->line == 0) {
@@ -335,12 +335,12 @@ void Frame::CursorGoUp() {
     }
 
     cursor_->line--;
-    assert(cursor_->b_view_col_want.has_value());
+    ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
 void Frame::CursorGoDown() {
-    assert(buffer_);
+    ASSERT(buffer_);
 
     // last line
     if (buffer_->lines().size() - 1 == cursor_->line) {
@@ -348,24 +348,24 @@ void Frame::CursorGoDown() {
     }
 
     cursor_->line++;
-    assert(cursor_->b_view_col_want.has_value());
+    ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
 }
 
 void Frame::CursorGoHome() {
-    assert(buffer_);
+    ASSERT(buffer_);
     cursor_->byte_offset = 0;
     cursor_->DontHoldColWant();
 }
 
 void Frame::CursorGoEnd() {
-    assert(buffer_);
+    ASSERT(buffer_);
     cursor_->byte_offset = buffer_->lines()[cursor_->line].line_str.size();
     cursor_->DontHoldColWant();
 }
 
 void Frame::CursorGoNextWord() {
-    assert(buffer_);
+    ASSERT(buffer_);
     const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
     if (cursor_->byte_offset == cur_line->size()) {
         if (cursor_->line == buffer_->LineCnt() - 1) {
@@ -377,12 +377,12 @@ void Frame::CursorGoNextWord() {
     }
     Result res =
         NextWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
-    assert(res == kOk);
+    ASSERT(res == kOk);
     cursor_->DontHoldColWant();
 }
 
 void Frame::CursorGoPrevWord() {
-    assert(buffer_);
+    ASSERT(buffer_);
     const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
@@ -394,7 +394,7 @@ void Frame::CursorGoPrevWord() {
     }
     Result res =
         PrevWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
-    assert(res == kOk);
+    ASSERT(res == kOk);
     cursor_->DontHoldColWant();
 }
 
@@ -413,7 +413,7 @@ void Frame::DeleteCharacterBeforeCursor() {
         Result ret = PrevCharacterInUtf8(
             buffer_->lines()[cursor_->line].line_str, cursor_->byte_offset,
             charater, len, character_width);
-        assert(ret == kOk);
+        ASSERT(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};
     }
@@ -428,7 +428,7 @@ void Frame::DeleteCharacterBeforeCursor() {
 }
 
 void Frame::DeleteWordBeforeCursor() {
-    assert(buffer_);
+    ASSERT(buffer_);
     Pos deleted_until;
     const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
     if (cursor_->byte_offset == 0) {
@@ -444,7 +444,7 @@ void Frame::DeleteWordBeforeCursor() {
     }
     Result res = PrevWord(*cur_line, deleted_until.byte_offset,
                           deleted_until.byte_offset);
-    assert(res == kOk);
+    ASSERT(res == kOk);
     Pos pos;
     if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
                         pos) != kOk) {
@@ -487,7 +487,7 @@ void Frame::TabAtCursor() {
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
                                          character_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         offset += byte_len;
         cur_b_view_c += character_width;
     }

@@ -26,7 +26,7 @@ void Terminal::Shutdown() {
     if (!shutdown_) {
         int ret;
         ret = tb_shutdown();
-        assert(ret == TB_OK);
+        ASSERT(ret == TB_OK);
 
         // Restore cursor
         // NOTE: only work on some terminals
@@ -44,7 +44,7 @@ size_t Terminal::StringWidth(const std::string& str) {
     while (offset < str.size()) {
         int len, c_width;
         Result res = NextCharacterInUtf8(str, offset, character, len, c_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         width += c_width;
         offset += len;
     }

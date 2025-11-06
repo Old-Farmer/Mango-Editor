@@ -85,7 +85,7 @@ void SyntaxParser::GenerateHighlight(TSQuery* query, TSTree* tree,
                                      const Buffer* buffer) {
     TSNode root = ts_tree_root_node(tree);
     ts_query_cursor_exec(query_cursor_, query, root);
-    assert(buffer_context_.count(buffer->id()) == 1);
+    ASSERT(buffer_context_.count(buffer->id()) == 1);
     SyntaxContext& context = buffer_context_[buffer->id()];
     TSQueryMatch match;
     context.syntax_highlight.clear();

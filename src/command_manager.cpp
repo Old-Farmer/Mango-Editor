@@ -1,7 +1,5 @@
 #include "command_manager.h"
 
-#include <cassert>
-
 #include "character.h"
 
 namespace mango {
@@ -77,7 +75,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
         } else if (c.types[i] == Type::kString) {
             args[i] = std::string(splitted_str[i + 1]);
         } else {
-            assert(false);
+            ASSERT(false);
         }
     }
     command = &c;

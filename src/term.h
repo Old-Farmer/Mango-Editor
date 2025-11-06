@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <cassert>
-
 #include "exception.h"
 #include "logging.h"
 #include "result.h"
@@ -332,7 +330,7 @@ class Terminal {
 
         static constexpr KeyInfo CreateNormalKey(
             uint32_t codepoint, Mod mod = static_cast<Mod>(0)) {
-            assert(codepoint != 0);
+            ASSERT(codepoint != 0);
             return {codepoint, {}, mod};
         }
 

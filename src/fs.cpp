@@ -1,7 +1,5 @@
 #include "fs.h"
 
-#include <cassert>
-
 #include "character.h"
 #include "exception.h"
 #include "utils.h"
@@ -11,7 +9,7 @@ namespace mango {
 Path::Path() {}
 
 Path::Path(std::string str) {
-    assert(!str.empty());
+    ASSERT(!str.empty());
     if (str[0] == kSlashChar) {
         absolute_path_ = std::move(str);
         size_t pos = absolute_path_.find(cwd_);
@@ -22,7 +20,7 @@ Path::Path(std::string str) {
     }
 
     std::string::size_type pos = absolute_path_.find_last_of(kSlashChar);
-    assert(pos != std::string::npos);
+    ASSERT(pos != std::string::npos);
     file_name_len_ = absolute_path_.size() - pos - 1;
     last_cwd_version_ = cwd_version_;
 }

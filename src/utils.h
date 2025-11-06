@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cassert>
 #include <string_view>
+
 namespace mango {
 
 #define MANGO_DELETE_COPY(ClassName)      \
@@ -35,5 +37,20 @@ struct List {
     T head;
     T tail;
 };
+
+void AssertFail(const char* __assertion, const char* __file,
+                unsigned int __line, const char* __function);
+
+// Each MACRO should have prefix, but for convinence, ASSERT don't have a
+// prefix. Also, we are not building an lib, so it's fine.
+
+#ifdef NDEBUG
+#define ASSERT(expr) (static_cast<void>(0))
+#else
+#define ASSERT(expr)         \
+    (static_cast<bool>(expr) \
+         ? void(0)           \
+         : AssertFail(#expr, __ASSERT_FILE, __ASSERT_LINE, __ASSERT_FUNCTION))
+#endif  // !NDEBUG
 
 }  // namespace mango

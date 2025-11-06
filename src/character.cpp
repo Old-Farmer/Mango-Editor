@@ -1,7 +1,5 @@
 #include "character.h"
 
-#include <cassert>
-
 #include "term.h"
 
 namespace mango {
@@ -18,7 +16,7 @@ Result NextCharacterInUtf8(const std::string& str, int64_t offset,
     if (byte_len < 0) {
         byte_len = -byte_len;
         character[0] = kReplacementChar;
-        assert(false);
+        ASSERT(false);
     }
     width = Terminal::WCWidth(character[0]);
     // non-printable
@@ -28,11 +26,11 @@ Result NextCharacterInUtf8(const std::string& str, int64_t offset,
         }
         character[0] = kReplacementChar;
         width = 1;
-        assert(((void)"width == -1", false));
+        ASSERT(((void)"width == -1", false));
     } else if (width == 0) {
         character[0] = kReplacementChar;
         width = 1;
-        assert(((void)"width == 0", false));
+        ASSERT(((void)"width == 0", false));
     }
     return kOk;
 }
@@ -49,7 +47,7 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
             if (byte_len < 0) {
                 byte_len = -byte_len;
                 character[0] = kReplacementChar;
-                assert(false);
+                ASSERT(false);
             }
             width = Terminal::WCWidth(character[0]);
             if (width == -1) {
@@ -58,11 +56,11 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
                 }
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(((void)"width == -1", false));
+                ASSERT(((void)"width == -1", false));
             } else if (width == 0) {
                 character[0] = kReplacementChar;
                 width = 1;
-                assert(((void)"width == 0", false));
+                ASSERT(((void)"width == 0", false));
             }
             break;
         }
@@ -84,7 +82,7 @@ Result NextWord(const std::string& str, size_t offset,
     while (offset < str.size()) {
         Result res =
             NextCharacterInUtf8(str, offset, character, byte_len, c_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         if (character[0] == kUnderLine || isalnum(character[0])) {
             if (found_non_word_character) {
                 next_word_offset = offset;
@@ -114,7 +112,7 @@ Result PrevWord(const std::string& str, size_t offset,
     while (inner_offset > 0) {
         Result res = PrevCharacterInUtf8(str, inner_offset, character, byte_len,
                                          c_width);
-        assert(res == kOk);
+        ASSERT(res == kOk);
         if (character[0] == kUnderLine || isalnum(character[0])) {
             found_word_character = true;
         } else {

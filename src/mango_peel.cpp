@@ -13,7 +13,7 @@ MangoPeel::MangoPeel(Cursor* cursor, Options* options)
 void MangoPeel::Draw() { frame_.Draw(); }
 
 void MangoPeel::MakeCursorVisible() {
-    assert(frame_.cursor_->in_window == nullptr);
+    ASSERT(frame_.cursor_->in_window == nullptr);
     frame_.MakeCursorVisible();
 }
 
