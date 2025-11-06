@@ -94,47 +94,44 @@ void Window::DeleteCharacterBeforeCursor() {
         } else {
             // may delete pairs
             char this_char = cur_line[cursor_->byte_offset];
+            bool need_delete_pairs = false;
             switch (charater[0]) {
                 case kLeftBraceChar: {
                     if (this_char == kRightBraceChar) {
-                        range = {{cursor_->line, cursor_->byte_offset - 1},
-                                 {cursor_->line, cursor_->byte_offset + 1}};
+                        need_delete_pairs = true;
                     }
                     break;
                 }
                 case kLeftParenthesisChar: {
                     if (this_char == kRightParenthesisChar) {
-                        range = {{cursor_->line, cursor_->byte_offset - 1},
-                                 {cursor_->line, cursor_->byte_offset + 1}};
+                        need_delete_pairs = true;
                     }
                     break;
                 }
                 case kLeftSquareBracketChar: {
                     if (this_char == kRightSquareBracketChar) {
-                        range = {{cursor_->line, cursor_->byte_offset - 1},
-                                 {cursor_->line, cursor_->byte_offset + 1}};
+                        need_delete_pairs = true;
                     }
                     break;
                 }
                 case kSingleQuoteChar: {
                     if (this_char == kSingleQuoteChar) {
-                        range = {{cursor_->line, cursor_->byte_offset - 1},
-                                 {cursor_->line, cursor_->byte_offset + 1}};
+                        need_delete_pairs = true;
                     }
                     break;
                 }
                 case kDoubleQuoteChar: {
                     if (this_char == kDoubleQuoteChar) {
-                        range = {{cursor_->line, cursor_->byte_offset - 1},
-                                 {cursor_->line, cursor_->byte_offset + 1}};
+                        need_delete_pairs = true;
                     }
                     break;
                 }
                 default: {
-                    range = {{cursor_->line, cursor_->byte_offset - len},
-                             {cursor_->line, cursor_->byte_offset}};
                 }
             }
+            range = {{cursor_->line, cursor_->byte_offset - 1},
+                     {cursor_->line,
+                      cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
         }
     }
 
@@ -231,7 +228,7 @@ void Window::TryAutoIndent() {
     if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
         // traditional languages, try to check () {} []
         // e.g.
-        // {<cursor>} 
+        // {<cursor>}
         // ->
         // {
         // <indent><cursor>
