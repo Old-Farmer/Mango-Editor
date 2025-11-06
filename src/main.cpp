@@ -37,8 +37,8 @@ int main(int argc, char* argv[]) {
     LogInit(std::string(Path::GetAppRoot()) +
             zstring_view_c_str(kloggingFilePath));
 
-    MANGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
-    MANGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
+    MGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
+    MGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
 
     auto options = std::make_unique<Options>();
     auto init_options = std::make_unique<InitOptions>();

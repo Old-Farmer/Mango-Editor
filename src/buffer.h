@@ -27,7 +27,7 @@ class File {
     File(const std::string& path, const char* mode, bool create_if_not_exist);
     ~File();
 
-    MANGO_DELETE_COPY(File);
+    MGO_DELETE_COPY(File);
     File(File&&) noexcept;
     File& operator=(File&&) noexcept;
 
@@ -130,8 +130,8 @@ class Buffer {
     Buffer(Options* options);
     Buffer(Options* options, std::string path, bool read_only = false);
     Buffer(Options* options, Path path, bool read_only = false);
-    MANGO_DELETE_COPY(Buffer);
-    MANGO_DEFAULT_MOVE(Buffer);
+    MGO_DELETE_COPY(Buffer);
+    MGO_DEFAULT_MOVE(Buffer);
 
     // throws IOException, FileCreateException
     void Load();

@@ -33,7 +33,7 @@ constexpr std::string_view kUnknownPrefix = "[UNKNOWN]";
 
 enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
-#define MANGO_LOG_PREFIX(level, prefix_str)                                 \
+#define MGO_LOG_PREFIX(level, prefix_str)                                   \
     do {                                                                    \
         std::stringstream ss;                                               \
         if constexpr ((level) == LogLevel::kDebug) {                        \
@@ -54,16 +54,16 @@ enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
 #ifdef NDEBUG
 
-#define MANGO_LOG_DEBUG(format, ...) \
-    do {                             \
+#define MGO_LOG_DEBUG(format, ...) \
+    do {                           \
     } while (0)
 
 #else
 
-#define MANGO_LOG_DEBUG(format, ...)                            \
+#define MGO_LOG_DEBUG(format, ...)                              \
     do {                                                        \
         std::string prefix;                                     \
-        MANGO_LOG_PREFIX(LogLevel::kDebug, prefix);             \
+        MGO_LOG_PREFIX(LogLevel::kDebug, prefix);               \
         fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
                 ##__VA_ARGS__);                                 \
         fflush(logging_file);                                   \
@@ -71,30 +71,30 @@ enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
 #endif  // NDEBUG
 
-#define MANGO_LOG_INFO(format, ...)                             \
+#define MGO_LOG_INFO(format, ...)                               \
     do {                                                        \
         std::string prefix;                                     \
-        MANGO_LOG_PREFIX(LogLevel::kInfo, prefix);              \
+        MGO_LOG_PREFIX(LogLevel::kInfo, prefix);                \
         fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
                 ##__VA_ARGS__);                                 \
         fflush(logging_file);                                   \
     } while (0)
 
-#define MANGO_LOG(format, ...) MANGO_LOG_INFO(format, ##__VA_ARGS__)
+#define MGO_LOG(format, ...) MGO_LOG_INFO(format, ##__VA_ARGS__)
 
-#define MANGO_LOG_WARN(format, ...)                             \
+#define MGO_LOG_WARN(format, ...)                               \
     do {                                                        \
         std::string prefix;                                     \
-        MANGO_LOG_PREFIX(LogLevel::kWarn, prefix);              \
+        MGO_LOG_PREFIX(LogLevel::kWarn, prefix);                \
         fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
                 ##__VA_ARGS__);                                 \
         fflush(logging_file);                                   \
     } while (0)
 
-#define MANGO_LOG_ERROR(format, ...)                            \
+#define MGO_LOG_ERROR(format, ...)                              \
     do {                                                        \
         std::string prefix;                                     \
-        MANGO_LOG_PREFIX(LogLevel::kError, prefix);             \
+        MGO_LOG_PREFIX(LogLevel::kError, prefix);               \
         fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
                 ##__VA_ARGS__);                                 \
         fflush(logging_file);                                   \

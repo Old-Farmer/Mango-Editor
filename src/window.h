@@ -10,8 +10,8 @@ class Window {
     Window(Buffer* buffer, Cursor* cursor, Options* options,
            SyntaxParser* parser) noexcept;
     ~Window() = default;
-    MANGO_DELETE_COPY(Window);
-    MANGO_DEFAULT_MOVE(Window);
+    MGO_DELETE_COPY(Window);
+    MGO_DEFAULT_MOVE(Window);
 
     int id() { return id_; }
 

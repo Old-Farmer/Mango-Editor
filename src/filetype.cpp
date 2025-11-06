@@ -1,7 +1,8 @@
 #include "filetype.h"
 
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+
 #include "utils.h"
 
 namespace mango {

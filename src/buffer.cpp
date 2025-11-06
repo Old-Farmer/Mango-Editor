@@ -34,7 +34,7 @@ File::File(const std::string& path, const char* mode,
 
 File::~File() {
     int ret = fclose(file_);
-    ASSERT(ret != EOF);
+    MGO_ASSERT(ret != EOF);
 }
 
 File::File(File&& other) noexcept : file_(other.file_) {
@@ -47,7 +47,7 @@ File& File::operator=(File&& other) noexcept {
 
     if (file_ != nullptr) {
         int ret = fclose(file_);
-        ASSERT(ret != EOF);
+        MGO_ASSERT(ret != EOF);
     }
     file_ = other.file_;
     other.file_ = nullptr;
@@ -86,7 +86,7 @@ std::string File::ReadAll() {
             } else if (feof(file_)) {
                 throw IOException("%s", strerror(errno));
             } else {
-                ASSERT(false);
+                MGO_ASSERT(false);
             }
         }
     }
@@ -128,7 +128,7 @@ void Buffer::Load() {
         }
 
         File f(path_.AbsolutePath(), "r", true);
-        MANGO_LOG_DEBUG("file path %s", path_.AbsolutePath().c_str());
+        MGO_LOG_DEBUG("file path %s", path_.AbsolutePath().c_str());
 
         while (true) {
             std::string buf;
@@ -236,8 +236,8 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     }
     // No newline, just insert
     if (new_line_offset.empty()) {
-        ASSERT(lines_.size() > pos_hint.line);
-        ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
+        MGO_ASSERT(lines_.size() > pos_hint.line);
+        MGO_ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
 
         lines_[pos_hint.line].line_str.insert(pos_hint.byte_offset, str);
         pos_hint.byte_offset += str.size();
@@ -245,8 +245,8 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     }
 
     // Have newline
-    ASSERT(lines_.size() > pos_hint.line);
-    ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
+    MGO_ASSERT(lines_.size() > pos_hint.line);
+    MGO_ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
 
     std::string line_after_pos =
         lines_[pos_hint.line].line_str.substr(pos_hint.byte_offset);
@@ -254,21 +254,21 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     i = 0;
     for (size_t offset : new_line_offset) {
         if (offset != i) {
-            ASSERT(lines_.size() > pos_hint.line);
+            MGO_ASSERT(lines_.size() > pos_hint.line);
 
             lines_[pos_hint.line].line_str.append(str, i, offset - i);
         }
         pos_hint.line++;
         pos_hint.byte_offset = 0;
 
-        ASSERT(lines_.size() >= pos_hint.line);
+        MGO_ASSERT(lines_.size() >= pos_hint.line);
 
         // Use Line() instead of {} to prevent c++ infer as init list
         lines_.insert(lines_.begin() + pos_hint.line, Line());
         i = offset + 1;
     }
     if (new_line_offset.back() != str.size() - 1) {
-        ASSERT(lines_.size() > pos_hint.line);
+        MGO_ASSERT(lines_.size() > pos_hint.line);
 
         size_t left_size = str.size() - (new_line_offset.back() + 1);
         lines_[pos_hint.line].line_str.append(str, new_line_offset.back() + 1,
@@ -287,8 +287,8 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
     std::string line_where_end_pos_locate;
 
     Pos end = range.end;
-    ASSERT(lines_.size() > end.line);
-    ASSERT(range.begin.line < end.line ||
+    MGO_ASSERT(lines_.size() > end.line);
+    MGO_ASSERT(range.begin.line < end.line ||
            (range.begin.line == range.end.line &&
             range.begin.byte_offset < range.end.byte_offset));
     while (range.begin.line <= end.line) {
@@ -308,7 +308,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
                 // But we don't do merge here, we just move away this line and
                 // merge after deletion
                 if (record_reverse && end.byte_offset != 0) {
-                    ASSERT(end.byte_offset < lines_[end.line].line_str.size());
+                    MGO_ASSERT(end.byte_offset < lines_[end.line].line_str.size());
                     old_str.insert(0, lines_[end.line].line_str, 0,
                                    end.byte_offset);
                 }
@@ -320,7 +320,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
                 lines_.erase(lines_.begin() + end.line);
             }
         } else {
-            ASSERT(lines_[end.line].line_str.size() >= end.byte_offset);
+            MGO_ASSERT(lines_[end.line].line_str.size() >= end.byte_offset);
             if (record_reverse)
                 old_str.insert(0, lines_[end.line].line_str,
                                range.begin.byte_offset,
@@ -378,13 +378,13 @@ void Buffer::Record(BufferEditHistoryItem item) {
     // Delete all history iterms after cursor(include the item which cursor
     // points to)
     if (edit_history_cursor_ != edit_history_->end()) {
-        ASSERT(!edit_history_->empty());
+        MGO_ASSERT(!edit_history_->empty());
         edit_history_->erase(edit_history_cursor_, edit_history_->end());
         edit_history_cursor_ = edit_history_->end();
     }
 
     // No item in history, return fast
-    ASSERT(options_->buffer_hitstory_max_item_cnt > 0);
+    MGO_ASSERT(options_->buffer_hitstory_max_item_cnt > 0);
     if (edit_history_->size() == 0) {
         edit_history_->push_back(std::move(item));
         return;
@@ -602,7 +602,7 @@ void Buffer::RestoreCursorState(Cursor& cursor) {
 }
 
 void Buffer::Modified() {
-    ASSERT(IsLoad() && !read_only());
+    MGO_ASSERT(IsLoad() && !read_only());
     state_ = BufferState::kModified;
     version_++;
 }

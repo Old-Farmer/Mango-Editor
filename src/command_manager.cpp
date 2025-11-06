@@ -75,7 +75,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
         } else if (c.types[i] == Type::kString) {
             args[i] = std::string(splitted_str[i + 1]);
         } else {
-            ASSERT(false);
+            MGO_ASSERT(false);
         }
     }
     command = &c;

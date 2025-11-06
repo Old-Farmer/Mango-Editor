@@ -22,11 +22,11 @@ class Options;
 
 class Editor {
    private:
-    MANGO_DEFAULT_CONSTRUCT_DESTRUCT(Editor);
+    MGO_DEFAULT_CONSTRUCT_DESTRUCT(Editor);
 
    public:
-    MANGO_DELETE_COPY(Editor);
-    MANGO_DELETE_MOVE(Editor);
+    MGO_DELETE_COPY(Editor);
+    MGO_DELETE_MOVE(Editor);
 
     // Make sure that options is static lifetime
     // throws TermException

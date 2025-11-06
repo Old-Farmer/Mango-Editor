@@ -85,7 +85,7 @@ void SyntaxParser::GenerateHighlight(TSQuery* query, TSTree* tree,
                                      const Buffer* buffer) {
     TSNode root = ts_tree_root_node(tree);
     ts_query_cursor_exec(query_cursor_, query, root);
-    ASSERT(buffer_context_.count(buffer->id()) == 1);
+    MGO_ASSERT(buffer_context_.count(buffer->id()) == 1);
     SyntaxContext& context = buffer_context_[buffer->id()];
     TSQueryMatch match;
     context.syntax_highlight.clear();
@@ -100,7 +100,7 @@ void SyntaxParser::GenerateHighlight(TSQuery* query, TSTree* tree,
                 query, match.captures[i].index, &len);
             TSPoint start = ts_node_start_point(match.captures[i].node);
             TSPoint end = ts_node_end_point(match.captures[i].node);
-            // MANGO_LOG_DEBUG("capture name: %s, range: [(%" PRIu32 ", %"
+            // MGO_LOG_DEBUG("capture name: %s, range: [(%" PRIu32 ", %"
             // PRIu32
             //                 "), (%" PRIu32 ", %" PRIu32 "))",
             //                 name, start.row, start.column, end.row,
@@ -135,7 +135,7 @@ void SyntaxParser::SyntaxHighlightInit(const Buffer* buffer) {
 
     if (!ts_parser_set_language(parser_,
                                 filetype_to_language_.at(buffer->filetype()))) {
-        MANGO_LOG_ERROR("ts_parser_set_language error: filetype %s",
+        MGO_LOG_ERROR("ts_parser_set_language error: filetype %s",
                         zstring_view_c_str(buffer->filetype()));
         return;
     }
@@ -144,7 +144,7 @@ void SyntaxParser::SyntaxHighlightInit(const Buffer* buffer) {
                      TSInputEncodingUTF8, nullptr};
     TSTree* tree = ts_parser_parse(parser_, nullptr, input);
     if (tree == nullptr) {
-        MANGO_LOG_ERROR("ts_parser_parse error: filetype %s",
+        MGO_LOG_ERROR("ts_parser_parse error: filetype %s",
                         zstring_view_c_str(buffer->filetype()));
         return;
     }
@@ -164,7 +164,7 @@ void SyntaxParser::SyntaxHighlightAfterEdit(Buffer* buffer) {
                      TSInputEncodingUTF8, nullptr};
     context.tree = ts_parser_parse(parser_, context.tree, input);
     if (context.tree == nullptr) {
-        MANGO_LOG_ERROR("ts_parser_parse error: filetype %s",
+        MGO_LOG_ERROR("ts_parser_parse error: filetype %s",
                         zstring_view_c_str(buffer->filetype()));
         return;
     }
@@ -220,21 +220,21 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
                                  query_str.c_str(), query_str.size(),
                                  &error_offset, &error_type);
             if (query == nullptr) {
-                MANGO_LOG_ERROR("ts query create error: offset %" PRIu32
+                MGO_LOG_ERROR("ts query create error: offset %" PRIu32
                                 " error %d",
                                 error_offset, error_type);
                 return nullptr;
             }
             filetype_to_query_[filetype] = query;
         } catch (IOException& e) {
-            MANGO_LOG_ERROR(
+            MGO_LOG_ERROR(
                 "file %s cannot read: %s",
                 (Path::GetAppRoot() + iter_ft2query_fpath->second)
                     .c_str(),
                 e.what());
             return nullptr;
         } catch (std::out_of_range& e) {
-            MANGO_LOG_ERROR(
+            MGO_LOG_ERROR(
                 "tree-sitter TSLanguage create function not defined");
             return nullptr;
         }

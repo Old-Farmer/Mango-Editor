@@ -14,8 +14,8 @@ class BufferManager {
    public:
     BufferManager();
     ~BufferManager() = default;
-    MANGO_DELETE_COPY(BufferManager);
-    MANGO_DELETE_MOVE(BufferManager);
+    MGO_DELETE_COPY(BufferManager);
+    MGO_DELETE_MOVE(BufferManager);
 
     Buffer* AddBuffer(Buffer buffer);
     void RemoveBuffer(Buffer* buffer);

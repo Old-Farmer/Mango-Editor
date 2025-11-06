@@ -10,7 +10,7 @@ using namespace mango;
 TEST_CASE("logging test") {
     logging_file = fopen("test.log", "w+");
     REQUIRE(logging_file);
-    MANGO_LOG_ERROR("%s %d", "hello", 1);
+    MGO_LOG_ERROR("%s %d", "hello", 1);
 
     struct stat my_stat;
     REQUIRE(fstat(fileno(logging_file), &my_stat) == 0);

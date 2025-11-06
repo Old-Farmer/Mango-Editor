@@ -27,8 +27,8 @@ class SyntaxParser {
    public:
     SyntaxParser(Options* options);
     ~SyntaxParser();
-    MANGO_DELETE_COPY(SyntaxParser);
-    MANGO_DELETE_MOVE(SyntaxParser);
+    MGO_DELETE_COPY(SyntaxParser);
+    MGO_DELETE_MOVE(SyntaxParser);
 
     void SyntaxHighlightInit(const Buffer* buffer);
     void SyntaxHighlightAfterEdit(Buffer* buffer);

@@ -20,8 +20,8 @@ class Frame {
     Frame(Buffer* buffer, Cursor* cursor, Options* options,
           SyntaxParser* parser) noexcept;
     ~Frame() = default;
-    MANGO_DELETE_COPY(Frame);
-    MANGO_DEFAULT_MOVE(Frame);
+    MGO_DELETE_COPY(Frame);
+    MGO_DEFAULT_MOVE(Frame);
 
     void Draw();
 

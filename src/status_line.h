@@ -15,8 +15,8 @@ class StatusLine {
    public:
     StatusLine(Cursor* cursor, Options* options, Mode* mode);
     ~StatusLine() = default;
-    MANGO_DELETE_COPY(StatusLine);
-    MANGO_DEFAULT_MOVE(StatusLine);
+    MGO_DELETE_COPY(StatusLine);
+    MGO_DEFAULT_MOVE(StatusLine);
 
     void Draw();
 

@@ -31,8 +31,8 @@ class Terminal {
     ~Terminal();
 
    public:
-    MANGO_DELETE_COPY(Terminal);
-    MANGO_DELETE_MOVE(Terminal);
+    MGO_DELETE_COPY(Terminal);
+    MGO_DELETE_MOVE(Terminal);
 
     static Terminal& GetInstance() {
         static Terminal term;
@@ -92,7 +92,7 @@ class Terminal {
         } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
             return kTermOutOfBounds;
         } else {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
         return kOk;
@@ -110,7 +110,7 @@ class Terminal {
         } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
             return kTermOutOfBounds;
         } else {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
     }
@@ -127,7 +127,7 @@ class Terminal {
         } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
             return kTermOutOfBounds;
         } else {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
         return kOk;
@@ -137,7 +137,7 @@ class Terminal {
     void HideCursor() {
         int ret = tb_hide_cursor();
         if (ret != TB_OK) {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
     }
@@ -146,7 +146,7 @@ class Terminal {
     size_t Height() {
         int ret = tb_height();
         if (ret < 0) {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
         return ret;
@@ -156,7 +156,7 @@ class Terminal {
     size_t Width() {
         int ret = tb_width();
         if (ret < 0) {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
         return ret;
@@ -166,7 +166,7 @@ class Terminal {
     void Clear() {
         int ret = tb_clear();
         if (ret != TB_OK) {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
     }
@@ -175,7 +175,7 @@ class Terminal {
     void Present() {
         int ret = tb_present();
         if (ret != TB_OK) {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
     }
@@ -195,7 +195,7 @@ class Terminal {
         } else if (ret == TB_OK) {
             ;
         } else {
-            MANGO_LOG_ERROR("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
         return true;
@@ -330,7 +330,7 @@ class Terminal {
 
         static constexpr KeyInfo CreateNormalKey(
             uint32_t codepoint, Mod mod = static_cast<Mod>(0)) {
-            ASSERT(codepoint != 0);
+            MGO_ASSERT(codepoint != 0);
             return {codepoint, {}, mod};
         }
 

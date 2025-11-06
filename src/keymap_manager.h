@@ -21,8 +21,8 @@ class KeymapManager {
    public:
     KeymapManager(Mode& mode);
     ~KeymapManager() = default;
-    MANGO_DELETE_COPY(KeymapManager);
-    MANGO_DELETE_MOVE(KeymapManager);
+    MGO_DELETE_COPY(KeymapManager);
+    MGO_DELETE_MOVE(KeymapManager);
 
     // Add/Remove a keymap, a keymap is a key sequence for triggering a defined
     // handler. a keymap prefixed with another keymap will be hidden.

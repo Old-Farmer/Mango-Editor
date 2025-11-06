@@ -12,7 +12,7 @@ namespace mango {
 
 void Editor::Loop(std::unique_ptr<Options> options,
                   std::unique_ptr<InitOptions> init_options) {
-    MANGO_LOG_DEBUG("Loop init");
+    MGO_LOG_DEBUG("Loop init");
     options_ = std::move(options);
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, options_.get(), &mode_);
@@ -25,7 +25,6 @@ void Editor::Loop(std::unique_ptr<Options> options,
     for (const char* path : init_options->begin_files) {
         buffer_manager_.AddBuffer(Buffer(options_.get(), path));
     }
-    ASSERT(syntax_parser_ == nullptr);
 
     // Create the first window.
     // If no buffer then create one no file backup buffer.
@@ -35,7 +34,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     } else {
         buf = buffer_manager_.AddBuffer({options_.get()});
     }
-    MANGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
+    MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
     window_ = std::make_unique<Window>(buf, &cursor_, options_.get(),
                                        syntax_parser_.get());
 
@@ -70,7 +69,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
         } else if (term_.EventIsResize()) {
             HandleResize();
         } else {
-            ASSERT(false);
+            MGO_ASSERT(false);
         }
     }
 }
@@ -220,7 +219,7 @@ void Editor::InitKeymaps() {
                     // TODO: notify user
                 }
             } catch (IOException& e) {
-                MANGO_LOG_ERROR("%s", e.what());
+                MGO_LOG_ERROR("%s", e.what());
                 // TODO: notify user
             }
         }});
@@ -285,7 +284,7 @@ void Editor::InitCommands() {
          {Type::kString},
          [this](CommandArgs args) {
              mode_ = Mode::kFind;
-             MANGO_LOG_DEBUG("search %s",
+             MGO_LOG_DEBUG("search %s",
                              std::get<std::string>(args[0]).c_str());
              cursor_.in_window->BuildSearchContext(
                  std::get<std::string>(args[0]));
@@ -305,7 +304,7 @@ void Editor::HandleKey() {
     char c[7];
     int len = UnicodeToUtf8(key_info.codepoint, c);
     c[len] = '\0';
-    MANGO_LOG_DEBUG(
+    MGO_LOG_DEBUG(
         "ctrl %d shift %d alt %d motion %d special key %d codepoint %" PRIu32
         " char %s",
         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
@@ -327,7 +326,7 @@ void Editor::HandleKey() {
 
             char c[7];
             int len = UnicodeToUtf8(codepoint, c);
-            ASSERT(len > 0);
+            MGO_ASSERT(len > 0);
             if (IsPeel(mode_)) {
                 peel_->AddStringAtCursor(c);
             } else {
@@ -336,7 +335,7 @@ void Editor::HandleKey() {
         }
         return;
     } else if (res == kKeymapMatched) {
-        MANGO_LOG_DEBUG("keymap matched");
+        MGO_LOG_DEBUG("keymap matched");
         return;
     }
 
@@ -444,11 +443,11 @@ void Editor::PreProcess() {
             syntax_parser_->SyntaxHighlightInit(window_->frame_.buffer_);
         } catch (FileCreateException& e) {
             window_->frame_.buffer_->state() = BufferState::kCannotCreate;
-            MANGO_LOG_ERROR("%s", e.what());
+            MGO_LOG_ERROR("%s", e.what());
             // TODO: Notify the user
         } catch (IOException& e) {
             window_->frame_.buffer_->state() = BufferState::kCannotRead;
-            MANGO_LOG_ERROR(
+            MGO_LOG_ERROR(
                 "buffer %s : %s",
                 window_->frame_.buffer_->path().AbsolutePath().c_str(),
                 e.what());
@@ -489,7 +488,7 @@ void Editor::Help() {
 void Editor::Quit() { quit_ = true; }
 
 void Editor::GotoPeel() {
-    ASSERT(!IsPeel(mode_));
+    MGO_ASSERT(!IsPeel(mode_));
 
     peel_->SetContent("");
     cursor_.in_window->frame_.buffer_->SaveCursorState(cursor_);
@@ -502,12 +501,12 @@ void Editor::GotoPeel() {
 
 void Editor::ExitFromMode() {
     if (IsPeel(mode_)) {
-        ASSERT(cursor_.restore_from_peel);
+        MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
         cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
     } else if (mode_ == Mode::kFind) {
         peel_->SetContent("");
-        ASSERT(cursor_.in_window);
+        MGO_ASSERT(cursor_.in_window);
         cursor_.in_window->DestorySearchContext();
     } else if (mode_ == Mode::kCmp) {
         mode_ = mode_trigger_cmp_;
@@ -517,7 +516,7 @@ void Editor::ExitFromMode() {
 }
 
 void Editor::SearchNext() {
-    ASSERT(mode_ == Mode::kFind);
+    MGO_ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();
@@ -537,7 +536,7 @@ void Editor::SearchNext() {
 }
 
 void Editor::SearchPrev() {
-    ASSERT(mode_ == Mode::kFind);
+    MGO_ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();

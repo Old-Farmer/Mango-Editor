@@ -13,8 +13,8 @@ class MangoPeel {
    public:
     MangoPeel(Cursor* cursor, Options* options);
     ~MangoPeel() = default;
-    MANGO_DELETE_COPY(MangoPeel);
-    MANGO_DEFAULT_MOVE(MangoPeel);
+    MGO_DELETE_COPY(MangoPeel);
+    MGO_DEFAULT_MOVE(MangoPeel);
 
     void Draw();
 

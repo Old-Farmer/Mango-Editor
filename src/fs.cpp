@@ -9,7 +9,7 @@ namespace mango {
 Path::Path() {}
 
 Path::Path(std::string str) {
-    ASSERT(!str.empty());
+    MGO_ASSERT(!str.empty());
     if (str[0] == kSlashChar) {
         absolute_path_ = std::move(str);
         size_t pos = absolute_path_.find(cwd_);
@@ -20,7 +20,7 @@ Path::Path(std::string str) {
     }
 
     std::string::size_type pos = absolute_path_.find_last_of(kSlashChar);
-    ASSERT(pos != std::string::npos);
+    MGO_ASSERT(pos != std::string::npos);
     file_name_len_ = absolute_path_.size() - pos - 1;
     last_cwd_version_ = cwd_version_;
 }

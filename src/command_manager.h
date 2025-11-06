@@ -31,9 +31,9 @@ struct Command {
 
 class CommandManager {
    public:
-    MANGO_DEFAULT_CONSTRUCT_DESTRUCT(CommandManager);
-    MANGO_DELETE_COPY(CommandManager);
-    MANGO_DELETE_MOVE(CommandManager);
+    MGO_DEFAULT_CONSTRUCT_DESTRUCT(CommandManager);
+    MGO_DELETE_COPY(CommandManager);
+    MGO_DELETE_MOVE(CommandManager);
 
     void AddCommand(Command command);
     void RemoveCommand(const std::string& name);

@@ -5,24 +5,24 @@
 
 namespace mango {
 
-#define MANGO_DELETE_COPY(ClassName)      \
+#define MGO_DELETE_COPY(ClassName)        \
     ClassName(const ClassName&) = delete; \
     ClassName& operator=(const ClassName&) = delete
 
-#define MANGO_DELETE_MOVE(ClassName) \
+#define MGO_DELETE_MOVE(ClassName)   \
     ClassName(ClassName&&) = delete; \
     ClassName& operator=(ClassName&&) = delete
 
-#define MANGO_DEFAULT_COPY(ClassName)      \
+#define MGO_DEFAULT_COPY(ClassName)        \
     ClassName(const ClassName&) = default; \
     ClassName& operator=(const ClassName&) = default
 
-#define MANGO_DEFAULT_MOVE(ClassName)          \
+#define MGO_DEFAULT_MOVE(ClassName)            \
     ClassName(ClassName&&) noexcept = default; \
     ClassName& operator=(ClassName&&) noexcept = default
 
-#define MANGO_DEFAULT_CONSTRUCT_DESTRUCT(ClassName) \
-    ClassName() = default;                          \
+#define MGO_DEFAULT_CONSTRUCT_DESTRUCT(ClassName) \
+    ClassName() = default;                        \
     ~ClassName() = default
 
 // a string_view must terminated by a '\0'
@@ -41,13 +41,10 @@ struct List {
 void AssertFail(const char* __assertion, const char* __file,
                 unsigned int __line, const char* __function);
 
-// Each MACRO should have prefix, but for convinence, ASSERT don't have a
-// prefix. Also, we are not building an lib, so it's fine.
-
 #ifdef NDEBUG
-#define ASSERT(expr) (static_cast<void>(0))
+#define MGO_ASSERT(expr) (static_cast<void>(0))
 #else
-#define ASSERT(expr)         \
+#define MGO_ASSERT(expr)     \
     (static_cast<bool>(expr) \
          ? void(0)           \
          : AssertFail(#expr, __ASSERT_FILE, __ASSERT_LINE, __ASSERT_FUNCTION))

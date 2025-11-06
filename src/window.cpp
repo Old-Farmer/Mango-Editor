@@ -19,7 +19,7 @@ Window::Window(Buffer* buffer, Cursor* cursor, Options* options,
 void Window::Draw() { frame_.Draw(); }
 
 void Window::MakeCursorVisible() {
-    ASSERT(cursor_->in_window == this);
+    MGO_ASSERT(cursor_->in_window == this);
     frame_.MakeCursorVisible();
 }
 
@@ -87,7 +87,7 @@ void Window::DeleteCharacterBeforeCursor() {
         int len, character_width;
         Result ret = PrevCharacterInUtf8(cur_line, cursor_->byte_offset,
                                          charater, len, character_width);
-        ASSERT(ret == kOk);
+        MGO_ASSERT(ret == kOk);
         if (cur_line.size() <= cursor_->byte_offset) {
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line, cursor_->byte_offset}};
