@@ -38,9 +38,8 @@ zstring_view Path::ThisPath() noexcept {
     if (!in_cwd_) {
         return zstring_view(absolute_path_);
     }
-    // cwd_ doesn't have /
-    return zstring_view(absolute_path_.c_str() + cwd_.size() + 1,
-                        absolute_path_.size() - cwd_.size() - 1);
+    return zstring_view(absolute_path_.c_str() + cwd_.size(),
+                        absolute_path_.size() - cwd_.size());
 }
 
 const std::string& Path::AbsolutePath() const noexcept {
