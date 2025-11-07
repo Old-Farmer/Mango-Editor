@@ -47,7 +47,9 @@ void StatusLine::Draw() {
         line = cursor_->line;
         character_in_line = cursor_->character_in_line;
     }
-    ss << "  " << line << "," << character_in_line;
+
+    std::string sep(options_->status_line_sep_width, kSpaceChar);
+    ss << "  " << line << "," << character_in_line << sep << b->eol_seq();
     // all is ascii character, so str len == width
     res = term_->Print(
         width_ - ss.str().length() - options_->status_line_right_indent, row_,

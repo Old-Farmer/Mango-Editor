@@ -16,6 +16,16 @@ namespace mango {
 
 constexpr const char* kSwapSuffix = ".mango_swap";
 
+// End of line sequence
+constexpr const char* kEOLSeqLF = "\n";
+constexpr const char* kEOLSeqCRLF = "\r\n";
+constexpr const char* kEOLSeqLFReqStr = "LF";
+constexpr const char* kEOLSeqCRLFReqStr = "CRLF";
+
+enum class EOLSeq { kLF, kCRLF };
+
+std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq);
+
 // A File class, just simple wraps a FILE* handler.
 class File {
    public:
@@ -33,13 +43,16 @@ class File {
 
     FILE* file() { return file_; }
 
-    // throws IOException
-    // return
-    // kOk means ok
-    // kEof means EOF
-    Result ReadLine(std::string& buf);
+    // Read one line from file.
+    // EOLSeq will be stored as the eol seq.
+    // if meet eof, eol_seq will not be set.
+    // throws IOException.
+    // return:
+    // kOk means ok;
+    // kEof means EOF.
+    Result ReadLine(std::string& buf, EOLSeq& eol_seq);
 
-    // Read all file contents to a string.
+    // Dump the raw file contents to a string.
     // throw IOException
     std::string ReadAll();
 
@@ -201,6 +214,7 @@ class Buffer {
         return cursor_state_character_in_line_;
     }
     zstring_view filetype() const noexcept { return filetype_; }
+    EOLSeq eol_seq() const noexcept { return eol_seq_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -227,9 +241,11 @@ class Buffer {
 
     Path path_;
     zstring_view filetype_;
+    EOLSeq eol_seq_ = EOLSeq::kLF; // Default LF
     BufferState state_ = BufferState::kHaveNotRead;
     bool read_only_ = false;
-    int64_t version_;
+    int64_t
+        version_;  // When a buffer is modified, version_ will be bumpped up.
 
     size_t cursor_state_line_ = 0;
     size_t cursor_state_byte_offset_ = 0;

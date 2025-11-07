@@ -1,5 +1,7 @@
 #include "character.h"
 
+#include <inttypes.h>
+
 #include "term.h"
 
 namespace mango {
@@ -16,21 +18,22 @@ Result NextCharacterInUtf8(const std::string& str, int64_t offset,
     if (byte_len < 0) {
         byte_len = -byte_len;
         character[0] = kReplacementChar;
-        MGO_ASSERT(false);
+        width = 1;
+        MGO_LOG_INFO("Meet error character in buffer");
+        return kOk;
     }
     width = Terminal::WCWidth(character[0]);
-    // non-printable
-    if (width == -1) {
+    if (width <= 0) {
+        MGO_LOG_INFO(
+            "Meet non-printable or wcwidth == 0 character \\u%04" PRIx32
+            " in buffer, width = %d",
+            character[0], width);
+        width = 1;
         if (character[0] == kTabChar) {
-            return kOk;
+            ;
+        } else {
+            character[0] = kReplacementChar;
         }
-        character[0] = kReplacementChar;
-        width = 1;
-        MGO_ASSERT(((void)"width == -1", false));
-    } else if (width == 0) {
-        character[0] = kReplacementChar;
-        width = 1;
-        MGO_ASSERT(((void)"width == 0", false));
     }
     return kOk;
 }
@@ -47,20 +50,22 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
             if (byte_len < 0) {
                 byte_len = -byte_len;
                 character[0] = kReplacementChar;
-                MGO_ASSERT(false);
+                width = 1;
+                MGO_LOG_INFO("Meet error character in buffer");
+                return kOk;
             }
             width = Terminal::WCWidth(character[0]);
-            if (width == -1) {
+            if (width <= 0) {
+                MGO_LOG_INFO(
+                    "Meet non-printable or wcwidth == 0 character \\u%04" PRIx32
+                    " in buffer, width = %d",
+                    character[0], width);
+                width = 1;
                 if (character[0] == kTabChar) {
-                    return kOk;
+                    ;
+                } else {
+                    character[0] = kReplacementChar;
                 }
-                character[0] = kReplacementChar;
-                width = 1;
-                MGO_ASSERT(((void)"width == -1", false));
-            } else if (width == 0) {
-                character[0] = kReplacementChar;
-                width = 1;
-                MGO_ASSERT(((void)"width == 0", false));
             }
             break;
         }

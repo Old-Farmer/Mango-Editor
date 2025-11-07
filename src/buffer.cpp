@@ -13,6 +13,17 @@
 
 namespace mango {
 
+std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq) {
+    if (eol_seq == EOLSeq::kLF) {
+        os << kEOLSeqLFReqStr;
+    } else if (eol_seq == EOLSeq::kCRLF) {
+        os << kEOLSeqCRLFReqStr;
+    } else {
+        MGO_ASSERT(false);
+    }
+    return os;
+}
+
 File::File(const std::string& path, const char* mode,
            bool create_if_not_exist) {
     file_ = fopen(path.c_str(), mode);
@@ -54,23 +65,32 @@ File& File::operator=(File&& other) noexcept {
     return *this;
 }
 
-Result File::ReadLine(std::string& buf) {
+Result File::ReadLine(std::string& buf, EOLSeq& eol_seq) {
     int c;
+    Result res = kOk;
     while (true) {
         c = fgetc(file_);
         if (c == EOF) {
             if (feof(file_) != 0) {
-                return kEof;
+                res = kEof;
+                break;
             }
             throw IOException("%s", strerror(errno));
         }
         if (c == '\n') {
+            res = kOk;
+            if (buf.empty() || buf.back() != kReturnChar) {
+                eol_seq = EOLSeq::kLF;
+            } else {
+                buf.pop_back();
+                eol_seq = EOLSeq::kCRLF;
+            }
             break;
         } else {
             buf.push_back(c);
         }
     }
-    return kOk;
+    return res;
 }
 
 std::string File::ReadAll() {
@@ -132,7 +152,7 @@ void Buffer::Load() {
 
         while (true) {
             std::string buf;
-            Result ret = f.ReadLine(buf);
+            Result ret = f.ReadLine(buf, eol_seq_);
             lines_.emplace_back(std::move(buf));
             if (ret == kEof) {
                 break;
@@ -170,6 +190,9 @@ Result Buffer::Write() {
     std::string swap_file_path = path_.AbsolutePath() + kSwapSuffix;
     File swap_file = File(swap_file_path, "w", true);
 
+    const char* eol_seq_str = eol_seq_ == EOLSeq::kLF ? kEOLSeqLF : kEOLSeqCRLF;
+    int eol_seq_str_size = strlen(eol_seq_str);
+
     for (size_t i = 0; i < lines_.size(); i++) {
         if (!lines_[i].line_str.empty()) {
             size_t s = fwrite(lines_[i].line_str.c_str(), 1,
@@ -179,7 +202,8 @@ Result Buffer::Write() {
             }
         }
         if (i != lines_.size() - 1) {
-            size_t s = fwrite("\n", 1, 1, swap_file.file());
+            size_t s =
+                fwrite(eol_seq_str, 1, eol_seq_str_size, swap_file.file());
             if (s < 1) {
                 throw IOException("fwrite error: %s", strerror(errno));
             }
@@ -237,7 +261,8 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     // No newline, just insert
     if (new_line_offset.empty()) {
         MGO_ASSERT(lines_.size() > pos_hint.line);
-        MGO_ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
+        MGO_ASSERT(lines_[pos_hint.line].line_str.size() >=
+                   pos_hint.byte_offset);
 
         lines_[pos_hint.line].line_str.insert(pos_hint.byte_offset, str);
         pos_hint.byte_offset += str.size();
@@ -289,8 +314,8 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
     Pos end = range.end;
     MGO_ASSERT(lines_.size() > end.line);
     MGO_ASSERT(range.begin.line < end.line ||
-           (range.begin.line == range.end.line &&
-            range.begin.byte_offset < range.end.byte_offset));
+               (range.begin.line == range.end.line &&
+                range.begin.byte_offset < range.end.byte_offset));
     while (range.begin.line <= end.line) {
         if (range.begin.line < end.line) {
             if (end.byte_offset == lines_[end.line].line_str.size()) {
@@ -308,7 +333,8 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
                 // But we don't do merge here, we just move away this line and
                 // merge after deletion
                 if (record_reverse && end.byte_offset != 0) {
-                    MGO_ASSERT(end.byte_offset < lines_[end.line].line_str.size());
+                    MGO_ASSERT(end.byte_offset <
+                               lines_[end.line].line_str.size());
                     old_str.insert(0, lines_[end.line].line_str, 0,
                                    end.byte_offset);
                 }

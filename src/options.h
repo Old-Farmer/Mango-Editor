@@ -54,6 +54,7 @@ struct Options {
 
     size_t status_line_left_indent = 2;
     size_t status_line_right_indent = 2;
+    size_t status_line_sep_width = 2;
 
     size_t cmp_menu_max_height = 8;
     size_t cmp_menu_max_width = 20;

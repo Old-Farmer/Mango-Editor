@@ -284,8 +284,7 @@ void Editor::InitCommands() {
          {Type::kString},
          [this](CommandArgs args) {
              mode_ = Mode::kFind;
-             MGO_LOG_DEBUG("search %s",
-                             std::get<std::string>(args[0]).c_str());
+             MGO_LOG_DEBUG("search %s", std::get<std::string>(args[0]).c_str());
              cursor_.in_window->BuildSearchContext(
                  std::get<std::string>(args[0]));
              SearchNext();
@@ -305,8 +304,8 @@ void Editor::HandleKey() {
     int len = UnicodeToUtf8(key_info.codepoint, c);
     c[len] = '\0';
     MGO_LOG_DEBUG(
-        "ctrl %d shift %d alt %d motion %d special key %d codepoint %" PRIu32
-        " char %s",
+        "ctrl %d shift %d alt %d motion %d special key %d codepoint "
+        "\\u%04" PRIx32 " char %s",
         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
         key_info.codepoint, c);
 #endif  // !NDEBUG
