@@ -51,6 +51,8 @@ class Editor {
     void InitCommands();
     void HandleKey(const Terminal::Event& e,
                    std::string* bracketed_paste_buffer);
+    void HandleLeftClick(int s_row, int s_col);
+    void HandleRelease(int s_row, int s_col);
     void HandleMouse(const Terminal::Event& e);
     void HandleResize(const Terminal::Event& e);
 
@@ -93,6 +95,7 @@ class Editor {
     std::unique_ptr<CmpMenu> cmp_menu_;
 
     bool quit_ = false;
+    bool have_event_ = true;
 
     std::unique_ptr<Options> options_;
 

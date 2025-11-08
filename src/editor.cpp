@@ -58,11 +58,14 @@ void Editor::Loop(std::unique_ptr<Options> options,
     // Event Loop
     // TODO: support custom cursor blinking
     while (!quit_) {
-        PreProcess();
-        Draw();
+        if (have_event_) {
+            PreProcess();
+            Draw();
+        }
 
         // Poll a new Event
-        if (!term_.Poll(options_->poll_event_timeout_ms)) {
+        have_event_ = term_.Poll(options_->poll_event_timeout_ms);
+        if (!have_event_) {
             continue;
         }
 
@@ -84,7 +87,8 @@ void Editor::Loop(std::unique_ptr<Options> options,
                 if (IsPeel(mode_)) {
                     peel_->AddStringAtCursor(std::move(bracketed_paste_buffer));
                 } else {
-                    cursor_.in_window->AddStringAtCursor(std::move(bracketed_paste_buffer));
+                    cursor_.in_window->AddStringAtCursor(
+                        std::move(bracketed_paste_buffer));
                 }
                 bracketed_paste_buffer = "";
             }
@@ -219,7 +223,7 @@ void Editor::InitKeymaps() {
 
     // edit
     keymap_manager_.AddKeyseq(
-        "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }});
+        "<bs>", {[this] { cursor_.in_window->DeleteAtCursor(); }});
     keymap_manager_.AddKeyseq(
         "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
     keymap_manager_.AddKeyseq("<tab>",
@@ -373,7 +377,73 @@ void Editor::HandleKey(const Terminal::Event& e,
     handler->f();
 }
 
+void Editor::HandleLeftClick(int s_row, int s_col) {
+    MGO_LOG_DEBUG("left mouse row %d, col %d", s_row, s_col);
+    Window* win = LocateWindow(s_col, s_row);
+    Window* prev_win = cursor_.in_window;
+    Pos prev_pos = {cursor_.line, cursor_.byte_offset};
+    if (win) {
+        cursor_.in_window = win;
+        win->SetCursorHint(s_row, s_col);
+    }
+
+    if (cursor_.state_ == CursorState::kReleased) {
+        if (!win) {
+            return;
+        }
+        if (cursor_.in_window->frame_.selection_.active) {
+            cursor_.in_window->frame_.selection_.active = false;
+        }
+
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(
+                now - cursor_.last_click_time_)
+                .count() < options_->cursor_start_holding_interval_ms) {
+            cursor_.state_ = CursorState::kLeftHolding;
+        } else {
+            cursor_.last_click_time_ = now;
+            cursor_.state_ = CursorState::kLeftNotReleased;
+        }
+    } else if (cursor_.state_ == CursorState::kLeftNotReleased) {
+        cursor_.state_ = CursorState::kLeftHolding;
+        if (win) {
+            if (win == prev_win &&
+                !(prev_pos == Pos{cursor_.line, cursor_.byte_offset})) {
+                cursor_.in_window->frame_.selection_.active = true;
+                cursor_.in_window->frame_.selection_.anchor = prev_pos;
+                cursor_.in_window->frame_.selection_.head = {
+                    cursor_.line, cursor_.byte_offset};
+            }
+        }
+    } else if (cursor_.state_ == CursorState::kLeftHolding) {
+        if (cursor_.in_window->frame_.selection_.active) {
+            if (win) {
+                cursor_.in_window->frame_.selection_.head = {
+                    cursor_.line, cursor_.byte_offset};
+            }
+            return;
+        }
+
+        if (win) {
+            if (win == prev_win &&
+                !(prev_pos == Pos{cursor_.line, cursor_.byte_offset})) {
+                cursor_.in_window->frame_.selection_.active = true;
+                cursor_.in_window->frame_.selection_.anchor = prev_pos;
+                cursor_.in_window->frame_.selection_.head = {
+                    cursor_.line, cursor_.byte_offset};
+            }
+        }
+    }
+}
+
+void Editor::HandleRelease(int s_row, int s_col) {
+    MGO_LOG_DEBUG("release mouse row %d, col %d", s_row, s_col);
+
+    cursor_.state_ = CursorState::kReleased;
+}
+
 void Editor::HandleMouse(const Terminal::Event& e) {
+    // Only non peel
     if (IsPeel(mode_)) {
         return;
     }
@@ -382,15 +452,21 @@ void Editor::HandleMouse(const Terminal::Event& e) {
     switch (mouse_info.t) {
         using mk = Terminal::MouseKey;
         case mk::kLeft: {
-            Window* win = LocateWindow(mouse_info.col, mouse_info.row);
-            if (win) {
-                cursor_.in_window = win;
-                win->SetCursorHint(mouse_info.row, mouse_info.col);
-            }
-            // Not locate any area, do nothing
+            HandleLeftClick(mouse_info.row, mouse_info.col);
             break;
         }
         case mk::kRight: {
+            cursor_.state_ = CursorState::kRightNotReleased;
+            cursor_.in_window->frame_.selection_.active = false;
+            break;
+        }
+        case mk::kMiddle: {
+            cursor_.state_ = CursorState::kMiddleNotReleased;
+            cursor_.in_window->frame_.selection_.active = false;
+            break;
+        }
+        case mk::kRelease: {
+            HandleRelease(mouse_info.row, mouse_info.col);
             break;
         }
         case mk::kWheelDown: {
@@ -409,12 +485,6 @@ void Editor::HandleMouse(const Terminal::Event& e) {
                     -options_->scroll_rows_per_mouse_wheel_scroll);
             }
             // Not locate any area, do nothing
-            break;
-        }
-        case mk::kRelease: {
-            break;
-        }
-        case mk::kMiddle: {
             break;
         }
     }

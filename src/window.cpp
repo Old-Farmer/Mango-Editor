@@ -53,7 +53,12 @@ void Window::CursorGoNextWord() { frame_.CursorGoNextWord(); }
 
 void Window::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
 
-void Window::DeleteCharacterBeforeCursor() {
+void Window::DeleteAtCursor() {
+    if (frame_.selection_.active) {
+        frame_.DeleteSelection();
+        return;
+    }
+
     Buffer* buffer = frame_.buffer_;
     Range range;
     if (cursor_->byte_offset == 0) {  // first byte
@@ -116,6 +121,12 @@ void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 
 void Window::AddStringAtCursor(std::string str, bool raw) {
     if (raw) {
+        frame_.AddStringAtCursor(std::move(str));
+        return;
+    }
+
+    // TODO: better support autopair autoindent when selection
+    if (frame_.selection_.active) {
         frame_.AddStringAtCursor(std::move(str));
         return;
     }
@@ -289,6 +300,7 @@ void Window::DetachBuffer() {
         frame_.buffer_->SaveCursorState(*cursor_);
         frame_.buffer_ = nullptr;
         DestorySearchContext();
+        frame_.selection_.active = false;
     }
 }
 

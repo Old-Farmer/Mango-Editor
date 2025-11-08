@@ -36,9 +36,8 @@ class Window {
     void CursorGoNextWord();
     void CursorGoPrevWord();
 
-    void DeleteCharacterBeforeCursor();
+    void DeleteAtCursor();
     void DeleteWordBeforeCursor();
-    void DeleteSelection();
     // raw means do not treat it as keystroke
     void AddStringAtCursor(std::string str, bool raw = false);
     void TabAtCursor();

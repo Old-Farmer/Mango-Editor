@@ -82,6 +82,10 @@ struct Pos {
 inline bool operator==(const Pos& pos1, const Pos& pos2) noexcept {
     return pos1.byte_offset == pos2.byte_offset && pos1.line == pos2.line;
 }
+inline bool operator<(const Pos& pos1, const Pos& pos2) noexcept {
+    return pos1.line < pos2.line ||
+           (pos1.line == pos2.line && pos1.byte_offset < pos2.byte_offset);
+}
 
 // Range represents a text range: [begin, end)
 // NOTE:
@@ -91,14 +95,8 @@ struct Range {
     Pos begin;
     Pos end;
 
-    bool PosBefore(const Pos& pos) const {
-        return pos.line < begin.line ||
-               (pos.line == begin.line && pos.byte_offset < begin.byte_offset);
-    }
-    bool PosAfter(const Pos& pos) const {
-        return pos.line > end.line ||
-               (pos.line == end.line && pos.byte_offset >= end.byte_offset);
-    }
+    bool PosBefore(const Pos& pos) const { return pos < begin; }
+    bool PosAfter(const Pos& pos) const { return !(pos < end); }
 
     // Pos is in Range ?
     bool PosIn(const Pos& pos) const {
@@ -183,7 +181,8 @@ class Buffer {
     Result Add(const Pos& pos, std::string str, bool use_given_pos_hint,
                Pos& pos_hint);
     Result Delete(const Range& range, Pos& pos_hint);
-    Result Replace(const Range& range, std::string str, Pos& pos_hint);
+    Result Replace(const Range& range, std::string str, bool use_given_pos_hint,
+                   Pos& pos_hint);
 
     // return kNoHistoryAvailable if no action can be done
     // else return kOk
@@ -241,7 +240,7 @@ class Buffer {
 
     Path path_;
     zstring_view filetype_;
-    EOLSeq eol_seq_ = EOLSeq::kLF; // Default LF
+    EOLSeq eol_seq_ = EOLSeq::kLF;  // Default LF
     BufferState state_ = BufferState::kHaveNotRead;
     bool read_only_ = false;
     int64_t

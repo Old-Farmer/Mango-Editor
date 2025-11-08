@@ -30,6 +30,8 @@ struct Options {
     int64_t scroll_rows_per_mouse_wheel_scroll = 3;
     int escape_timeout_ms = 50;
 
+    int cursor_start_holding_interval_ms = 500;
+
     // NOTE: Change carefully
     // See Terminall::Init
     // TODO: better color control

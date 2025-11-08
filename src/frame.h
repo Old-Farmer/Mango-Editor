@@ -1,6 +1,8 @@
 #pragma once
 #include <cstdint>
 
+#include "buffer.h"
+#include "selection.h"
 #include "term.h"
 #include "utils.h"
 
@@ -8,7 +10,6 @@ namespace mango {
 
 class Buffer;
 class Cursor;
-class Options;
 class SyntaxParser;
 struct Pos;
 
@@ -48,7 +49,7 @@ class Frame {
     void CursorGoNextWord();
     void CursorGoPrevWord();
 
-    void DeleteCharacterBeforeCursor();
+    void DeleteAtCursor();
     void DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
     void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
@@ -56,8 +57,16 @@ class Frame {
     void Redo();
     void Undo();
 
+    void DeleteCharacterBeforeCursor();
+    void DeleteSelection();
+
+    void AddStringAtCursorNoSelection(std::string str, const Pos* cursor_pos = nullptr);
+    void ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
+
    private:
     void UpdateHighlight();
+    void SelectionUpdate();
+
 
    public:
     size_t width_ = 0;
@@ -78,6 +87,8 @@ class Frame {
     size_t b_view_line_ = 0;
     size_t b_view_col_ = 0;
     bool wrap_ = false;
+
+    Selection selection_;
 
    private:
     SyntaxParser* parser_;

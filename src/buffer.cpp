@@ -483,17 +483,28 @@ Result Buffer::Delete(const Range& range, Pos& pos_hint) {
     return kOk;
 }
 
-Result Buffer::Replace(const Range& range, std::string str, Pos& pos_hint) {
+Result Buffer::Replace(const Range& range, std::string str,
+                       bool use_given_pos_hint, Pos& pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
     if (read_only()) {
         return kBufferReadOnly;
     }
-    std::string old_str = ReplaceInner(range, str, pos_hint, true);
+
+    Pos orign_pos_hint;
+    std::string old_str = ReplaceInner(range, str, orign_pos_hint, true);
+    if (!use_given_pos_hint) {
+        pos_hint = orign_pos_hint;
+    }
+
     BufferEditHistoryItem item;
     item.origin.range = range;
     item.origin.str = std::move(str);
+    if (use_given_pos_hint) {
+        item.origin.pos_hint = pos_hint;
+    }
+
     item.reverse.range = {range.begin, pos_hint};
     item.reverse.str = std::move(old_str);
     Record(std::move(item));

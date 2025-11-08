@@ -46,7 +46,7 @@ void MangoPeel::CursorGoNextWord() { frame_.CursorGoNextWord(); }
 void MangoPeel::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
 
 void MangoPeel::DeleteCharacterBeforeCursor() {
-    frame_.DeleteCharacterBeforeCursor();
+    frame_.DeleteAtCursor();
 }
 
 void MangoPeel::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }

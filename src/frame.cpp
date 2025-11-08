@@ -44,6 +44,7 @@ void Frame::Draw() {
             syntax_highlight = &syntax_context->syntax_highlight;
         }
     }
+    const Range selection_range = selection_.ToRange();
 
     if (wrap_) {
         // TODO: wrap the content
@@ -89,6 +90,23 @@ void Frame::Draw() {
                 } else if (cur_b_view_c >= b_view_col_ &&
                            cur_b_view_c + character_width <=
                                width_ + b_view_col_) {
+                    // Decide attr
+                    Terminal::AttrPair attr;
+                    if (selection_range.PosIn({b_view_r, offset})) {
+                        attr = options_->attr_table[kSelection];
+                    } else if (syntax_highlight == nullptr ||
+                               static_cast<int64_t>(syntax_highlight->size()) ==
+                                   highlight_i) {
+                        attr = options_->attr_table[kNormal];
+                    } else {
+                        if ((*syntax_highlight)[highlight_i].range.PosIn(
+                                {b_view_r, offset})) {
+                            attr = (*syntax_highlight)[highlight_i].attr;
+                        } else {
+                            attr = options_->attr_table[kNormal];
+                        }
+                    }
+
                     if (character[0] == '\t') {
                         int space_count = options_->tabstop -
                                           cur_b_view_c % options_->tabstop;
@@ -97,9 +115,8 @@ void Frame::Draw() {
                             int screen_c = cur_b_view_c - b_view_col_ + col_;
                             uint32_t space = kSpaceChar;
                             // Just in view, render the character
-                            int ret =
-                                term_->SetCell(screen_c, screen_r, &space, 1,
-                                               options_->attr_table[kNormal]);
+                            int ret = term_->SetCell(screen_c, screen_r, &space,
+                                                     1, attr);
                             if (ret == kTermOutOfBounds) {
                                 // User resize the screen now, just skip the
                                 // left cols in this row
@@ -111,21 +128,6 @@ void Frame::Draw() {
                         character_width = 0;
                     } else {
                         int screen_c = cur_b_view_c - b_view_col_ + col_;
-
-                        Terminal::AttrPair attr;
-                        // Decide attr
-                        if (syntax_highlight == nullptr ||
-                            static_cast<int64_t>(syntax_highlight->size()) ==
-                                highlight_i) {
-                            attr = options_->attr_table[kNormal];
-                        } else {
-                            if ((*syntax_highlight)[highlight_i].range.PosIn(
-                                    {b_view_r, offset})) {
-                                attr = (*syntax_highlight)[highlight_i].attr;
-                            } else {
-                                attr = options_->attr_table[kNormal];
-                            }
-                        }
 
                         // Just in view, render the character
                         int ret =
@@ -261,6 +263,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     // search througn line
     size_t target_b_view_col = s_col - col_ + b_view_col_;
     SetCursorByBViewCol(target_b_view_col);
+    SelectionUpdate();
 }
 
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
@@ -285,6 +288,7 @@ void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     }
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
+    SelectionUpdate();
 }
 
 void Frame::ScrollCols(int64_t count) { (void)count; }
@@ -306,6 +310,7 @@ void Frame::CursorGoRight() {
                                      character_width);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset += len;
+    SelectionUpdate();
 }
 
 void Frame::CursorGoLeft() {
@@ -324,6 +329,8 @@ void Frame::CursorGoLeft() {
                                      character_width);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
+
+    SelectionUpdate();
 }
 
 void Frame::CursorGoUp() {
@@ -337,6 +344,7 @@ void Frame::CursorGoUp() {
     cursor_->line--;
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
+    SelectionUpdate();
 }
 
 void Frame::CursorGoDown() {
@@ -350,18 +358,21 @@ void Frame::CursorGoDown() {
     cursor_->line++;
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
+    SelectionUpdate();
 }
 
 void Frame::CursorGoHome() {
     MGO_ASSERT(buffer_);
     cursor_->byte_offset = 0;
     cursor_->DontHoldColWant();
+    SelectionUpdate();
 }
 
 void Frame::CursorGoEnd() {
     MGO_ASSERT(buffer_);
     cursor_->byte_offset = buffer_->lines()[cursor_->line].line_str.size();
     cursor_->DontHoldColWant();
+    SelectionUpdate();
 }
 
 void Frame::CursorGoNextWord() {
@@ -379,6 +390,7 @@ void Frame::CursorGoNextWord() {
         NextWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
+    SelectionUpdate();
 }
 
 void Frame::CursorGoPrevWord() {
@@ -396,6 +408,108 @@ void Frame::CursorGoPrevWord() {
         PrevWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
+    SelectionUpdate();
+}
+
+void Frame::DeleteAtCursor() {
+    if (selection_.active) {
+        DeleteSelection();
+    } else {
+        DeleteCharacterBeforeCursor();
+    }
+}
+
+void Frame::DeleteWordBeforeCursor() {
+    MGO_ASSERT(!selection_.active);
+
+    MGO_ASSERT(buffer_);
+    Pos deleted_until;
+    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    if (cursor_->byte_offset == 0) {
+        if (cursor_->line == 0) {
+            return;
+        }
+        deleted_until.line = cursor_->line - 1;
+        cur_line = &buffer_->lines()[cursor_->line - 1].line_str;
+        deleted_until.byte_offset = cur_line->size();
+    } else {
+        deleted_until.line = cursor_->line;
+        deleted_until.byte_offset = cursor_->byte_offset;
+    }
+    Result res = PrevWord(*cur_line, deleted_until.byte_offset,
+                          deleted_until.byte_offset);
+    MGO_ASSERT(res == kOk);
+    Pos pos;
+    if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
+                        pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
+    UpdateHighlight();
+}
+
+void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
+    if (selection_.active) {
+        ReplaceSelection(std::move(str), cursor_pos);
+    } else {
+        AddStringAtCursorNoSelection(std::move(str), cursor_pos);
+    }
+}
+
+void Frame::TabAtCursor() {
+    // TODO: support tab when selection
+    selection_.active = false;
+
+    if (!options_->tabspace) {
+        AddStringAtCursor("\t");
+        return;
+    }
+
+    int64_t cur_b_view_row = cursor_->line;
+    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line_str;
+    std::vector<uint32_t> character;
+    size_t cur_b_view_c = 0;
+    size_t offset = 0;
+    while (offset < cursor_->byte_offset) {
+        int character_width;
+        int byte_len;
+        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
+                                         character_width);
+        MGO_ASSERT(res == kOk);
+        offset += byte_len;
+        cur_b_view_c += character_width;
+    }
+    int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
+    AddStringAtCursor(std::string(need_space, kSpaceChar));
+}
+
+void Frame::Redo() {
+    selection_.active = false;
+
+    Pos pos;
+    if (buffer_->Redo(pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
+    UpdateHighlight();
+}
+
+void Frame::Undo() {
+    selection_.active = false;
+
+    Pos pos;
+    if (buffer_->Undo(pos) != kOk) {
+        return;
+    }
+    cursor_->line = pos.line;
+    cursor_->byte_offset = pos.byte_offset;
+    cursor_->DontHoldColWant();
+    parser_->SyntaxHighlightAfterEdit(buffer_);
+    UpdateHighlight();
 }
 
 void Frame::DeleteCharacterBeforeCursor() {
@@ -426,37 +540,22 @@ void Frame::DeleteCharacterBeforeCursor() {
     cursor_->DontHoldColWant();
     UpdateHighlight();
 }
-
-void Frame::DeleteWordBeforeCursor() {
-    MGO_ASSERT(buffer_);
-    Pos deleted_until;
-    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
-    if (cursor_->byte_offset == 0) {
-        if (cursor_->line == 0) {
-            return;
-        }
-        deleted_until.line = cursor_->line - 1;
-        cur_line = &buffer_->lines()[cursor_->line - 1].line_str;
-        deleted_until.byte_offset = cur_line->size();
-    } else {
-        deleted_until.line = cursor_->line;
-        deleted_until.byte_offset = cursor_->byte_offset;
-    }
-    Result res = PrevWord(*cur_line, deleted_until.byte_offset,
-                          deleted_until.byte_offset);
-    MGO_ASSERT(res == kOk);
+void Frame::DeleteSelection() {
     Pos pos;
-    if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
-                        pos) != kOk) {
+    if (buffer_->Delete(selection_.ToRange(), pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
     UpdateHighlight();
+    selection_.active = false;
 }
 
-void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
+void Frame::AddStringAtCursorNoSelection(std::string str,
+                                         const Pos* cursor_pos) {
+    MGO_ASSERT(!selection_.active);
+
     Pos pos;
     if (cursor_pos != nullptr) {
         pos = *cursor_pos;
@@ -471,55 +570,31 @@ void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
     UpdateHighlight();
 }
 
-void Frame::TabAtCursor() {
-    if (!options_->tabspace) {
-        AddStringAtCursor("\t");
-        return;
-    }
-
-    int64_t cur_b_view_row = cursor_->line;
-    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line_str;
-    std::vector<uint32_t> character;
-    size_t cur_b_view_c = 0;
-    size_t offset = 0;
-    while (offset < cursor_->byte_offset) {
-        int character_width;
-        int byte_len;
-        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         character_width);
-        MGO_ASSERT(res == kOk);
-        offset += byte_len;
-        cur_b_view_c += character_width;
-    }
-    int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
-    AddStringAtCursor(std::string(need_space, kSpaceChar));
-}
-
-void Frame::Redo() {
+void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
     Pos pos;
-    if (buffer_->Redo(pos) != kOk) {
+    if (cursor_pos != nullptr) {
+        pos = *cursor_pos;
+    }
+    if (buffer_->Replace(selection_.ToRange(), std::move(str),
+                         cursor_pos != nullptr, pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
     UpdateHighlight();
-}
-
-void Frame::Undo() {
-    Pos pos;
-    if (buffer_->Undo(pos) != kOk) {
-        return;
-    }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    parser_->SyntaxHighlightAfterEdit(buffer_);
-    UpdateHighlight();
+    selection_.active = false;
 }
 
 void Frame::UpdateHighlight() {
     if (parser_) parser_->SyntaxHighlightAfterEdit(buffer_);
+}
+
+void Frame::SelectionUpdate() {
+    if (selection_.active) {
+        selection_.head.line = cursor_->line;
+        selection_.head.byte_offset = cursor_->byte_offset;
+    }
 }
 
 }  // namespace mango

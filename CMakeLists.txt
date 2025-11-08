@@ -118,6 +118,8 @@ target_sources(
   "${SRC_DIR}/options.h"
   "${SRC_DIR}/options.cpp"
   "${SRC_DIR}/result.h"
+  "${SRC_DIR}/selection.h"
+  "${SRC_DIR}/selection.cpp"
   "${SRC_DIR}/signal_handler.h"
   "${SRC_DIR}/signal_handler.cpp"
   "${SRC_DIR}/state.h"
