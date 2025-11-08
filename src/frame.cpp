@@ -56,7 +56,7 @@ void Frame::Draw() {
             size_t b_view_r = win_r + b_view_line_;
 
             if (lines.size() <= b_view_r) {
-                uint32_t codepoint = kTildeChar;
+                uint32_t codepoint = '~';
                 term_->SetCell(col_, screen_r, &codepoint, 1,
                                options_->attr_table[kNormal]);
                 continue;
@@ -89,7 +89,7 @@ void Frame::Draw() {
                 } else if (cur_b_view_c >= b_view_col_ &&
                            cur_b_view_c + character_width <=
                                width_ + b_view_col_) {
-                    if (character[0] == kTabChar) {
+                    if (character[0] == '\t') {
                         int space_count = options_->tabstop -
                                           cur_b_view_c % options_->tabstop;
                         while (space_count > 0 &&
@@ -178,7 +178,7 @@ void Frame::MakeCursorVisible() {
                                          character_width);
         MGO_ASSERT(res == kOk);
         offset += byte_len;
-        if (character[0] == kTabChar) {
+        if (character[0] == '\t') {
             cur_b_view_c +=
                 options_->tabstop - cur_b_view_c % options_->tabstop;
         } else {
@@ -230,7 +230,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
             return cur_b_view_c;
         }
         offset += byte_len;
-        if (character[0] == kTabChar) {
+        if (character[0] == '\t') {
             cur_b_view_c +=
                 options_->tabstop - cur_b_view_c % options_->tabstop;
         } else {
@@ -473,7 +473,7 @@ void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
 
 void Frame::TabAtCursor() {
     if (!options_->tabspace) {
-        AddStringAtCursor(kTab);
+        AddStringAtCursor("\t");
         return;
     }
 

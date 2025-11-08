@@ -208,7 +208,7 @@ void Editor::InitKeymaps() {
                               {[this] { cursor_.in_window->TabAtCursor(); }});
     keymap_manager_.AddKeymap(
         "<enter>",
-        {[this] { cursor_.in_window->AddStringAtCursor(kNewLine); }});
+        {[this] { cursor_.in_window->AddStringAtCursor("\n"); }});
     keymap_manager_.AddKeymap(
         "<c-s>", {[this] {
             try {
@@ -305,7 +305,7 @@ void Editor::HandleKey() {
     c[len] = '\0';
     MGO_LOG_DEBUG(
         "ctrl %d shift %d alt %d motion %d special key %d codepoint "
-        "\\u%04" PRIx32 " char %s",
+        "\\U%08" PRIx32 " char %s",
         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
         key_info.codepoint, c);
 #endif  // !NDEBUG
@@ -319,7 +319,7 @@ void Editor::HandleKey() {
             uint32_t codepoint = key_info.codepoint;
 
             // filter some characters
-            if (codepoint == kReturnChar) {
+            if (codepoint == '\r') {
                 return;
             }
 

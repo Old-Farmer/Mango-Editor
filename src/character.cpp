@@ -25,11 +25,11 @@ Result NextCharacterInUtf8(const std::string& str, int64_t offset,
     width = Terminal::WCWidth(character[0]);
     if (width <= 0) {
         MGO_LOG_INFO(
-            "Meet non-printable or wcwidth == 0 character \\u%04" PRIx32
+            "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
             " in buffer, width = %d",
             character[0], width);
         width = 1;
-        if (character[0] == kTabChar) {
+        if (character[0] == '\t') {
             ;
         } else {
             character[0] = kReplacementChar;
@@ -57,11 +57,11 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
             width = Terminal::WCWidth(character[0]);
             if (width <= 0) {
                 MGO_LOG_INFO(
-                    "Meet non-printable or wcwidth == 0 character \\u%04" PRIx32
+                    "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
                     " in buffer, width = %d",
                     character[0], width);
                 width = 1;
-                if (character[0] == kTabChar) {
+                if (character[0] == '\t') {
                     ;
                 } else {
                     character[0] = kReplacementChar;
@@ -88,7 +88,7 @@ Result NextWord(const std::string& str, size_t offset,
         Result res =
             NextCharacterInUtf8(str, offset, character, byte_len, c_width);
         MGO_ASSERT(res == kOk);
-        if (character[0] == kUnderLine || isalnum(character[0])) {
+        if (character[0] == '_' || isalnum(character[0])) {
             if (found_non_word_character) {
                 next_word_offset = offset;
                 return kOk;
@@ -118,7 +118,7 @@ Result PrevWord(const std::string& str, size_t offset,
         Result res = PrevCharacterInUtf8(str, inner_offset, character, byte_len,
                                          c_width);
         MGO_ASSERT(res == kOk);
-        if (character[0] == kUnderLine || isalnum(character[0])) {
+        if (character[0] == '_' || isalnum(character[0])) {
             found_word_character = true;
         } else {
             if (found_word_character) {

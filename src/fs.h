@@ -6,6 +6,8 @@
 
 namespace mango {
 
+constexpr char kPathSeperator = '/';
+
 class Path {
    public:
     Path();

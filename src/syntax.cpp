@@ -15,6 +15,8 @@ const TSLanguage* tree_sitter_json(void);
 
 namespace mango {
 
+constexpr const char* kTSNewLine = "\n";
+
 namespace {
 
 // TODO: This part is a bull shit, organize it better.
@@ -38,7 +40,7 @@ const char* my_ts_read(void* payload, uint32_t byte_offset, TSPoint position,
     if (position.row < buffer->LineCnt() - 1) {
         if (position.column == buffer->lines()[position.row].line_str.size()) {
             *bytes_read = 1;
-            return kNewLine;
+            return kTSNewLine;
         }
         *bytes_read =
             buffer->lines()[position.row].line_str.size() - position.column;
@@ -211,7 +213,7 @@ TSQuery* SyntaxParser::GetQuery(zstring_view filetype) {
                     File f2(Path::GetAppRoot() + iter_ft2query_fpath_c->second,
                             "r", false);
                     std::string query_str_c = f2.ReadAll();
-                    query_str += kNewLine + query_str_c;
+                    query_str += kTSNewLine + query_str_c;
                 }
             }
             uint32_t error_offset;

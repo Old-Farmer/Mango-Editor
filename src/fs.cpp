@@ -10,7 +10,7 @@ Path::Path() {}
 
 Path::Path(std::string str) {
     MGO_ASSERT(!str.empty());
-    if (str[0] == kSlashChar) {
+    if (str[0] == kPathSeperator) {
         absolute_path_ = std::move(str);
         size_t pos = absolute_path_.find(cwd_);
         in_cwd_ = pos != std::string::npos;
@@ -19,7 +19,7 @@ Path::Path(std::string str) {
         in_cwd_ = true;
     }
 
-    std::string::size_type pos = absolute_path_.find_last_of(kSlashChar);
+    std::string::size_type pos = absolute_path_.find_last_of(kPathSeperator);
     MGO_ASSERT(pos != std::string::npos);
     file_name_len_ = absolute_path_.size() - pos - 1;
     last_cwd_version_ = cwd_version_;
@@ -57,7 +57,7 @@ const std::string& Path::GetCwdSys() {
     if (ret == nullptr) {
         throw FSException("Getcwd Error: %s", strerror(errno));
     }
-    cwd_ = std::string(buf) + kSlash;
+    cwd_ = std::string(buf) + kPathSeperator;
     return cwd_;
 }
 
@@ -69,12 +69,12 @@ const std::string& Path::GetAppRootSys() {
     }
     buf[len] = '\0';
     app_root_ = std::string(buf);
-    auto pos = app_root_.find_last_of(kSlashChar, app_root_.size() - 1);
+    auto pos = app_root_.find_last_of(kPathSeperator, app_root_.size() - 1);
     if (pos == std::string::npos) {
         throw FSException("%",
                           "GetAppRootSys Error: find_last_of can't find a /");
     }
-    pos = app_root_.find_last_of(kSlashChar, pos - 1);
+    pos = app_root_.find_last_of(kPathSeperator, pos - 1);
     if (pos == std::string::npos) {
         throw FSException(
             "%", "GetAppRootSys Error: find_last_of can't find another /");

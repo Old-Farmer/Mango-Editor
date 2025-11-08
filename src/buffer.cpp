@@ -79,7 +79,7 @@ Result File::ReadLine(std::string& buf, EOLSeq& eol_seq) {
         }
         if (c == '\n') {
             res = kOk;
-            if (buf.empty() || buf.back() != kReturnChar) {
+            if (buf.empty() || buf.back() != '\r') {
                 eol_seq = EOLSeq::kLF;
             } else {
                 buf.pop_back();
@@ -254,7 +254,7 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     pos_hint = pos;
     std::vector<size_t> new_line_offset;
     for (; i < str.size(); i++) {
-        if (str[i] == kNewLineChar) {
+        if (str[i] == '\n') {
             new_line_offset.push_back(i);
         }
     }
@@ -322,7 +322,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
                 // whole line deleted
                 if (record_reverse)
                     old_str.insert(
-                        0, std::string(kNewLine) + lines_[end.line].line_str);
+                        0, std::string("\n") + lines_[end.line].line_str);
 
                 lines_.erase(lines_.begin() + end.line);
 

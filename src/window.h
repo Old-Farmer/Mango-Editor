@@ -40,8 +40,6 @@ class Window {
     void DeleteWordBeforeCursor();
     void DeleteSelection();
     void AddStringAtCursor(std::string str);
-    void TryAutoIndent();
-    void TryAutoPair(std::string str);
     void TabAtCursor();
     void Redo();
     void Undo();
@@ -69,6 +67,9 @@ class Window {
    private:
     static int64_t AllocId() noexcept;
     Window() {}  // only for list head
+
+    void TryAutoIndent();
+    void TryAutoPair(std::string str);
 
    public:
     Frame frame_;

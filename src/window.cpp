@@ -94,41 +94,8 @@ void Window::DeleteCharacterBeforeCursor() {
         } else {
             // may delete pairs
             char this_char = cur_line[cursor_->byte_offset];
-            bool need_delete_pairs = false;
-            switch (charater[0]) {
-                case kLeftBraceChar: {
-                    if (this_char == kRightBraceChar) {
-                        need_delete_pairs = true;
-                    }
-                    break;
-                }
-                case kLeftParenthesisChar: {
-                    if (this_char == kRightParenthesisChar) {
-                        need_delete_pairs = true;
-                    }
-                    break;
-                }
-                case kLeftSquareBracketChar: {
-                    if (this_char == kRightSquareBracketChar) {
-                        need_delete_pairs = true;
-                    }
-                    break;
-                }
-                case kSingleQuoteChar: {
-                    if (this_char == kSingleQuoteChar) {
-                        need_delete_pairs = true;
-                    }
-                    break;
-                }
-                case kDoubleQuoteChar: {
-                    if (this_char == kDoubleQuoteChar) {
-                        need_delete_pairs = true;
-                    }
-                    break;
-                }
-                default: {
-                }
-            }
+            bool need_delete_pairs =
+                charater[0] <= CHAR_MAX && IsPair(charater[0], this_char);
             range = {{cursor_->line, cursor_->byte_offset - 1},
                      {cursor_->line,
                       cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
@@ -148,61 +115,68 @@ void Window::DeleteCharacterBeforeCursor() {
 void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 
 void Window::AddStringAtCursor(std::string str) {
-    if (options_->auto_indent && str == kNewLine) {
-        TryAutoIndent();
-    } else if (options_->auto_pair &&
-               (str == kLeftBrace || str == kLeftParenthesis ||
-                str == kLeftSquareBracket || str == kSingleQuote ||
-                str == kDoubleQuote)) {
-        TryAutoPair(std::move(str));
-    } else {
+    char c = -1;
+    if (str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0) {
+        c = str[0];
+    }
+
+    if (c == -1) {
         frame_.AddStringAtCursor(std::move(str));
+        return;
+    }
+
+    if (options_->auto_indent && c == '\n') {
+        TryAutoIndent();
+    } else if (options_->auto_pair) {
+        if (IsPair(c)) {
+            TryAutoPair(std::move(str));
+        } else {
+            frame_.AddStringAtCursor(std::move(str));
+        }
     }
 }
 
 void Window::TryAutoPair(std::string str) {
-    // Use char is ok here, we only test some ascii characters
-    char at_cursor = 0;
-    if (frame_.buffer_->lines()[cursor_->line].line_str.size() !=
-        cursor_->byte_offset) {
-        at_cursor = frame_.buffer_->lines()[cursor_->line]
-                        .line_str[cursor_->byte_offset];
+    MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
+
+    // Use char is ok here, we only test some ascii characters and utf8
+    // compatible with ascii. For convinence, we will not test whether char is
+    // valid ascii.
+    bool end_of_line = frame_.buffer_->lines()[cursor_->line].line_str.size() ==
+                       cursor_->byte_offset;
+    char cur_c = end_of_line
+                     ? frame_.buffer_->lines()[cursor_->line]
+                           .line_str[cursor_->byte_offset]
+                     : -1;  // -1 here just makes compiler happy, not used.
+    bool start_of_line = cursor_->byte_offset == 0;
+    char prev_c = start_of_line ? -1
+                                : frame_.buffer_->lines()[cursor_->line]
+                                      .line_str[cursor_->byte_offset];
+    // Can we just move cursor next ?
+    // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
+    if (!start_of_line && !end_of_line) {
+        if (IsPair(prev_c, cur_c) && cur_c == str[0]) {
+            cursor_->byte_offset++;
+            cursor_->DontHoldColWant();
+            return;
+        }
     }
-    if (str == kLeftBrace) {
-        if (at_cursor == kRightBraceChar) {
-            goto out;
-        }
-        str += kRightBrace;
-    } else if (str == kLeftParenthesis) {
-        if (at_cursor == kRightParenthesisChar) {
-            goto out;
-        }
-        str += kRightParenthesis;
-    } else if (str == kLeftSquareBracket) {
-        if (at_cursor == kRightSquareBracketChar) {
-            goto out;
-        }
-        str += kRightSquareBracket;
-    } else if (str == kSingleQuote) {
-        if (at_cursor == kSingleQuoteChar) {
-            goto out;
-        }
-        str += kSingleQuote;
-    } else if (str == kDoubleQuote) {
-        if (at_cursor == kDoubleQuoteChar) {
-            goto out;
-        }
-        str += kDoubleQuote;
+
+    // Can't just move cursor next.
+    // try auto pair
+    if (end_of_line || !IsPair(str[0], cur_c)) {
+        Pos pos = {cursor_->line, cursor_->byte_offset + 1};
+        frame_.AddStringAtCursor(std::move(str), &pos);
+        return;
     }
-out:
-    Pos pos = {cursor_->line, cursor_->byte_offset + 1};
-    frame_.AddStringAtCursor(std::move(str), &pos);
+
+    frame_.AddStringAtCursor(std::move(str));
 }
 
 void Window::TryAutoIndent() {
     const std::string& line = frame_.buffer_->lines()[cursor_->line].line_str;
     std::string indent = "";
-    std::string str = kNewLine;
+    std::string str = "\n";
     // keep with this line's indent
     size_t i = 0;
     size_t cur_indent = 0;
@@ -210,7 +184,7 @@ void Window::TryAutoIndent() {
         if (line[i] == kSpaceChar) {
             cur_indent++;
             indent.push_back(line[i]);
-        } else if (line[i] == kTabChar) {
+        } else if (line[i] == '\t') {
             cur_indent =
                 (cur_indent / options_->tabstop + 1) * options_->tabstop;
             indent.push_back(line[i]);
@@ -234,16 +208,11 @@ void Window::TryAutoIndent() {
         // <indent><cursor>
         // }
         for (int64_t i = cursor_->byte_offset - 1; i >= 0; i--) {
-            char want_right;
-            if (line[i] == kLeftBraceChar) {
-                want_right = kRightBraceChar;
-            } else if (line[i] == kLeftParenthesisChar) {
-                want_right = kRightParenthesisChar;
-            } else if (line[i] == kLeftSquareBracketChar) {
-                want_right = kRightSquareBracketChar;
-            } else if (line[i] == kSpaceChar) {
-                continue;
-            } else {
+            auto [is_open, want_right] = IsPairOpen(line[i]);
+            if (!is_open) {
+                if (line[i] == kSpaceChar) {
+                    continue;
+                }
                 break;
             }
 
@@ -253,7 +222,7 @@ void Window::TryAutoIndent() {
                     cur_indent;
                 str += std::string(need_space, kSpaceChar);
             } else {
-                str += kTab;
+                str += "\t";
             }
             for (i = cursor_->byte_offset;
                  i < static_cast<int64_t>(line.size()); i++) {
@@ -261,7 +230,7 @@ void Window::TryAutoIndent() {
                     cursor_pos.line = cursor_->line + 1;
                     cursor_pos.byte_offset = str.size() - 1;
                     maunally_set_cursor_pos = true;
-                    str += kNewLine + indent;
+                    str += "\n" + indent;
                     break;
                 } else if (line[i] != kSpaceChar) {
                     break;

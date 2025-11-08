@@ -7,35 +7,10 @@
 
 namespace mango {
 
-constexpr uint32_t kSpaceChar = ' ';
+constexpr uint32_t kSpaceChar = ' ';  // Use this to avoid confusion
 constexpr uint32_t kReplacementChar = 0xFFFD;  // �
-constexpr uint32_t kTabChar = '\t';
-constexpr uint32_t kTildeChar = '~';
-constexpr uint32_t kSlashChar = '/';
-constexpr uint32_t kNewLineChar = '\n';
-constexpr uint32_t kLeftParenthesisChar = '(';
-constexpr uint32_t kRightParenthesisChar = ')';
-constexpr uint32_t kLeftSquareBracketChar = '[';
-constexpr uint32_t kRightSquareBracketChar = ']';
-constexpr uint32_t kLeftBraceChar = '{';
-constexpr uint32_t kRightBraceChar = '}';
-constexpr uint32_t kSingleQuoteChar = '\'';
-constexpr uint32_t kDoubleQuoteChar = '\"';
-constexpr uint32_t kReturnChar = '\r';
-constexpr uint32_t kUnderLine = '_';
 
 constexpr const char* kSpace = " ";
-constexpr const char* kNewLine = "\n";
-constexpr const char* kTab = "\t";
-constexpr const char* kSlash = "/";
-constexpr const char* kLeftParenthesis = "(";
-constexpr const char* kRightParenthesis = ")";
-constexpr const char* kLeftSquareBracket = "[";
-constexpr const char* kRightSquareBracket = "]";
-constexpr const char* kLeftBrace = "{";
-constexpr const char* kRightBrace = "}";
-constexpr const char* kSingleQuote = "\'";
-constexpr const char* kDoubleQuote = "\"";
 
 bool IsUtf8BeginByte(char b);
 
@@ -92,4 +67,40 @@ Result NextWord(const std::string& str, size_t offset,
 // Current only return kOk
 Result PrevWord(const std::string& str, size_t offset,
                 size_t& prev_word_offset);
+
+inline std::pair<bool, char> IsPairOpen(char c) {
+    switch (c) {
+        case '{':
+            return {true, '}'};
+        case '[':
+            return {true, ']'};
+        case '(':
+            return {true, ')'};
+        case '\'':
+        case '\"':
+            return {true, c};
+    }
+    return {false, -1};
+}
+
+inline bool IsPair(char c) {
+    return c == '(' || c == '{' || c == '[' || c == ')' || c == '}' ||
+           c == ']' || c == '\'' || c == '\"';
+}
+
+inline bool IsPair(char open, char close) {
+    switch (open) {
+        case '(':
+            return close == ')';
+        case '{':
+            return close == '}';
+        case '[':
+            return close == ']';
+        case '\'':
+        case '\"':
+            return close == open;
+    }
+    return false;
+}
+
 }  // namespace mango
