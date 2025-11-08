@@ -1,11 +1,13 @@
-// A simple wrapper of termbox2
-// Maybe
+// A wrapper of termbox2
 
 #pragma once
+
+#include <vector>
 
 #include "exception.h"
 #include "logging.h"
 #include "result.h"
+#include "state.h"
 #include "termbox2.h"
 #include "utils.h"
 
@@ -25,9 +27,12 @@ inline void PrintTermErrorExit(int error) {
     exit(EXIT_FAILURE);
 }
 
+struct Options;
+class KeyseqManager;
+
 class Terminal {
    private:
-    Terminal();
+    Terminal() = default;
     ~Terminal();
 
    public:
@@ -40,11 +45,15 @@ class Terminal {
     }
 
     // throws TermException
-    void Init();
+    void Init(Options* options);
 
     // throws TermException
     void Shutdown();
 
+   private:
+    void InitEscKeyseq(KeyseqManager& m);
+
+   public:
     using Attr = uintattr_t;
 
     struct AttrPair {
@@ -180,40 +189,39 @@ class Terminal {
         }
     }
 
+   private:
     // throws TermException
-    bool Poll(int timeout_ms) {
-        int ret;
-        if (timeout_ms == -1) {
-            ret = tb_poll_event(&event_);
-        } else {
-            ret = tb_peek_event(&event_, timeout_ms);
-        }
-        if (ret == TB_ERR_NO_EVENT) {
-            return false;
-        } else if (ret == TB_ERR_POLL && tb_last_errno() == EINTR) {
-            return false;
-        } else if (ret == TB_OK) {
-            ;
-        } else {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
-        }
-        return true;
+    bool PollInner(int timeout_ms);
+
+   public:
+    // throws TermException
+    bool Poll(int timeout_ms);
+
+    using Event = tb_event;
+
+    const Event& GetEvent() { return event_; }
+
+    static bool EventIsResize(const Event& e) {
+        return e.type == TB_EVENT_RESIZE;
     }
 
-    bool EventIsResize() { return event_.type == TB_EVENT_RESIZE; }
+    static bool EventIsKey(const Event& e) { return e.type == TB_EVENT_KEY; }
 
-    bool EventIsKey() { return event_.type == TB_EVENT_KEY; }
+    static bool EventIsMouse(const Event& e) {
+        return e.type == TB_EVENT_MOUSE;
+    }
 
-    bool EventIsMouse() { return event_.type == TB_EVENT_MOUSE; }
-
-    enum class Event : uint8_t {
+    enum class EventType : uint8_t {
         kResize = TB_EVENT_RESIZE,
         kKey = TB_EVENT_KEY,
-        kMouse = TB_EVENT_MOUSE
+        kMouse = TB_EVENT_MOUSE,
+        kBracketedPasteOpen,
+        kBracketedPasteClose,
     };
 
-    Event WhatEvent() { return static_cast<Event>(event_.type); }
+    static EventType WhatEvent(const Event& e) {
+        return static_cast<EventType>(e.type);
+    }
 
     struct ResizeInfo {
         int width;
@@ -341,13 +349,14 @@ class Terminal {
         }
     };
 
-    ResizeInfo EventResizeInfo() const noexcept { return {event_.w, event_.h}; }
-    MouseInfo EventMouseInfo() const noexcept {
-        return {event_.x, event_.y, static_cast<MouseKey>(event_.key)};
+    static ResizeInfo EventResizeInfo(const Event& e) noexcept {
+        return {e.w, e.h};
     }
-    KeyInfo EventKeyInfo() const noexcept {
-        return {event_.ch, static_cast<SpecialKey>(event_.key),
-                static_cast<Mod>(event_.mod)};
+    static MouseInfo EventMouseInfo(const Event& e) noexcept {
+        return {e.x, e.y, static_cast<MouseKey>(e.key)};
+    }
+    static KeyInfo EventKeyInfo(const Event& e) noexcept {
+        return {e.ch, static_cast<SpecialKey>(e.key), static_cast<Mod>(e.mod)};
     }
 
     // Utilities funtions
@@ -361,8 +370,17 @@ class Terminal {
     static size_t StringWidth(const std::string& str);
 
    private:
-    tb_event event_;
+    Event event_;
+
+    // When parsing escape key seq, some events occurs and interrupt it, we
+    // should kept it in left_events and report them.
+    std::vector<Event> left_events_;
+    KeyseqManager* esc_keyseq_manager_ = nullptr;
+    Mode mode_ = Mode::kNone;  // const
+
     bool shutdown_ = false;
+
+    Options* options_;
 };
 
 }  // namespace mango

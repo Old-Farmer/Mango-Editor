@@ -49,10 +49,10 @@ class Editor {
    private:
     void InitKeymaps();
     void InitCommands();
-    void InitEscapeSeqs();
-    void HandleKey();
-    void HandleMouse();
-    void HandleResize();
+    void HandleKey(const Terminal::Event& e,
+                   std::string* bracketed_paste_buffer);
+    void HandleMouse(const Terminal::Event& e);
+    void HandleResize(const Terminal::Event& e);
 
     void Draw();
     void PreProcess();
@@ -66,13 +66,11 @@ class Editor {
     Mode mode_ = Mode::kEdit;
 
     BufferManager buffer_manager_;
-    KeyseqManager keyseq_manager_{mode_};
+    KeyseqManager keymap_manager_{mode_};
     CommandManager command_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
 
-    enum class ContextID : int {
-        kBracketedPaste,
-    };
+    enum class ContextID : int {};
     class ContextManager {
         std::unordered_map<ContextID, void*> contexts_;
 

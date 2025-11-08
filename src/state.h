@@ -29,6 +29,7 @@ enum class Mode : int {
     kFind,
     kCmp,
 
+    kNone,
     _COUNT,  // not mode, just for count
 };
 
