@@ -44,6 +44,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
 
+    InitEscapeSeqs();
     InitKeymaps();
     InitCommands();
 
@@ -78,22 +79,22 @@ void Editor::InitKeymaps() {
     std::vector<Mode> efp = {Mode::kEdit, Mode::kFind, Mode::kPeelCommand};
 
     // quit
-    keymap_manager_.AddKeymap("<c-q>", {[this] { Quit(); }}, kAllModes);
+    keyseq_manager_.AddKeymap("<c-q>", {[this] { Quit(); }}, kAllModes);
 
     // peel
-    keymap_manager_.AddKeymap("<c-p>", {[this] { GotoPeel(); }}, {Mode::kEdit});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap("<c-p>", {[this] { GotoPeel(); }}, {Mode::kEdit});
+    keyseq_manager_.AddKeymap(
         "<esc>", {[this] { ExitFromMode(); }},
         {Mode::kPeelCommand, Mode::kFind, Mode::kPeelShow});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
         {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<c-w>",
+    keyseq_manager_.AddKeymap("<c-w>",
                               {[this] { peel_->DeleteWordBeforeCursor(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<tab>", {[this] { peel_->TabAtCursor(); }},
+    keyseq_manager_.AddKeymap("<tab>", {[this] { peel_->TabAtCursor(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<enter>", {[this] {
+    keyseq_manager_.AddKeymap("<enter>", {[this] {
                                   CommandArgs args;
                                   Command* c;
                                   Result res = command_manager_.EvalCommand(
@@ -107,32 +108,32 @@ void Editor::InitKeymaps() {
                                   c->f(args);
                               }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<enter>", {[this] {
+    keyseq_manager_.AddKeymap("<enter>", {[this] {
                                   // TODO
                                   void(this);
                               }},
                               {Mode::kPeelShow});
-    keymap_manager_.AddKeymap("<left>", {[this] { peel_->CursorGoLeft(); }},
+    keyseq_manager_.AddKeymap("<left>", {[this] { peel_->CursorGoLeft(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<right>", {[this] { peel_->CursorGoRight(); }},
+    keyseq_manager_.AddKeymap("<right>", {[this] { peel_->CursorGoRight(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<c-left>",
+    keyseq_manager_.AddKeymap("<c-left>",
                               {[this] { peel_->CursorGoPrevWord(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<c-right>",
+    keyseq_manager_.AddKeymap("<c-right>",
                               {[this] { peel_->CursorGoNextWord(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
+    keyseq_manager_.AddKeymap("<home>", {[this] { peel_->CursorGoHome(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},
+    keyseq_manager_.AddKeymap("<end>", {[this] { peel_->CursorGoEnd(); }},
                               {Mode::kPeelCommand});
 
     // Buffer manangement
-    keymap_manager_.AddKeymap("<c-b><c-n>",
+    keyseq_manager_.AddKeymap("<c-b><c-n>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeymap("<c-b><c-p>",
+    keyseq_manager_.AddKeymap("<c-b><c-p>",
                               {[this] { cursor_.in_window->PrevBuffer(); }});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<c-b><c-d>", {[this] {
             Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
             if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
@@ -147,25 +148,25 @@ void Editor::InitKeymaps() {
             buffer_manager_.RemoveBuffer(cur_buffer);
         }});
 
-    keymap_manager_.AddKeymap("<c-pgdn>",
+    keyseq_manager_.AddKeymap("<c-pgdn>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeymap("<c-pgup>",
+    keyseq_manager_.AddKeymap("<c-pgup>",
                               {[this] { cursor_.in_window->PrevBuffer(); }});
 
     // search
-    keymap_manager_.AddKeymap("<c-f>", {
+    keyseq_manager_.AddKeymap("<c-f>", {
                                            [this] {
                                                GotoPeel();
                                                peel_->AddStringAtCursor("s ");
                                            },
                                        });
-    keymap_manager_.AddKeymap("<c-p>", {[this] { SearchPrev(); }},
+    keyseq_manager_.AddKeymap("<c-p>", {[this] { SearchPrev(); }},
                               {Mode::kFind});
-    keymap_manager_.AddKeymap("<c-n>", {[this] { SearchNext(); }},
+    keyseq_manager_.AddKeymap("<c-n>", {[this] { SearchNext(); }},
                               {Mode::kFind});
 
     // cmp
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<c-k><c-i>", {[this] {
             // Trigger completion, A simple demo
             // TODO: support better
@@ -179,37 +180,36 @@ void Editor::InitKeymaps() {
                 {"hello", "yes", "good"});
         }},
         {Mode::kEdit});
-    keymap_manager_.AddKeymap("<c-p>", {[this] { cmp_menu_->SelectPrev(); }},
+    keyseq_manager_.AddKeymap("<c-p>", {[this] { cmp_menu_->SelectPrev(); }},
                               {Mode::kCmp});
-    keymap_manager_.AddKeymap("<c-n>", {[this] { cmp_menu_->SelectNext(); }},
+    keyseq_manager_.AddKeymap("<c-n>", {[this] { cmp_menu_->SelectNext(); }},
                               {Mode::kCmp});
-    keymap_manager_.AddKeymap("<up>", {[this] { cmp_menu_->SelectPrev(); }},
+    keyseq_manager_.AddKeymap("<up>", {[this] { cmp_menu_->SelectPrev(); }},
                               {Mode::kCmp});
-    keymap_manager_.AddKeymap("<down>", {[this] { cmp_menu_->SelectNext(); }},
+    keyseq_manager_.AddKeymap("<down>", {[this] { cmp_menu_->SelectNext(); }},
                               {Mode::kCmp});
-    keymap_manager_.AddKeymap("<esc>", {[this] {
+    keyseq_manager_.AddKeymap("<esc>", {[this] {
                                   cmp_menu_->Clear();
                                   cmp_cancel_callback_();
                                   ExitFromMode();
                               }},
                               {Mode::kCmp});
-    keymap_manager_.AddKeymap("<enter>", {[this] {
+    keyseq_manager_.AddKeymap("<enter>", {[this] {
                                   cmp_accept_callback_(cmp_menu_->Accept());
                                   ExitFromMode();
                               }},
                               {Mode::kCmp});
 
     // edit
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<bs>", {[this] { cursor_.in_window->DeleteCharacterBeforeCursor(); }});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
-    keymap_manager_.AddKeymap("<tab>",
+    keyseq_manager_.AddKeymap("<tab>",
                               {[this] { cursor_.in_window->TabAtCursor(); }});
-    keymap_manager_.AddKeymap(
-        "<enter>",
-        {[this] { cursor_.in_window->AddStringAtCursor("\n"); }});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
+        "<enter>", {[this] { cursor_.in_window->AddStringAtCursor("\n"); }});
+    keyseq_manager_.AddKeymap(
         "<c-s>", {[this] {
             try {
                 Result res = cursor_.in_window->frame_.buffer_->Write();
@@ -223,31 +223,31 @@ void Editor::InitKeymaps() {
                 // TODO: notify user
             }
         }});
-    keymap_manager_.AddKeymap("<c-z>", {[this] { cursor_.in_window->Undo(); }});
-    keymap_manager_.AddKeymap("<c-y>", {[this] { cursor_.in_window->Redo(); }});
+    keyseq_manager_.AddKeymap("<c-z>", {[this] { cursor_.in_window->Undo(); }});
+    keyseq_manager_.AddKeymap("<c-y>", {[this] { cursor_.in_window->Redo(); }});
 
     // naviagtion
-    keymap_manager_.AddKeymap("<left>",
+    keyseq_manager_.AddKeymap("<left>",
                               {[this] { cursor_.in_window->CursorGoLeft(); }});
-    keymap_manager_.AddKeymap("<right>",
+    keyseq_manager_.AddKeymap("<right>",
                               {[this] { cursor_.in_window->CursorGoRight(); }});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<c-left>", {[this] { cursor_.in_window->CursorGoPrevWord(); }});
-    keymap_manager_.AddKeymap(
+    keyseq_manager_.AddKeymap(
         "<c-right>", {[this] { cursor_.in_window->CursorGoNextWord(); }});
-    keymap_manager_.AddKeymap("<up>",
+    keyseq_manager_.AddKeymap("<up>",
                               {[this] { cursor_.in_window->CursorGoUp(); }});
-    keymap_manager_.AddKeymap("<down>",
+    keyseq_manager_.AddKeymap("<down>",
                               {[this] { cursor_.in_window->CursorGoDown(); }});
-    keymap_manager_.AddKeymap("<home>",
+    keyseq_manager_.AddKeymap("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
-    keymap_manager_.AddKeymap("<end>",
+    keyseq_manager_.AddKeymap("<end>",
                               {[this] { cursor_.in_window->CursorGoEnd(); }});
-    keymap_manager_.AddKeymap("<pgdn>", {[this] {
+    keyseq_manager_.AddKeymap("<pgdn>", {[this] {
                                   cursor_.in_window->ScrollRows(
                                       cursor_.in_window->frame_.height_ - 1);
                               }});
-    keymap_manager_.AddKeymap("<pgup>", {[this] {
+    keyseq_manager_.AddKeymap("<pgup>", {[this] {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
@@ -292,6 +292,54 @@ void Editor::InitCommands() {
          1});
 }
 
+void Editor::InitEscapeSeqs() {
+    keyseq_manager_.AddEscapeSeq(
+        "[200~", {[this] {
+            std::string str;
+
+            while (true) {
+                if (term_.Poll(-1)) {
+                    Terminal::KeyInfo key_info = term_.EventKeyInfo();
+                    if (key_info.IsSpecialKey()) {
+                        if (key_info.mod == Terminal::kCtrl &&
+                            key_info.special_key ==
+                                Terminal::SpecialKey::kEnter) {
+                            str.push_back('\n');
+                        } else if (key_info.mod == 0 &&
+                                   key_info.special_key ==
+                                       Terminal::SpecialKey::kEsc) {
+                            break;
+                        } else {
+                            str.append(kReplacement);
+                            MGO_LOG_INFO(
+                                "Special key encountered at bracketed paste");
+                        }
+                    } else {
+                        char c[7];
+                        int len = UnicodeToUtf8(key_info.codepoint, c);
+                        MGO_ASSERT(len > 0);
+                        str.append(c);
+                    }
+                }
+            }
+
+            // consume [201~
+            constexpr std::string_view close_bracket = "[201~";
+            size_t offset = 0;
+            while (offset < close_bracket.size()) {
+                if (term_.Poll(-1)) {
+                    Terminal::KeyInfo key_info = term_.EventKeyInfo();
+                    MGO_ASSERT(key_info.codepoint ==
+                               static_cast<uint32_t>(close_bracket[offset]));
+                    offset++;
+                }
+            }
+
+            MGO_ASSERT(cursor_.in_window != nullptr);
+            cursor_.in_window->AddStringAtCursor(std::move(str), true);
+        }});
+}
+
 void Editor::HandleKey() {
     Terminal::KeyInfo key_info = term_.EventKeyInfo();
 
@@ -310,18 +358,44 @@ void Editor::HandleKey() {
         key_info.codepoint, c);
 #endif  // !NDEBUG
 
-    Keymap* handler;
-    Result res = keymap_manager_.FeedKey(key_info, handler);
-    if (res == kKeymapError) {
+    if (key_info.mod == 0 &&
+        key_info.special_key == Terminal::SpecialKey::kEsc) {
+        // In timeout a new key arrived.
+        // Assume that must be an escape sequence.
+        if (term_.Poll(options_->escape_timeout_ms)) {
+            Keyseq* handler;
+            Result res;
+            while (true) {
+                assert(term_.EventIsKey());
+                key_info = term_.EventKeyInfo();
+                res = keyseq_manager_.FeedKeyForEscapeSeq(key_info, handler);
+                if (res == kKeyseqError) {
+                    // Just swallow key events
+                    MGO_LOG_INFO(
+                        "kKeyseqError in match escape sequence, maybe an "
+                        "unsupportted seq");
+                    return;
+                }
+
+                if (res == kKeyseqMatched) {
+                    while (!term_.Poll(-1));
+                    continue;
+                }
+
+                // Done
+                handler->f();
+                return;
+            }
+        }
+    }
+
+    Keyseq* handler;
+    Result res = keyseq_manager_.FeedKeyForKeymap(key_info, handler);
+    if (res == kKeyseqError) {
         // pure characters
         // not handled by the keymap manager
         if (!key_info.IsSpecialKey() && key_info.mod == 0) {
             uint32_t codepoint = key_info.codepoint;
-
-            // filter some characters
-            if (codepoint == '\r') {
-                return;
-            }
 
             char c[7];
             int len = UnicodeToUtf8(codepoint, c);
@@ -333,7 +407,7 @@ void Editor::HandleKey() {
             }
         }
         return;
-    } else if (res == kKeymapMatched) {
+    } else if (res == kKeyseqMatched) {
         MGO_LOG_DEBUG("keymap matched");
         return;
     }
@@ -564,5 +638,10 @@ void Editor::TriggerCmp(std::function<void(size_t)> accept_call_back,
     cmp_menu_->visible() = true;
     mode_ = Mode::kCmp;
 }
+
+void*& Editor::ContextManager::GetContext(ContextID id) {
+    return contexts_[id];
+}
+void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
 
 }  // namespace mango

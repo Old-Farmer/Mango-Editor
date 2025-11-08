@@ -1,0 +1,98 @@
+#pragma once
+
+#include <functional>
+
+#include "state.h"
+#include "term.h"
+
+namespace mango {
+
+struct Keyseq {
+    std::string name;
+    std::string description;
+    std::function<void()> f;
+
+    Keyseq() = default;
+    Keyseq(std::function<void()> _f) : f(_f) {}
+};
+
+class KeyseqManager {
+   public:
+    KeyseqManager(Mode& mode);
+    ~KeyseqManager() = default;
+    MGO_DELETE_COPY(KeyseqManager);
+    MGO_DELETE_MOVE(KeyseqManager);
+
+    // Add/Remove a keymap, a keymap is a key sequence for triggering a defined
+    // handler. a keymap prefixed with another keymap will be hidden.
+    // only ascii charset seq is supported.
+
+    // throws KeyNotPredefinedException if key str is not pre-defined
+    // this is always considered a bug and should fixed emidiately
+    // return kError if keymap is not well formed
+    Result AddKeymap(const std::string& seq, Keyseq handler,
+                     const std::vector<Mode>& modes = kDefaultsModes);
+    Result RemoveKeymap(const std::string& seq,
+                        const std::vector<Mode>& modes = kDefaultsModes);
+
+    // Similar as AddKeymap/RemoveKeymap.
+    // Escape seqs must prefix with \e so you don't need to have \e in the seq
+    // arg.
+    Result AddEscapeSeq(const std::string& seq, Keyseq handler,
+                        const std::vector<Mode>& modes = kDefaultsModes);
+    Result RemoveEscapeSeq(const std::string& seq,
+                           const std::vector<Mode>& modes = kDefaultsModes);
+
+    // return kKeyseqError, kKeyseqDone, kKeyseqMatched
+    // if kKeyseqDone return, handler will be set to the related handler
+    // NOTE: Be careful of the handler lifetime
+    Result FeedKeyForKeymap(const Terminal::KeyInfo& key, Keyseq*& handler);
+    Result FeedKeyForEscapeSeq(const Terminal::KeyInfo& key, Keyseq*& handler);
+
+   private:
+    struct Node;
+    using Nexts = std::unordered_map<size_t, Node*>;
+    // use Trie tree to organize keymaps
+    struct Node {
+        Keyseq handler;
+        Nexts nexts;
+        bool end = false;
+
+        Node() = default;
+        explicit Node(bool _end) : end(_end) {}
+    };
+
+    // For simplicity, only ascii charset seq is supported.
+    // throws KeyNotPredefinedException if key str is not pre-defined
+    // return kError if keymap is not well formed by users
+    Result ParseKeyseq(const std::string& seq,
+                       std::vector<Terminal::KeyInfo>& keys);
+
+    // Inner methods, add/remove keyseq to the corresponding roots
+    void AddKeyseq(const std::vector<Terminal::KeyInfo>& keys, Keyseq handler,
+                   std::vector<Node>& roots, const std::vector<Mode>& modes);
+    void RemoveKeyseq(const std::vector<Terminal::KeyInfo>& keys,
+                      std::vector<Node>& roots, const std::vector<Mode>& modes);
+
+    Result FeedKey(const Terminal::KeyInfo& key, Keyseq*& handler,
+                   std::vector<Node>& roots, Node*& cur, Mode& last_mode);
+
+   private:
+    std::vector<Node> keymap_roots_{static_cast<size_t>(Mode::_COUNT),
+                                    Node{true}};  // one tree per mode
+
+    std::vector<Node> escape_seq_roots_{static_cast<size_t>(Mode::_COUNT),
+                                        Node{true}};  // one tree per mode
+
+    // keymap state
+    Node* keymap_cur_ = nullptr;
+    Mode keymap_last_mode_;
+
+    // escapte seq state
+    Node* escape_seq_cur_ = nullptr;
+    Mode escape_seq_last_mode_;
+
+    Mode& mode_;
+};
+
+}  // namespace mango

@@ -1,4 +1,4 @@
-#include "keymap_manager.h"
+#include "keyseq_manager.h"
 
 #include <stack>
 
@@ -68,11 +68,12 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
         {"<c-pgdn>", {ki::CreateSpecialKey(sk::kPgdn, tm::kCtrl)}},
 };
 
-KeymapManager::KeymapManager(Mode& mode) : mode_(mode) {
-    MGO_ASSERT(roots_.size() == static_cast<size_t>(Mode::_COUNT));
+KeyseqManager::KeyseqManager(Mode& mode) : mode_(mode) {
+    MGO_ASSERT(keymap_roots_.size() == static_cast<size_t>(Mode::_COUNT));
+    MGO_ASSERT(escape_seq_roots_.size() == static_cast<size_t>(Mode::_COUNT));
 }
 
-Result KeymapManager::ParseKeymap(const std::string& seq,
+Result KeyseqManager::ParseKeyseq(const std::string& seq,
                                   std::vector<Terminal::KeyInfo>& keys) {
     int start = -1;
     for (size_t i = 0; i < seq.size(); i++) {
@@ -102,15 +103,11 @@ Result KeymapManager::ParseKeymap(const std::string& seq,
     return kOk;
 }
 
-Result KeymapManager::AddKeymap(const std::string& seq, Keymap handler,
-                                const std::vector<Mode>& modes) {
-    std::vector<Terminal::KeyInfo> keys;
-    Result res = ParseKeymap(seq, keys);
-    if (res != kOk) {
-        return res;
-    }
+void KeyseqManager::AddKeyseq(const std::vector<Terminal::KeyInfo>& keys,
+                              Keyseq handler, std::vector<Node>& roots,
+                              const std::vector<Mode>& modes) {
     for (size_t i = 0; i < modes.size(); i++) {
-        Node* node = &roots_[static_cast<size_t>(modes[i])];
+        Node* node = &roots[static_cast<size_t>(modes[i])];
         for (const Terminal::KeyInfo& key_info : keys) {
             auto iter = node->nexts.find(key_info.ToNumber());
             if (iter == node->nexts.end()) {
@@ -125,18 +122,13 @@ Result KeymapManager::AddKeymap(const std::string& seq, Keymap handler,
             node->handler = handler;
         }
     }
-    return res;
 }
 
-Result KeymapManager::RemoveKeymap(const std::string& seq,
-                                   const std::vector<Mode>& modes) {
-    std::vector<Terminal::KeyInfo> keys;
-    Result res = ParseKeymap(seq, keys);
-    if (res != kOk) {
-        return res;
-    }
+void KeyseqManager::RemoveKeyseq(const std::vector<Terminal::KeyInfo>& keys,
+                                 std::vector<Node>& roots,
+                                 const std::vector<Mode>& modes) {
     for (Mode mode : modes) {
-        Node* node = &roots_[static_cast<int>(mode)];
+        Node* node = &roots[static_cast<int>(mode)];
         std::stack<std::pair<Node*, Nexts::iterator>> sta;
         bool to_end = true;
         for (const Terminal::KeyInfo& key_info : keys) {
@@ -163,32 +155,88 @@ Result KeymapManager::RemoveKeymap(const std::string& seq,
             sta.pop();
         }
     }
-    return res;
 }
 
-Result KeymapManager::FeedKey(const Terminal::KeyInfo& key, Keymap*& handler) {
-    if (cur_ == nullptr) {
-        cur_ = &roots_[static_cast<int>(mode_)];
-        last_mode_ = mode_;
-    } else if (last_mode_ != mode_) {
-        cur_ = nullptr;
-        return kKeymapError;
+Result KeyseqManager::AddKeymap(const std::string& seq, Keyseq handler,
+                                const std::vector<Mode>& modes) {
+    std::vector<Terminal::KeyInfo> keys;
+    Result res = ParseKeyseq(seq, keys);
+    if (res != kOk) {
+        return res;
+    }
+    AddKeyseq(keys, std::move(handler), keymap_roots_, modes);
+    return kOk;
+}
+
+Result KeyseqManager::RemoveKeymap(const std::string& seq,
+                                   const std::vector<Mode>& modes) {
+    std::vector<Terminal::KeyInfo> keys;
+    Result res = ParseKeyseq(seq, keys);
+    if (res != kOk) {
+        return res;
+    }
+    RemoveKeyseq(keys, keymap_roots_, modes);
+    return kOk;
+}
+
+Result KeyseqManager::AddEscapeSeq(const std::string& seq, Keyseq handler,
+                                   const std::vector<Mode>& modes) {
+    std::vector<Terminal::KeyInfo> keys;
+    Result res = ParseKeyseq(seq, keys);
+    if (res != kOk) {
+        return res;
+    }
+    AddKeyseq(keys, std::move(handler), escape_seq_roots_, modes);
+    return kOk;
+}
+
+Result KeyseqManager::RemoveEscapeSeq(const std::string& seq,
+                                      const std::vector<Mode>& modes) {
+    std::vector<Terminal::KeyInfo> keys;
+    Result res = ParseKeyseq(seq, keys);
+    if (res != kOk) {
+        return res;
+    }
+    RemoveKeyseq(keys, escape_seq_roots_, modes);
+    return kOk;
+}
+
+Result KeyseqManager::FeedKey(const Terminal::KeyInfo& key, Keyseq*& handler,
+                              std::vector<Node>& roots, Node*& cur,
+                              Mode& last_mode) {
+    if (cur == nullptr) {
+        cur = &roots[static_cast<int>(mode_)];
+        last_mode = mode_;
+    } else if (last_mode != mode_) {
+        cur = nullptr;
+        return kKeyseqError;
     }
 
-    auto iter = cur_->nexts.find(key.ToNumber());
-    if (iter == cur_->nexts.end()) {
-        cur_ = nullptr;
-        return kKeymapError;
+    auto iter = cur->nexts.find(key.ToNumber());
+    if (iter == cur->nexts.end()) {
+        cur = nullptr;
+        return kKeyseqError;
     }
 
-    cur_ = iter->second;
-    if (cur_->end) {
-        handler = &cur_->handler;
-        cur_ = nullptr;
-        return kKeymapDone;
+    cur = iter->second;
+    if (cur->end) {
+        handler = &cur->handler;
+        cur = nullptr;
+        return kKeyseqDone;
     } else {
-        return kKeymapMatched;
+        return kKeyseqMatched;
     }
+}
+
+Result KeyseqManager::FeedKeyForKeymap(const Terminal::KeyInfo& key,
+                                       Keyseq*& handler) {
+    return FeedKey(key, handler, keymap_roots_, keymap_cur_, keymap_last_mode_);
+}
+
+Result KeyseqManager::FeedKeyForEscapeSeq(const Terminal::KeyInfo& key,
+                                          Keyseq*& handler) {
+    return FeedKey(key, handler, escape_seq_roots_, escape_seq_cur_,
+                   escape_seq_last_mode_);
 }
 
 }  // namespace mango

@@ -114,7 +114,12 @@ void Window::DeleteCharacterBeforeCursor() {
 
 void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 
-void Window::AddStringAtCursor(std::string str) {
+void Window::AddStringAtCursor(std::string str, bool raw) {
+    if (raw) {
+        frame_.AddStringAtCursor(std::move(str));
+        return;
+    }
+
     char c = -1;
     if (str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0) {
         c = str[0];

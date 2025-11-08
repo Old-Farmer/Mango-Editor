@@ -7,7 +7,7 @@
 #include "cmp_menu.h"
 #include "command_manager.h"
 #include "cursor.h"
-#include "keymap_manager.h"
+#include "keyseq_manager.h"
 #include "mango_peel.h"
 #include "state.h"
 #include "status_line.h"
@@ -49,6 +49,7 @@ class Editor {
    private:
     void InitKeymaps();
     void InitCommands();
+    void InitEscapeSeqs();
     void HandleKey();
     void HandleMouse();
     void HandleResize();
@@ -65,9 +66,25 @@ class Editor {
     Mode mode_ = Mode::kEdit;
 
     BufferManager buffer_manager_;
-    KeymapManager keymap_manager_{mode_};
+    KeyseqManager keyseq_manager_{mode_};
     CommandManager command_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
+
+    enum class ContextID : int {
+        kBracketedPaste,
+    };
+    class ContextManager {
+        std::unordered_map<ContextID, void*> contexts_;
+
+       public:
+        MGO_DEFAULT_CONSTRUCT_DESTRUCT(ContextManager);
+        MGO_DELETE_COPY(ContextManager);
+        MGO_DELETE_MOVE(ContextManager);
+
+        void*& GetContext(ContextID id);
+        void FreeContext(ContextID id);
+    };
+    ContextManager contexts_manager_;
 
     Cursor cursor_;
     // Now only support one window in the screen

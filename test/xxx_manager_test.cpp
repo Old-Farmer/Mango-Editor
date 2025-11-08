@@ -1,14 +1,14 @@
 #include "catch2/catch_test_macros.hpp"
 #include "command_manager.h"
-#include "keymap_manager.h"
+#include "keyseq_manager.h"
 
 using namespace mango;
 
-TEST_CASE("keymap_manager test") {
+TEST_CASE("keyseq_manager test") {
     Mode mode = Mode::kEdit;
-    KeymapManager manager(mode);
+    KeyseqManager manager(mode);
 
-    Keymap h([] { throw "hey"; });
+    Keyseq h([] { throw "hey"; });
 
     std::string seq = "<c-a><c-b><c-c>";
     manager.AddKeymap(seq, h);
@@ -18,39 +18,56 @@ TEST_CASE("keymap_manager test") {
                                                  Terminal::kCtrl);
     auto c = Terminal::KeyInfo::CreateSpecialKey(Terminal::SpecialKey::kCtrlC,
                                                  Terminal::kCtrl);
-    Keymap* h2;
+    Keyseq* h2;
 
     SECTION("FeedKey test") {
         Result res;
-        res = manager.FeedKey(a, h2);
-        REQUIRE(res == mango::kKeymapMatched);
-        res = manager.FeedKey(b, h2);
-        REQUIRE(res == mango::kKeymapMatched);
-        res = manager.FeedKey(c, h2);
-        REQUIRE(res == mango::kKeymapDone);
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        res = manager.FeedKeyForKeymap(b, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        res = manager.FeedKeyForKeymap(c, h2);
+        REQUIRE(res == mango::kKeyseqDone);
         REQUIRE_THROWS(h2->f());
 
-        res = manager.FeedKey(a, h2);
-        REQUIRE(res == mango::kKeymapMatched);
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
         mode = mango::Mode::kFind;
-        res = manager.FeedKey(a, h2);
-        REQUIRE(res == mango::kKeymapError);
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqError);
     }
+    SECTION("FeedKey test") {
+        Result res;
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        res = manager.FeedKeyForKeymap(b, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        res = manager.FeedKeyForKeymap(c, h2);
+        REQUIRE(res == mango::kKeyseqDone);
+        REQUIRE_THROWS(h2->f());
+
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        mode = mango::Mode::kFind;
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqError);
+    }
+
 
     SECTION("Remove test") {
         manager.RemoveKeymap(seq);
 
         Result res;
-        res = manager.FeedKey(a, h2);
-        REQUIRE(res == mango::kKeymapError);
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqError);
     }
 
     SECTION("override test") {
         manager.AddKeymap("<c-a>", h);
 
         Result res;
-        res = manager.FeedKey(a, h2);
-        REQUIRE(res == mango::kKeymapDone);
+        res = manager.FeedKeyForKeymap(a, h2);
+        REQUIRE(res == mango::kKeyseqDone);
     }
 
     SECTION("override test 2") {
@@ -63,10 +80,10 @@ TEST_CASE("keymap_manager test") {
             Terminal::SpecialKey::kCtrlI, Terminal::kCtrl);
 
         Result res;
-        res = manager.FeedKey(c_k, h2);
-        REQUIRE(res == mango::kKeymapMatched);
-        res = manager.FeedKey(c_i, h2);
-        REQUIRE(res == mango::kKeymapDone);
+        res = manager.FeedKeyForKeymap(c_k, h2);
+        REQUIRE(res == mango::kKeyseqMatched);
+        res = manager.FeedKeyForKeymap(c_i, h2);
+        REQUIRE(res == mango::kKeyseqDone);
     }
 }
 

@@ -2,7 +2,6 @@
 
 #include <cinttypes>
 
-#include "character.h"
 #include "constants.h"
 #include "options.h"
 #include "tree_sitter/api.h"

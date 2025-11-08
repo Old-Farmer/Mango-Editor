@@ -1,7 +1,11 @@
 #include "fs.h"
 
-#include "character.h"
+#include <unistd.h>
+
+#include <cstring>
+
 #include "exception.h"
+#include "linux/limits.h"
 #include "utils.h"
 
 namespace mango {

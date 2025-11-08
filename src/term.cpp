@@ -20,6 +20,10 @@ void Terminal::Init() {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
+
+    // Enable Bracketed Paste
+    tb_sendf("\e[?2004h");
+    tb_present();
 }
 
 void Terminal::Shutdown() {
@@ -31,6 +35,8 @@ void Terminal::Shutdown() {
         // Restore cursor
         // NOTE: only work on some terminals
         printf("\e[0 q");
+        // Disable Bracketed Paste
+        printf("\e[?2004l");
         fflush(stdout);
 
         shutdown_ = true;

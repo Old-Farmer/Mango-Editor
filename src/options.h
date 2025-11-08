@@ -28,6 +28,7 @@ struct InitOptions {
 struct Options {
     int poll_event_timeout_ms = -1;
     int64_t scroll_rows_per_mouse_wheel_scroll = 3;
+    int escape_timeout_ms = 50;
 
     // NOTE: Change carefully
     // See Terminall::Init

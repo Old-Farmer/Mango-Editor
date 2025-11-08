@@ -7,10 +7,11 @@
 
 namespace mango {
 
-constexpr uint32_t kSpaceChar = ' ';  // Use this to avoid confusion
+constexpr uint32_t kSpaceChar = ' ';           // Use this to avoid confusion
 constexpr uint32_t kReplacementChar = 0xFFFD;  // �
 
 constexpr const char* kSpace = " ";
+constexpr const char* kReplacement = "�";  // �
 
 bool IsUtf8BeginByte(char b);
 
@@ -68,6 +69,7 @@ Result NextWord(const std::string& str, size_t offset,
 Result PrevWord(const std::string& str, size_t offset,
                 size_t& prev_word_offset);
 
+// If c is the open part of a pair, return true and the close part.
 inline std::pair<bool, char> IsPairOpen(char c) {
     switch (c) {
         case '{':
@@ -83,11 +85,13 @@ inline std::pair<bool, char> IsPairOpen(char c) {
     return {false, -1};
 }
 
+// If c is the open or close part of a pair.
 inline bool IsPair(char c) {
     return c == '(' || c == '{' || c == '[' || c == ')' || c == '}' ||
            c == ']' || c == '\'' || c == '\"';
 }
 
+// Can open and close pair together ?
 inline bool IsPair(char open, char close) {
     switch (open) {
         case '(':
