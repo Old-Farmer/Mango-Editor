@@ -44,7 +44,18 @@ void Frame::Draw() {
             syntax_highlight = &syntax_context->syntax_highlight;
         }
     }
-    const Range selection_range = selection_.ToRange();
+
+    Range selection_rendering_range;
+    if (selection_.active) {
+        selection_rendering_range = selection_.ToRange();
+        if (cursor_->line == selection_rendering_range.begin.line &&
+            cursor_->byte_offset ==
+                selection_rendering_range.begin.byte_offset) {
+            // TODO: maybe all ready end of line, ++ will out of line, currently
+            // no problem
+            selection_rendering_range.begin.byte_offset++;
+        }
+    }
 
     if (wrap_) {
         // TODO: wrap the content
@@ -92,7 +103,8 @@ void Frame::Draw() {
                                width_ + b_view_col_) {
                     // Decide attr
                     Terminal::AttrPair attr;
-                    if (selection_range.PosIn({b_view_r, offset})) {
+                    if (selection_.active &&
+                        selection_rendering_range.PosIn({b_view_r, offset})) {
                         attr = options_->attr_table[kSelection];
                     } else if (syntax_highlight == nullptr ||
                                static_cast<int64_t>(syntax_highlight->size()) ==
@@ -441,7 +453,7 @@ void Frame::DeleteWordBeforeCursor() {
     MGO_ASSERT(res == kOk);
     Pos pos;
     if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
-                        pos) != kOk) {
+                        nullptr, pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;
@@ -532,7 +544,7 @@ void Frame::DeleteCharacterBeforeCursor() {
                  {cursor_->line, cursor_->byte_offset}};
     }
     Pos pos;
-    if (buffer_->Delete(range, pos) != kOk) {
+    if (buffer_->Delete(range, nullptr, pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;
@@ -542,7 +554,8 @@ void Frame::DeleteCharacterBeforeCursor() {
 }
 void Frame::DeleteSelection() {
     Pos pos;
-    if (buffer_->Delete(selection_.ToRange(), pos) != kOk) {
+    Pos cursor_pos = {cursor_->line, cursor_->byte_offset};
+    if (buffer_->Delete(selection_.ToRange(), &cursor_pos, pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;
@@ -575,7 +588,8 @@ void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
     if (cursor_pos != nullptr) {
         pos = *cursor_pos;
     }
-    if (buffer_->Replace(selection_.ToRange(), std::move(str),
+    Pos cur_cursor_pos = {cursor_->line, cursor_->byte_offset};
+    if (buffer_->Replace(selection_.ToRange(), std::move(str), &cur_cursor_pos,
                          cursor_pos != nullptr, pos) != kOk) {
         return;
     }

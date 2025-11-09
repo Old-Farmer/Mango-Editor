@@ -108,7 +108,7 @@ void Window::DeleteAtCursor() {
     }
 
     Pos pos;
-    if (buffer->Delete(range, pos) != kOk) {
+    if (buffer->Delete(range, nullptr, pos) != kOk) {
         return;
     }
     cursor_->line = pos.line;

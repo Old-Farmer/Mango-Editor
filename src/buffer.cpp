@@ -222,35 +222,35 @@ Result Buffer::Write() {
     return kOk;
 }
 
-void Buffer::Edit(const BufferEdit& edit, Pos& pos_hint) {
+void Buffer::Edit(const BufferEdit& edit, Pos& cursor_pos_hint) {
     if (edit.str.empty()) {
         // delete
-        DeleteInner(edit.range, pos_hint, false, true);
+        DeleteInner(edit.range, cursor_pos_hint, false, true);
     } else if (edit.range.begin == edit.range.end) {
         // add
-        AddInner(edit.range.begin, edit.str, pos_hint, true);
+        AddInner(edit.range.begin, edit.str, cursor_pos_hint, true);
     } else {
         // replace
-        ReplaceInner(edit.range, edit.str, pos_hint, false);
+        ReplaceInner(edit.range, edit.str, cursor_pos_hint, false);
     }
 }
 
-void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
-                      bool record_ts_edit) {
-    auto _ = gsl::finally([this, record_ts_edit, &pos, &pos_hint] {
+void Buffer::AddInner(const Pos& pos, const std::string& str,
+                      Pos& cursor_pos_hint, bool record_ts_edit) {
+    auto _ = gsl::finally([this, record_ts_edit, &pos, &cursor_pos_hint] {
         Modified();
         if (record_ts_edit) {
             ts_edit_.start_point.row = pos.line;
             ts_edit_.start_point.column = pos.byte_offset;
             ts_edit_.old_end_point.row = pos.line;
             ts_edit_.old_end_point.column = pos.byte_offset;
-            ts_edit_.new_end_point.row = pos_hint.line;
-            ts_edit_.new_end_point.column = pos_hint.byte_offset;
+            ts_edit_.new_end_point.row = cursor_pos_hint.line;
+            ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
         }
     });
 
     size_t i = 0;
-    pos_hint = pos;
+    cursor_pos_hint = pos;
     std::vector<size_t> new_line_offset;
     for (; i < str.size(); i++) {
         if (str[i] == '\n') {
@@ -259,50 +259,53 @@ void Buffer::AddInner(const Pos& pos, const std::string& str, Pos& pos_hint,
     }
     // No newline, just insert
     if (new_line_offset.empty()) {
-        MGO_ASSERT(lines_.size() > pos_hint.line);
-        MGO_ASSERT(lines_[pos_hint.line].line_str.size() >=
-                   pos_hint.byte_offset);
+        MGO_ASSERT(lines_.size() > cursor_pos_hint.line);
+        MGO_ASSERT(lines_[cursor_pos_hint.line].line_str.size() >=
+                   cursor_pos_hint.byte_offset);
 
-        lines_[pos_hint.line].line_str.insert(pos_hint.byte_offset, str);
-        pos_hint.byte_offset += str.size();
+        lines_[cursor_pos_hint.line].line_str.insert(
+            cursor_pos_hint.byte_offset, str);
+        cursor_pos_hint.byte_offset += str.size();
         return;
     }
 
     // Have newline
-    MGO_ASSERT(lines_.size() > pos_hint.line);
-    MGO_ASSERT(lines_[pos_hint.line].line_str.size() >= pos_hint.byte_offset);
+    MGO_ASSERT(lines_.size() > cursor_pos_hint.line);
+    MGO_ASSERT(lines_[cursor_pos_hint.line].line_str.size() >=
+               cursor_pos_hint.byte_offset);
 
-    std::string line_after_pos =
-        lines_[pos_hint.line].line_str.substr(pos_hint.byte_offset);
-    lines_[pos_hint.line].line_str.erase(pos_hint.byte_offset);
+    std::string line_after_pos = lines_[cursor_pos_hint.line].line_str.substr(
+        cursor_pos_hint.byte_offset);
+    lines_[cursor_pos_hint.line].line_str.erase(cursor_pos_hint.byte_offset);
     i = 0;
     for (size_t offset : new_line_offset) {
         if (offset != i) {
-            MGO_ASSERT(lines_.size() > pos_hint.line);
+            MGO_ASSERT(lines_.size() > cursor_pos_hint.line);
 
-            lines_[pos_hint.line].line_str.append(str, i, offset - i);
+            lines_[cursor_pos_hint.line].line_str.append(str, i, offset - i);
         }
-        pos_hint.line++;
-        pos_hint.byte_offset = 0;
+        cursor_pos_hint.line++;
+        cursor_pos_hint.byte_offset = 0;
 
-        MGO_ASSERT(lines_.size() >= pos_hint.line);
+        MGO_ASSERT(lines_.size() >= cursor_pos_hint.line);
 
         // Use Line() instead of {} to prevent c++ infer as init list
-        lines_.insert(lines_.begin() + pos_hint.line, Line());
+        lines_.insert(lines_.begin() + cursor_pos_hint.line, Line());
         i = offset + 1;
     }
     if (new_line_offset.back() != str.size() - 1) {
-        MGO_ASSERT(lines_.size() > pos_hint.line);
+        MGO_ASSERT(lines_.size() > cursor_pos_hint.line);
 
         size_t left_size = str.size() - (new_line_offset.back() + 1);
-        lines_[pos_hint.line].line_str.append(str, new_line_offset.back() + 1,
-                                              left_size);
-        pos_hint.byte_offset = lines_[pos_hint.line].line_str.size();
+        lines_[cursor_pos_hint.line].line_str.append(
+            str, new_line_offset.back() + 1, left_size);
+        cursor_pos_hint.byte_offset =
+            lines_[cursor_pos_hint.line].line_str.size();
     }
-    lines_[pos_hint.line].line_str.append(line_after_pos);
+    lines_[cursor_pos_hint.line].line_str.append(line_after_pos);
 }
 
-std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
+std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                                 bool record_reverse, bool record_ts_edit) {
     auto _ = gsl::finally([this] { Modified(); });
 
@@ -369,32 +372,33 @@ std::string Buffer::DeleteInner(const Range& range, Pos& pos_hint,
             line_where_end_pos_locate.size() - range.end.byte_offset);
     }
 
-    pos_hint = range.begin;
+    cursor_pos_hint = range.begin;
 
     if (record_ts_edit) {
         ts_edit_.start_point.row = range.begin.line;
         ts_edit_.start_point.column = range.begin.byte_offset;
         ts_edit_.old_end_point.row = range.end.line;
         ts_edit_.old_end_point.column = range.end.byte_offset;
-        ts_edit_.new_end_point.row = pos_hint.line;
-        ts_edit_.new_end_point.column = pos_hint.byte_offset;
+        ts_edit_.new_end_point.row = cursor_pos_hint.line;
+        ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
     }
 
     return old_str;
 }
 
 std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
-                                 Pos& pos_hint, bool record_reverse) {
+                                 Pos& cursor_pos_hint, bool record_reverse) {
     Pos out_pos;
-    std::string old_str = DeleteInner(range, pos_hint, record_reverse, false);
-    AddInner(out_pos, str, pos_hint, false);
+    std::string old_str =
+        DeleteInner(range, out_pos, record_reverse, false);
+    AddInner(out_pos, str, cursor_pos_hint, false);
 
     ts_edit_.start_point.row = range.begin.line;
     ts_edit_.start_point.column = range.begin.byte_offset;
     ts_edit_.old_end_point.row = range.end.line;
     ts_edit_.old_end_point.column = range.end.byte_offset;
-    ts_edit_.new_end_point.row = pos_hint.line;
-    ts_edit_.new_end_point.column = pos_hint.byte_offset;
+    ts_edit_.new_end_point.row = cursor_pos_hint.line;
+    ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
 
     return old_str;
 }
@@ -421,16 +425,20 @@ void Buffer::Record(BufferEditHistoryItem item) {
         last_item.origin.range.begin == item.origin.range.end) {
         // adjacent deletes
         last_item.origin.range.begin = item.origin.range.begin;
+
         last_item.reverse.range.begin = item.reverse.range.begin;
         last_item.reverse.range.end = item.reverse.range.end;
         last_item.reverse.str.insert(0, item.reverse.str);
+        last_item.reverse_pos_hint = item.reverse_pos_hint;
         return;
     } else if (last_item.origin.range.begin == last_item.origin.range.end &&
                item.origin.range.begin == item.origin.range.end &&
                last_item.reverse.range.end == item.reverse.range.begin) {
         // adjacent adds
         last_item.reverse.range.end = item.reverse.range.end;
+
         last_item.origin.str.append(item.origin.str);
+        last_item.origin_pos_hint = item.origin_pos_hint;
         return;
     }
     // THINK IT: adjacent replaces need to be merged?
@@ -442,7 +450,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
 }
 
 Result Buffer::Add(const Pos& pos, std::string str, bool use_given_pos_hint,
-                   Pos& pos_hint) {
+                   Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
@@ -452,39 +460,41 @@ Result Buffer::Add(const Pos& pos, std::string str, bool use_given_pos_hint,
     Pos orign_pos_hint;
     AddInner(pos, str, orign_pos_hint, true);
     if (!use_given_pos_hint) {
-        pos_hint = orign_pos_hint;
+        cursor_pos_hint = orign_pos_hint;
     }
     BufferEditHistoryItem item;
     item.origin.range = {pos, pos};
     item.origin.str = std::move(str);
-    if (use_given_pos_hint) {
-        item.origin.pos_hint = pos_hint;
-    }
+    item.origin_pos_hint = cursor_pos_hint;
 
     item.reverse.range = {pos, orign_pos_hint};
+    item.reverse_pos_hint = pos;
     Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::Delete(const Range& range, Pos& pos_hint) {
+Result Buffer::Delete(const Range& range, Pos* cursor_pos,
+                      Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
     if (read_only()) {
         return kBufferReadOnly;
     }
-    std::string old_str = DeleteInner(range, pos_hint, true, true);
+    std::string old_str = DeleteInner(range, cursor_pos_hint, true, true);
     BufferEditHistoryItem item;
     item.origin.range = range;
+    item.origin_pos_hint = cursor_pos_hint;
 
-    item.reverse.range = {pos_hint, pos_hint};
+    item.reverse.range = {cursor_pos_hint, cursor_pos_hint};
     item.reverse.str = std::move(old_str);
+    item.reverse_pos_hint = cursor_pos ? *cursor_pos : range.end;
     Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::Replace(const Range& range, std::string str,
-                       bool use_given_pos_hint, Pos& pos_hint) {
+Result Buffer::Replace(const Range& range, std::string str, Pos* cursor_pos,
+                       bool use_given_pos_hint, Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
@@ -492,26 +502,25 @@ Result Buffer::Replace(const Range& range, std::string str,
         return kBufferReadOnly;
     }
 
-    Pos orign_pos_hint;
-    std::string old_str = ReplaceInner(range, str, orign_pos_hint, true);
+    Pos origin_pos_hint;
+    std::string old_str = ReplaceInner(range, str, origin_pos_hint, true);
     if (!use_given_pos_hint) {
-        pos_hint = orign_pos_hint;
+        cursor_pos_hint = origin_pos_hint;
     }
 
     BufferEditHistoryItem item;
     item.origin.range = range;
     item.origin.str = std::move(str);
-    if (use_given_pos_hint) {
-        item.origin.pos_hint = pos_hint;
-    }
+    item.origin_pos_hint = cursor_pos_hint;
 
-    item.reverse.range = {range.begin, pos_hint};
+    item.reverse.range = {range.begin, cursor_pos_hint};
     item.reverse.str = std::move(old_str);
+    item.reverse_pos_hint = cursor_pos ? *cursor_pos : range.end;
     Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::Redo(Pos& pos_hint) {
+Result Buffer::Redo(Pos& cursor_pos_hint) {
     if (edit_history_->empty()) {
         return kNoHistoryAvailable;
     }
@@ -519,15 +528,13 @@ Result Buffer::Redo(Pos& pos_hint) {
         return kNoHistoryAvailable;
     }
 
-    Edit(edit_history_cursor_->origin, pos_hint);
-    if (edit_history_cursor_->origin.pos_hint.has_value()) {
-        pos_hint = edit_history_cursor_->origin.pos_hint.value();
-    }
+    Edit(edit_history_cursor_->origin, cursor_pos_hint);
+    cursor_pos_hint = edit_history_cursor_->origin_pos_hint;
     edit_history_cursor_++;
     return kOk;
 }
 
-Result Buffer::Undo(Pos& pos_hint) {
+Result Buffer::Undo(Pos& cursor_pos_hint) {
     if (edit_history_->empty()) {
         return kNoHistoryAvailable;
     }
@@ -541,7 +548,8 @@ Result Buffer::Undo(Pos& pos_hint) {
         edit_history_cursor_--;
     }
 
-    Edit(edit_history_cursor_->reverse, pos_hint);
+    Edit(edit_history_cursor_->reverse, cursor_pos_hint);
+    cursor_pos_hint = edit_history_cursor_->reverse_pos_hint;
     return kOk;
 }
 

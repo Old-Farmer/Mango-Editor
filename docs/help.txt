@@ -29,8 +29,8 @@ Use <c-k> as a general leader key.
 
 ### Edit
 
-- <bs> backspace to del a character before cursor
-- <c-w> del a word before cursor
+- <bs> backspace to del a character / selection
+- <c-w> del a word
 - <enter> insert a new line
 - <tab> tab to insert tab/spaces (see src/options.h)
 - <ctrl-s> save
@@ -49,6 +49,7 @@ Use <c-k> as a general leader key.
 
 - left click
 - scroll up/down
+- selection
 
 ## Commands
 

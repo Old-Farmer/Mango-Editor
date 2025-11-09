@@ -10,9 +10,7 @@ struct Selection {
     Pos head;
 
     Range ToRange() const {
-        if (!active) {
-            return {{0, 0}, {0, 0}};
-        }
+        MGO_ASSERT(active);
         return anchor < head ? Range{anchor, head} : Range{head, anchor};
     }
 };
