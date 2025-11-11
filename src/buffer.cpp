@@ -222,6 +222,37 @@ Result Buffer::Write() {
     return kOk;
 }
 
+std::string Buffer::GetContent(const Range& range) const {
+    MGO_ASSERT(LineCnt() > range.end.line);
+    Pos begin = range.begin;
+    size_t total_size = 0;
+    while (begin.line <= range.end.line) {
+        if (begin.line == range.end.line) {
+            total_size += range.end.byte_offset - begin.byte_offset;
+            break;
+        }
+        total_size += lines_[begin.line].line_str.size() - begin.byte_offset;
+        total_size += 1;  // '\n'
+        begin.line++;
+        begin.byte_offset = 0;
+    }
+    std::string ret;
+    ret.reserve(total_size);
+    begin = range.begin;
+    while (begin.line <= range.end.line) {
+        if (begin.line == range.end.line) {
+            ret.append(lines_[begin.line].line_str, begin.byte_offset,
+                       range.end.byte_offset - begin.byte_offset);
+            break;
+        }
+        ret.append(lines_[begin.line].line_str);
+        ret.append(1, '\n');
+        begin.line++;
+        begin.byte_offset = 0;
+    }
+    return ret;
+}
+
 void Buffer::Edit(const BufferEdit& edit, Pos& cursor_pos_hint) {
     if (edit.str.empty()) {
         // delete
@@ -389,8 +420,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
 std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
                                  Pos& cursor_pos_hint, bool record_reverse) {
     Pos out_pos;
-    std::string old_str =
-        DeleteInner(range, out_pos, record_reverse, false);
+    std::string old_str = DeleteInner(range, out_pos, record_reverse, false);
     AddInner(out_pos, str, cursor_pos_hint, false);
 
     ts_edit_.start_point.row = range.begin.line;

@@ -65,4 +65,13 @@ zstring_view DecideFiletype(std::string_view file_name) {
     return iter2->second;
 }
 
+std::vector<zstring_view> AllFiletypes() {
+    std::vector<zstring_view> filetypes(kSuffixToFiletype.size());
+    size_t i = 0;
+    for (auto [_, filetype] : kSuffixToFiletype) {
+        filetypes[i++] = filetype;
+    }
+    return filetypes;
+}
+
 }  // namespace mango

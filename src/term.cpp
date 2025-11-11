@@ -63,6 +63,7 @@ void Terminal::Shutdown() {
         fflush(stdout);
 
         shutdown_ = true;
+        esc_keyseq_manager_ = nullptr;
     }
 }
 

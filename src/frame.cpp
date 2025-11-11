@@ -21,9 +21,9 @@ static int64_t LocateInPos(const std::vector<Highlight>& highlight,
     int64_t left = 0, right = highlight.size() - 1;
     while (left <= right) {
         int64_t mid = left + (right - left) / 2;
-        if (highlight[mid].range.PosIn(pos)) {
+        if (highlight[mid].range.PosInMe(pos)) {
             return mid;
-        } else if (highlight[mid].range.PosBefore(pos)) {
+        } else if (highlight[mid].range.PosBeforeMe(pos)) {
             right = mid - 1;
         } else {
             left = mid + 1;
@@ -80,7 +80,7 @@ void Frame::Draw() {
                 } else {
                     while (highlight_i <
                                static_cast<int>(syntax_highlight->size()) &&
-                           (*syntax_highlight)[highlight_i].range.PosAfter(
+                           (*syntax_highlight)[highlight_i].range.PosAfterMe(
                                {b_view_r, 0})) {
                         highlight_i++;
                     }
@@ -104,14 +104,14 @@ void Frame::Draw() {
                     // Decide attr
                     Terminal::AttrPair attr;
                     if (selection_.active &&
-                        selection_rendering_range.PosIn({b_view_r, offset})) {
+                        selection_rendering_range.PosInMe({b_view_r, offset})) {
                         attr = options_->attr_table[kSelection];
                     } else if (syntax_highlight == nullptr ||
                                static_cast<int64_t>(syntax_highlight->size()) ==
                                    highlight_i) {
                         attr = options_->attr_table[kNormal];
                     } else {
-                        if ((*syntax_highlight)[highlight_i].range.PosIn(
+                        if ((*syntax_highlight)[highlight_i].range.PosInMe(
                                 {b_view_r, offset})) {
                             attr = (*syntax_highlight)[highlight_i].attr;
                         } else {
@@ -161,7 +161,7 @@ void Frame::Draw() {
                 if (syntax_highlight) {
                     while (highlight_i <
                                static_cast<int64_t>(syntax_highlight->size()) &&
-                           (*syntax_highlight)[highlight_i].range.PosAfter(
+                           (*syntax_highlight)[highlight_i].range.PosAfterMe(
                                {b_view_r, offset})) {
                         highlight_i++;
                     }

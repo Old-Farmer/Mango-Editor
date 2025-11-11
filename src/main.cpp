@@ -27,6 +27,9 @@ void TerminateHandler() {
 using namespace mango;
 
 int main(int argc, char* argv[]) {
+    // Always use this locale.
+    setlocale(LC_CTYPE, "en_US.UTF-8");
+
     SignalHandler signal_handler;
 
     std::set_terminate(TerminateHandler);

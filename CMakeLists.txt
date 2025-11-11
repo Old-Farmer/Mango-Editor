@@ -71,6 +71,14 @@ add_custom_target(build_treesitter
     BYPRODUCTS "${TREESITTER_LIB}"
 )
 
+# TODO: maybe we can use nvim-treesitter query?
+# FetchContent_Declare(
+#     nvim_treesitter
+#     GIT_REPOSITORY "https://github.com/nvim-treesitter/nvim-treesitter.git"
+#     GIT_TAG master
+#     SOURCE_DIR "${THIRD_PARTY_DIR}/nvim-treesitter"
+# )
+
 FetchContent_MakeAvailable(termbox2 GSL json Catch2 treesitter)
 
 # TODO: use ICU and support grapheme cluster

@@ -80,4 +80,19 @@ class KeyNotPredefinedException : public Exception {
         : Exception(format, args...) {}
 };
 
+class TSQueryPredicateDirectiveNotSupportException : public Exception {
+   public:
+    template <typename... Args>
+    TSQueryPredicateDirectiveNotSupportException(const char* format,
+                                                 Args... args)
+        : Exception(format, args...) {}
+};
+
+class RegexCompileException : public Exception {
+   public:
+    template <typename... Args>
+    RegexCompileException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
 }  // namespace mango

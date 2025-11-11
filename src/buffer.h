@@ -95,12 +95,25 @@ struct Range {
     Pos begin;
     Pos end;
 
-    bool PosBefore(const Pos& pos) const { return pos < begin; }
-    bool PosAfter(const Pos& pos) const { return !(pos < end); }
+    bool PosBeforeMe(const Pos& pos) const { return pos < begin; }
+    bool PosAfterMe(const Pos& pos) const { return !(pos < end); }
 
     // Pos is in Range ?
-    bool PosIn(const Pos& pos) const {
-        return !(PosAfter(pos) || PosBefore(pos));
+    bool PosInMe(const Pos& pos) const {
+        return !(PosAfterMe(pos) || PosBeforeMe(pos));
+    }
+
+    bool RangeBeforeMe(const Range& range) {
+        return range.end == begin || range.end < begin;
+    }
+    bool RangeAfterMe(const Range& range) {
+        return end == range.begin || end < range.begin;
+    }
+    bool RangeOverlapMe(const Range& range) {
+        return !RangeBeforeMe(range) && !RangeAfterMe(range);
+    }
+    bool RangeEqualMe(const Range& range) {
+        return range.begin == begin && range.end == end;
     }
 };
 
@@ -156,7 +169,27 @@ class Buffer {
     // kBufferCannotRead
     Result Write();
 
-    // Edit opreations
+    // Get content operations
+    // Make sure that Range or Pos is valid, otherwise behavir
+    // is undefined.
+
+    const std::string& GetLine(size_t line) const {
+        MGO_ASSERT(LineCnt() > line);
+        return lines_[line].line_str;
+    }
+
+    // This method is for some op to get a '\0' terminated sub_str but don't
+    // want to copy.
+    // They must modify a byte to '\0' and then modified back.
+    std::string& GetLineNonConst(size_t line) {
+        MGO_ASSERT(LineCnt() > line);
+        return lines_[line].line_str;
+    }
+
+    // GetConent will copy out a string in range.
+    std::string GetContent(const Range& range) const;
+
+    // Edit operations
    private:
     // Some operations used inner
     // if record is true, some info will be kept so reverse op can be done.
