@@ -61,13 +61,13 @@ void Frame::Draw() {
         // TODO: wrap the content
         MGO_ASSERT(false);
     } else {
-        const std::vector<Line>& lines = buffer_->lines();
+        const size_t line_cnt = buffer_->LineCnt();
         std::vector<uint32_t> codepoints;
         for (size_t win_r = 0; win_r < height_; win_r++) {
             int screen_r = win_r + row_;
             size_t b_view_r = win_r + b_view_line_;
 
-            if (lines.size() <= b_view_r) {
+            if (line_cnt <= b_view_r) {
                 uint32_t codepoint = '~';
                 term_->SetCell(col_, screen_r, &codepoint, 1,
                                options_->attr_table[kNormal]);
@@ -86,7 +86,7 @@ void Frame::Draw() {
                     }
                 }
             }
-            const std::string& cur_line = lines[b_view_r].line_str;
+            const std::string& cur_line = buffer_->GetLine(b_view_r);
             std::vector<uint32_t> character;
             size_t cur_b_view_c = 0;
             size_t offset = 0;
@@ -180,7 +180,7 @@ void Frame::MakeCursorVisible() {
     // Calculate the cursor pos if we put the buffer from (0, 0)
     size_t row = cursor_->line;
 
-    const std::string& cur_line = buffer_->lines()[cursor_->line].line_str;
+    const std::string& cur_line = buffer_->GetLine(cursor_->line);
     std::vector<uint32_t> character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
@@ -227,7 +227,7 @@ void Frame::MakeCursorVisible() {
 size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
     size_t cur_b_view_line = cursor_->line;
     size_t target_b_view_col = b_view_col;
-    const std::string& cur_line = buffer_->lines()[cur_b_view_line].line_str;
+    const std::string& cur_line = buffer_->GetLine(cur_b_view_line);
     std::vector<uint32_t> character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
@@ -263,9 +263,9 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
 
     size_t cur_b_view_row = s_row - row_ + b_view_line_;
     // empty line, locate the last line end
-    if (cur_b_view_row >= buffer_->lines().size()) {
-        cursor_->line = buffer_->lines().size() - 1;
-        cursor_->byte_offset = buffer_->lines().back().line_str.size();
+    if (cur_b_view_row >= buffer_->LineCnt()) {
+        cursor_->line = buffer_->LineCnt() - 1;
+        cursor_->byte_offset = buffer_->GetLine(buffer_->LineCnt() - 1).size();
         return;
     }
 
@@ -281,8 +281,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     MGO_ASSERT(buffer_);
     if (count > 0) {
-        b_view_line_ =
-            std::min(b_view_line_ + count, buffer_->lines().size() - 1);
+        b_view_line_ = std::min(b_view_line_ + count, buffer_->LineCnt() - 1);
     } else {
         b_view_line_ =
             std::max<int64_t>(static_cast<int64_t>(b_view_line_) + count,
@@ -310,14 +309,13 @@ void Frame::CursorGoRight() {
     auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
 
     // end
-    if (buffer_->lines()[cursor_->line].line_str.size() ==
-        cursor_->byte_offset) {
+    if (buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset) {
         return;
     }
 
     std::vector<uint32_t> charater;
     int len, character_width;
-    Result ret = NextCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
+    Result ret = NextCharacterInUtf8(buffer_->GetLine(cursor_->line),
                                      cursor_->byte_offset, charater, len,
                                      character_width);
     MGO_ASSERT(ret == kOk);
@@ -336,7 +334,7 @@ void Frame::CursorGoLeft() {
 
     std::vector<uint32_t> charater;
     int len, character_width;
-    Result ret = PrevCharacterInUtf8(buffer_->lines()[cursor_->line].line_str,
+    Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
                                      cursor_->byte_offset, charater, len,
                                      character_width);
     MGO_ASSERT(ret == kOk);
@@ -363,7 +361,7 @@ void Frame::CursorGoDown() {
     MGO_ASSERT(buffer_);
 
     // last line
-    if (buffer_->lines().size() - 1 == cursor_->line) {
+    if (buffer_->LineCnt() - 1 == cursor_->line) {
         return;
     }
 
@@ -382,21 +380,21 @@ void Frame::CursorGoHome() {
 
 void Frame::CursorGoEnd() {
     MGO_ASSERT(buffer_);
-    cursor_->byte_offset = buffer_->lines()[cursor_->line].line_str.size();
+    cursor_->byte_offset = buffer_->GetLine(cursor_->line).size();
     cursor_->DontHoldColWant();
     SelectionUpdate();
 }
 
 void Frame::CursorGoNextWord() {
     MGO_ASSERT(buffer_);
-    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == cur_line->size()) {
         if (cursor_->line == buffer_->LineCnt() - 1) {
             return;
         }
         cursor_->line++;
         cursor_->byte_offset = 0;
-        cur_line = &buffer_->lines()[cursor_->line].line_str;
+        cur_line = &buffer_->GetLine(cursor_->line);
     }
     Result res =
         NextWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
@@ -407,13 +405,13 @@ void Frame::CursorGoNextWord() {
 
 void Frame::CursorGoPrevWord() {
     MGO_ASSERT(buffer_);
-    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
             return;
         }
         cursor_->line--;
-        cur_line = &buffer_->lines()[cursor_->line].line_str;
+        cur_line = &buffer_->GetLine(cursor_->line);
         cursor_->byte_offset = cur_line->size();
     }
     Result res =
@@ -436,13 +434,13 @@ void Frame::DeleteWordBeforeCursor() {
 
     MGO_ASSERT(buffer_);
     Pos deleted_until;
-    const std::string* cur_line = &buffer_->lines()[cursor_->line].line_str;
+    const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
             return;
         }
         deleted_until.line = cursor_->line - 1;
-        cur_line = &buffer_->lines()[cursor_->line - 1].line_str;
+        cur_line = &buffer_->GetLine(cursor_->line);
         deleted_until.byte_offset = cur_line->size();
     } else {
         deleted_until.line = cursor_->line;
@@ -480,7 +478,7 @@ void Frame::TabAtCursor() {
     }
 
     int64_t cur_b_view_row = cursor_->line;
-    const std::string& cur_line = buffer_->lines()[cur_b_view_row].line_str;
+    const std::string& cur_line = buffer_->GetLine(cur_b_view_row);
     std::vector<uint32_t> character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
@@ -529,14 +527,14 @@ void Frame::DeleteCharacterBeforeCursor() {
         if (cursor_->line == 0) {
             return;
         }
-        range = {{cursor_->line - 1,
-                  buffer_->lines()[cursor_->line - 1].line_str.size()},
-                 {cursor_->line, 0}};
+        range = {
+            {cursor_->line - 1, buffer_->GetLine(cursor_->line - 1).size()},
+            {cursor_->line, 0}};
     } else {
         std::vector<uint32_t> charater;
         int len, character_width;
         Result ret = PrevCharacterInUtf8(
-            buffer_->lines()[cursor_->line].line_str, cursor_->byte_offset,
+            buffer_->GetLine(cursor_->line), cursor_->byte_offset,
             charater, len, character_width);
         MGO_ASSERT(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},

@@ -30,23 +30,21 @@ const char* my_ts_read(void* payload, uint32_t byte_offset, TSPoint position,
     (void)byte_offset;
     Buffer* buffer = reinterpret_cast<Buffer*>(payload);
     if (position.row < buffer->LineCnt() - 1) {
-        if (position.column == buffer->lines()[position.row].line_str.size()) {
+        if (position.column == buffer->GetLine(position.row).size()) {
             *bytes_read = 1;
             return kTSNewLine;
         }
-        *bytes_read =
-            buffer->lines()[position.row].line_str.size() - position.column;
-        return buffer->lines()[position.row].line_str.c_str() + position.column;
+        *bytes_read = buffer->GetLine(position.row).size() - position.column;
+        return buffer->GetLine(position.row).c_str() + position.column;
     }
 
     if (position.row == buffer->LineCnt() - 1) {
-        if (position.column == buffer->lines()[position.row].line_str.size()) {
+        if (position.column == buffer->GetLine(position.row).size()) {
             *bytes_read = 0;
             return nullptr;
         }
-        *bytes_read =
-            buffer->lines()[position.row].line_str.size() - position.column;
-        return buffer->lines()[position.row].line_str.c_str() + position.column;
+        *bytes_read = buffer->GetLine(position.row).size() - position.column;
+        return buffer->GetLine(position.row).c_str() + position.column;
     }
 
     // >=

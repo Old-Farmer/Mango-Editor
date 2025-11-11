@@ -45,9 +45,7 @@ void MangoPeel::CursorGoNextWord() { frame_.CursorGoNextWord(); }
 
 void MangoPeel::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
 
-void MangoPeel::DeleteCharacterBeforeCursor() {
-    frame_.DeleteAtCursor();
-}
+void MangoPeel::DeleteCharacterBeforeCursor() { frame_.DeleteAtCursor(); }
 
 void MangoPeel::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 
@@ -63,8 +61,6 @@ void MangoPeel::SetContent(std::string content) {
     buffer_.Add({0, 0}, std::move(content), false, pos);
 }
 
-const std::string& MangoPeel::GetContent() {
-    return buffer_.lines()[0].line_str;
-}
+const std::string& MangoPeel::GetContent() { return buffer_.GetLine(0); }
 
 }  // namespace mango

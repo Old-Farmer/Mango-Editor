@@ -65,12 +65,11 @@ void Window::DeleteAtCursor() {
         if (cursor_->line == 0) {
             return;
         }
-        range = {{cursor_->line - 1,
-                  buffer->lines()[cursor_->line - 1].line_str.size()},
+        range = {{cursor_->line - 1, buffer->GetLine(cursor_->line - 1).size()},
                  {cursor_->line, 0}};
     } else if (options_->tabspace) {
         bool all_space = true;
-        const std::string& line = buffer->lines()[cursor_->line].line_str;
+        const std::string& line = buffer->GetLine(cursor_->line);
         for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
              byte_offset++) {
             if (line[byte_offset] != kSpaceChar) {
@@ -86,8 +85,7 @@ void Window::DeleteAtCursor() {
         }
     } else {
     slow:
-        const std::string& cur_line =
-            frame_.buffer_->lines()[cursor_->line].line_str;
+        const std::string& cur_line = frame_.buffer_->GetLine(cursor_->line);
         std::vector<uint32_t> charater;
         int len, character_width;
         Result ret = PrevCharacterInUtf8(cur_line, cursor_->byte_offset,
@@ -158,16 +156,17 @@ void Window::TryAutoPair(std::string str) {
     // Use char is ok here, we only test some ascii characters and utf8
     // compatible with ascii. For convinence, we will not test whether char is
     // valid ascii.
-    bool end_of_line = frame_.buffer_->lines()[cursor_->line].line_str.size() ==
-                       cursor_->byte_offset;
-    char cur_c = end_of_line
-                     ? frame_.buffer_->lines()[cursor_->line]
-                           .line_str[cursor_->byte_offset]
-                     : -1;  // -1 here just makes compiler happy, not used.
+    bool end_of_line =
+        frame_.buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset;
+    char cur_c =
+        end_of_line
+            ? frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset]
+            : -1;  // -1 here just makes compiler happy, not used.
     bool start_of_line = cursor_->byte_offset == 0;
-    char prev_c = start_of_line ? -1
-                                : frame_.buffer_->lines()[cursor_->line]
-                                      .line_str[cursor_->byte_offset];
+    char prev_c =
+        start_of_line
+            ? -1
+            : frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset];
     // Can we just move cursor next ?
     // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
     if (!start_of_line && !end_of_line) {
@@ -190,7 +189,7 @@ void Window::TryAutoPair(std::string str) {
 }
 
 void Window::TryAutoIndent() {
-    const std::string& line = frame_.buffer_->lines()[cursor_->line].line_str;
+    const std::string& line = frame_.buffer_->GetLine(cursor_->line);
     std::string indent = "";
     std::string str = "\n";
     // keep with this line's indent

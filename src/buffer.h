@@ -134,9 +134,9 @@ struct BufferEdit {
 // read only.
 // Only support Posix now.
 
-// NOTE: for simplicity, we use an array of string to represent a buffer, and
-// expose this structure to the outside world.
-// TODO: encapsulate the structure in an good api, support modify and read op
+// NOTE: For simplicity, we use an array of string to represent a buffer.
+// Maybe chage the internal data structure, So the api will not be stable
+// now.
 
 // TODO: Windows support
 class Buffer {
@@ -204,6 +204,10 @@ class Buffer {
 
     void Record(BufferEditHistoryItem item);
 
+    // return an global offset of a pos
+    // TODO: optimize it.
+    size_t OffsetAndInvalidAfterPos(const Pos& pos);
+
    public:
     // Make sure that Range or Pos is valid, otherwise behavir
     // is undefined.
@@ -226,14 +230,7 @@ class Buffer {
     // Not support regex, only plain text
     std::vector<Range> Search(const std::string& pattern);
 
-    // return an global offset of a pos
-    // TODO: optimize it.
-    size_t OffsetAndInvalidAfterPos(const Pos& pos);
-
-    void OffsetInvalidFrom(const Pos& pos);
-
     int64_t id() const noexcept { return id_; }
-    const std::vector<Line>& lines() const { return lines_; }
     size_t LineCnt() const noexcept { return lines_.size(); }
     Path& path() { return path_; }
     BufferState& state() { return state_; };

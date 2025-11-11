@@ -67,7 +67,6 @@ class Frame {
     void UpdateHighlight();
     void SelectionUpdate();
 
-
    public:
     size_t width_ = 0;
     size_t height_ = 0;
