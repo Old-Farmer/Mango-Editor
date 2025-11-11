@@ -520,7 +520,6 @@ void Frame::Undo() {
     cursor_->line = pos.line;
     cursor_->byte_offset = pos.byte_offset;
     cursor_->DontHoldColWant();
-    parser_->SyntaxHighlightAfterEdit(buffer_);
     UpdateHighlight();
 }
 

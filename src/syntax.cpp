@@ -191,6 +191,11 @@ void SyntaxParser::GenerateHighlight(const TSQueryContext& query_context,
             //               start.column, end.row, end.column);
 
             Range range = {{start.row, start.column}, {end.row, end.column}};
+            MGO_ASSERT(buffer->LineCnt() > range.end.line);
+            MGO_ASSERT(range.begin.byte_offset <=
+                       buffer->GetLine(range.begin.line).size());
+            MGO_ASSERT(range.end.byte_offset <=
+                       buffer->GetLine(range.end.line).size());
             if (!QueryPredicate(query_context, &match.captures[i], buffer,
                                 range)) {
                 continue;

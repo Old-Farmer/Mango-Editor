@@ -268,7 +268,7 @@ void Buffer::Edit(const BufferEdit& edit, Pos& cursor_pos_hint) {
 
 void Buffer::AddInner(const Pos& pos, const std::string& str,
                       Pos& cursor_pos_hint, bool record_ts_edit) {
-    auto _ = gsl::finally([this, record_ts_edit, &pos, &cursor_pos_hint] {
+    auto _ = gsl::finally([this, record_ts_edit, &pos, &cursor_pos_hint, &str] {
         Modified();
         if (record_ts_edit) {
             ts_edit_.start_point.row = pos.line;
@@ -277,6 +277,9 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
             ts_edit_.old_end_point.column = pos.byte_offset;
             ts_edit_.new_end_point.row = cursor_pos_hint.line;
             ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
+            ts_edit_.start_byte = OffsetAndInvalidAfterPos(pos);
+            ts_edit_.old_end_byte = ts_edit_.start_byte;
+            ts_edit_.new_end_byte = ts_edit_.start_byte + str.size();
         }
     });
 
@@ -353,9 +356,10 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
         if (range.begin.line < end.line) {
             if (end.byte_offset == lines_[end.line].line_str.size()) {
                 // whole line deleted
-                if (record_reverse)
+                if (record_reverse) {
                     old_str.insert(
                         0, std::string("\n") + lines_[end.line].line_str);
+                }
 
                 lines_.erase(lines_.begin() + end.line);
 
@@ -365,9 +369,10 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                 // and merge with the line where begin pos is located.
                 // But we don't do merge here, we just move away this line and
                 // merge after deletion
-                if (record_reverse && end.byte_offset != 0) {
+                if (record_reverse) {
                     MGO_ASSERT(end.byte_offset <
                                lines_[end.line].line_str.size());
+                    old_str.insert(0, "\n");
                     old_str.insert(0, lines_[end.line].line_str, 0,
                                    end.byte_offset);
                 }
@@ -412,6 +417,9 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
         ts_edit_.old_end_point.column = range.end.byte_offset;
         ts_edit_.new_end_point.row = cursor_pos_hint.line;
         ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
+        ts_edit_.start_byte = OffsetAndInvalidAfterPos(range.begin);
+        ts_edit_.old_end_byte = ts_edit_.start_byte + old_str.size();
+        ts_edit_.new_end_byte = ts_edit_.start_byte;
     }
 
     return old_str;
@@ -429,6 +437,9 @@ std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
     ts_edit_.old_end_point.column = range.end.byte_offset;
     ts_edit_.new_end_point.row = cursor_pos_hint.line;
     ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
+    ts_edit_.start_byte = OffsetAndInvalidAfterPos(range.begin);
+    ts_edit_.old_end_byte = ts_edit_.start_byte + old_str.size();
+    ts_edit_.new_end_byte = ts_edit_.start_byte + str.size();
 
     return old_str;
 }
@@ -599,42 +610,22 @@ std::vector<Range> Buffer::Search(const std::string& pattern) {
     return res;
 }
 
-size_t Buffer::Offset(const Pos& pos) const {
-    size_t offset = 0;
-    for (size_t i = 0; i < lines_.size(); i++) {
-        if (i != pos.line) {
-            offset += lines_[i].line_str.size() + 1;  // 1 is for '\n'
-        } else {
-            // ==
-            offset += pos.byte_offset;
-            break;
+size_t Buffer::OffsetAndInvalidAfterPos(const Pos& pos) {
+    if (offset_per_line_.size() > pos.line + 1) {
+        offset_per_line_.resize(pos.line + 1);
+    } else {
+        size_t offset = offset_per_line_.back();
+        size_t i = offset_per_line_.size();
+        offset_per_line_.resize(pos.line + 1);
+        while (i < pos.line + 1) {
+            offset += GetLine(i - 1).size() + 1;  // 1 for '\n'
+            offset_per_line_[i++] = offset;
         }
     }
-    return offset;
+    return offset_per_line_.back() + pos.byte_offset;
 }
 
-TSInputEdit Buffer::GetEditForTreeSitter() {
-    ts_edit_.start_byte =
-        Offset({ts_edit_.start_point.row, ts_edit_.start_point.column});
-
-    if (ts_edit_.start_point.row == ts_edit_.old_end_point.row &&
-        ts_edit_.start_point.column == ts_edit_.old_end_point.column) {
-        ts_edit_.old_end_byte = ts_edit_.start_byte;
-    } else {
-        ts_edit_.old_end_byte =
-            Offset({ts_edit_.old_end_point.row, ts_edit_.old_end_point.column});
-    }
-
-    if (ts_edit_.start_point.row == ts_edit_.new_end_point.row &&
-        ts_edit_.start_point.column == ts_edit_.new_end_point.column) {
-        ts_edit_.new_end_byte = ts_edit_.start_byte;
-    } else {
-        ts_edit_.new_end_byte =
-            Offset({ts_edit_.new_end_point.row, ts_edit_.new_end_point.column});
-    }
-
-    return ts_edit_;
-}
+TSInputEdit Buffer::GetEditForTreeSitter() { return ts_edit_; }
 
 void Buffer::AppendToList(Buffer* tail) noexcept {
     tail->prev_->next_ = this;

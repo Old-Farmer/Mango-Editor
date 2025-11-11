@@ -227,7 +227,10 @@ class Buffer {
     std::vector<Range> Search(const std::string& pattern);
 
     // return an global offset of a pos
-    size_t Offset(const Pos& pos) const;
+    // TODO: optimize it.
+    size_t OffsetAndInvalidAfterPos(const Pos& pos);
+
+    void OffsetInvalidFrom(const Pos& pos);
 
     int64_t id() const noexcept { return id_; }
     const std::vector<Line>& lines() const { return lines_; }
@@ -296,6 +299,9 @@ class Buffer {
     // Just for tree-sitter
     TSInputEdit ts_edit_;
     bool after_get_edit_modified = false;
+
+    // A prefiex offset cache, for fast offset calculation.
+    std::vector<size_t> offset_per_line_ = {0};
 
     Options* options_;
 
