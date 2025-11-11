@@ -47,12 +47,12 @@ inline int UnicodeToUtf8(uint32_t in, char* out) {
 // Current only return kOk
 Result NextCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
-                           int& width);
+                           int* width);
 
 // Current only return kOk
 Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
-                           int& width);
+                           int* width);
 
 // A word contains isalnum + _
 // TODO: support configuration
@@ -61,6 +61,11 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
 // Current only return kOk
 Result NextWord(const std::string& str, size_t offset,
                 size_t& next_word_offset);
+
+// next word offset will set to the this/next word end
+// Current only return kOk
+Result NextWordEnd(const std::string& str, size_t offset,
+                   bool one_more_character, size_t& next_word_end_offset);
 
 // if current offset - 1 is in a word, prev word offset will set to this word
 // begin offset; else, this function will go prev greedily, until a word

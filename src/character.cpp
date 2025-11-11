@@ -12,27 +12,29 @@ bool IsUtf8BeginByte(char b) {
 
 Result NextCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
-                           int& width) {
+                           int* width) {
     character.resize(1);
     byte_len = Utf8ToUnicode(&str[offset], character[0]);
     if (byte_len < 0) {
         byte_len = -byte_len;
         character[0] = kReplacementChar;
-        width = 1;
+        if (width) *width = 1;
         MGO_LOG_INFO("Meet error character in buffer");
         return kOk;
     }
-    width = Terminal::WCWidth(character[0]);
-    if (width <= 0) {
-        MGO_LOG_INFO(
-            "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
-            " in buffer, width = %d",
-            character[0], width);
-        width = 1;
-        if (character[0] == '\t') {
-            ;
-        } else {
-            character[0] = kReplacementChar;
+    if (width) {
+        *width = Terminal::WCWidth(character[0]);
+        if (*width <= 0) {
+            MGO_LOG_INFO(
+                "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
+                " in buffer, width = %d",
+                character[0], *width);
+            *width = 1;
+            if (character[0] == '\t') {
+                ;
+            } else {
+                character[0] = kReplacementChar;
+            }
         }
     }
     return kOk;
@@ -40,7 +42,7 @@ Result NextCharacterInUtf8(const std::string& str, int64_t offset,
 
 Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
                            std::vector<uint32_t>& character, int& byte_len,
-                           int& width) {
+                           int* width) {
     size_t origin_offset = offset;
     character.resize(1);
     offset--;
@@ -50,21 +52,23 @@ Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
             if (byte_len < 0) {
                 byte_len = -byte_len;
                 character[0] = kReplacementChar;
-                width = 1;
+                if (width) *width = 1;
                 MGO_LOG_INFO("Meet error character in buffer");
                 return kOk;
             }
-            width = Terminal::WCWidth(character[0]);
-            if (width <= 0) {
-                MGO_LOG_INFO(
-                    "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
-                    " in buffer, width = %d",
-                    character[0], width);
-                width = 1;
-                if (character[0] == '\t') {
-                    ;
-                } else {
-                    character[0] = kReplacementChar;
+            if (width) {
+                *width = Terminal::WCWidth(character[0]);
+                if (*width <= 0) {
+                    MGO_LOG_INFO(
+                        "Meet non-printable or wcwidth == 0 character "
+                        "\\U%08" PRIx32 " in buffer, width = %d",
+                        character[0], *width);
+                    *width = 1;
+                    if (character[0] == '\t') {
+                        ;
+                    } else {
+                        character[0] = kReplacementChar;
+                    }
                 }
             }
             break;
@@ -82,13 +86,13 @@ Result NextWord(const std::string& str, size_t offset,
                 size_t& next_word_offset) {
     std::vector<uint32_t> character;
     int byte_len;
-    int c_width;
     bool found_non_word_character = false;
     while (offset < str.size()) {
         Result res =
-            NextCharacterInUtf8(str, offset, character, byte_len, c_width);
+            NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
         MGO_ASSERT(res == kOk);
-        if (character[0] == '_' || isalnum(character[0])) {
+        if (character[0] <= CHAR_MAX &&
+            (str[offset] == '_' || isalnum(str[offset]))) {
             if (found_non_word_character) {
                 next_word_offset = offset;
                 return kOk;
@@ -102,6 +106,45 @@ Result NextWord(const std::string& str, size_t offset,
     return kOk;
 }
 
+Result NextWordEnd(const std::string& str, size_t offset,
+                   bool one_more_character, size_t& next_word_end_offset) {
+    std::vector<uint32_t> character;
+    int byte_len;
+    bool found_word_character = false;
+    Result res = NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
+    MGO_ASSERT(res == kOk);
+    offset += byte_len;
+    while (offset < str.size()) {
+        Result res =
+            NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
+        MGO_ASSERT(res == kOk);
+        if (character[0] <= CHAR_MAX &&
+            (str[offset] == '_' || isalnum(str[offset]))) {
+            found_word_character = true;
+        } else {
+            if (found_word_character) {
+                if (one_more_character) {
+                    next_word_end_offset = offset;
+                } else {
+                    next_word_end_offset = offset - 1;
+                }
+                return kOk;
+            }
+        }
+        offset += byte_len;
+    }
+    if (found_word_character) {
+        if (one_more_character) {
+            next_word_end_offset = str.size();
+        } else {
+            next_word_end_offset = str.size() - 1;
+        }
+    } else {
+        next_word_end_offset = str.size();
+    }
+    return kOk;
+}
+
 Result PrevWord(const std::string& str, size_t offset,
                 size_t& prev_word_offset) {
     if (offset == 0) {
@@ -112,13 +155,14 @@ Result PrevWord(const std::string& str, size_t offset,
     int64_t inner_offset = offset;
     std::vector<uint32_t> character;
     int byte_len;
-    int c_width;
     bool found_word_character = false;
     while (inner_offset > 0) {
         Result res = PrevCharacterInUtf8(str, inner_offset, character, byte_len,
-                                         c_width);
+                                         nullptr);
         MGO_ASSERT(res == kOk);
-        if (character[0] == '_' || isalnum(character[0])) {
+        if (character[0] <= CHAR_MAX &&
+            (str[inner_offset - byte_len] == '_' ||
+             isalnum(str[inner_offset - byte_len]))) {
             found_word_character = true;
         } else {
             if (found_word_character) {

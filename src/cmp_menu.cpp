@@ -78,7 +78,7 @@ void CmpMenu::Draw() {
             int character_width;
             int byte_len;
             Result res = NextCharacterInUtf8(str, offset, character, byte_len,
-                                             character_width);
+                                             &character_width);
             MGO_ASSERT(res == kOk);
             // TODO: use entries_width
             // for show ... when space is not enough for long width entries

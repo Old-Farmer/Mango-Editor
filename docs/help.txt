@@ -17,8 +17,8 @@ Use <c-k> as a general leader key.
 - <pgup> page up
 - <left> left arrow to move cursor left
 - <right> right to move cursor right
-- <c-left> move cursor to the next word
-- <c-right> move cursor to the previous word
+- <c-left> move cursor to the previous word
+- <c-right> move cursor to the next word
 - <up> up arrow to move cursor up
 - <down> down arrow to move cursor down
 - <c-b><c-n> or <c-pgdn> next buffer

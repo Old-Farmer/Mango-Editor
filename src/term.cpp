@@ -203,7 +203,7 @@ size_t Terminal::StringWidth(const std::string& str) {
     size_t width = 0;
     while (offset < str.size()) {
         int len, c_width;
-        Result res = NextCharacterInUtf8(str, offset, character, len, c_width);
+        Result res = NextCharacterInUtf8(str, offset, character, len, &c_width);
         MGO_ASSERT(res == kOk);
         width += c_width;
         offset += len;

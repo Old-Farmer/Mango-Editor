@@ -46,7 +46,7 @@ class Frame {
     void CursorGoDown();
     void CursorGoHome();
     void CursorGoEnd();
-    void CursorGoNextWord();
+    void CursorGoNextWordEnd(bool one_more_character);
     void CursorGoPrevWord();
 
     void DeleteAtCursor();

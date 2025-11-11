@@ -94,7 +94,7 @@ void Frame::Draw() {
                 int character_width;
                 int byte_len;
                 Result res = NextCharacterInUtf8(cur_line, offset, character,
-                                                 byte_len, character_width);
+                                                 byte_len, &character_width);
                 MGO_ASSERT(res == kOk);
                 if (cur_b_view_c < b_view_col_) {
                     ;
@@ -189,7 +189,7 @@ void Frame::MakeCursorVisible() {
         int character_width;
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         character_width);
+                                         &character_width);
         MGO_ASSERT(res == kOk);
         offset += byte_len;
         if (character[0] == '\t') {
@@ -235,7 +235,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
         int character_width;
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         character_width);
+                                         &character_width);
         MGO_ASSERT(res == kOk);
         if (cur_b_view_c <= target_b_view_col &&
             target_b_view_col < cur_b_view_c + character_width) {
@@ -314,10 +314,10 @@ void Frame::CursorGoRight() {
     }
 
     std::vector<uint32_t> charater;
-    int len, character_width;
-    Result ret = NextCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                     cursor_->byte_offset, charater, len,
-                                     character_width);
+    int len;
+    Result ret =
+        NextCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                            cursor_->byte_offset, charater, len, nullptr);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset += len;
     SelectionUpdate();
@@ -333,10 +333,10 @@ void Frame::CursorGoLeft() {
     }
 
     std::vector<uint32_t> charater;
-    int len, character_width;
-    Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                     cursor_->byte_offset, charater, len,
-                                     character_width);
+    int len;
+    Result ret =
+        PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                            cursor_->byte_offset, charater, len, nullptr);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
 
@@ -385,7 +385,7 @@ void Frame::CursorGoEnd() {
     SelectionUpdate();
 }
 
-void Frame::CursorGoNextWord() {
+void Frame::CursorGoNextWordEnd(bool one_more_character) {
     MGO_ASSERT(buffer_);
     const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == cur_line->size()) {
@@ -396,8 +396,8 @@ void Frame::CursorGoNextWord() {
         cursor_->byte_offset = 0;
         cur_line = &buffer_->GetLine(cursor_->line);
     }
-    Result res =
-        NextWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
+    Result res = NextWordEnd(*cur_line, cursor_->byte_offset,
+                             one_more_character, cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
     SelectionUpdate();
@@ -486,7 +486,7 @@ void Frame::TabAtCursor() {
         int character_width;
         int byte_len;
         Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         character_width);
+                                         &character_width);
         MGO_ASSERT(res == kOk);
         offset += byte_len;
         cur_b_view_c += character_width;
@@ -532,10 +532,10 @@ void Frame::DeleteCharacterBeforeCursor() {
             {cursor_->line, 0}};
     } else {
         std::vector<uint32_t> charater;
-        int len, character_width;
-        Result ret = PrevCharacterInUtf8(
-            buffer_->GetLine(cursor_->line), cursor_->byte_offset,
-            charater, len, character_width);
+        int len;
+        Result ret =
+            PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                                cursor_->byte_offset, charater, len, nullptr);
         MGO_ASSERT(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};

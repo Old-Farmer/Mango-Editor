@@ -142,7 +142,7 @@ void Editor::InitKeymaps() {
                               {[this] { peel_->CursorGoPrevWord(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<c-right>",
-                              {[this] { peel_->CursorGoNextWord(); }},
+                              {[this] { peel_->CursorGoNextWordEnd(true); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<home>", {[this] { peel_->CursorGoHome(); }},
                               {Mode::kPeelCommand});
@@ -255,7 +255,7 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq(
         "<c-left>", {[this] { cursor_.in_window->CursorGoPrevWord(); }});
     keymap_manager_.AddKeyseq(
-        "<c-right>", {[this] { cursor_.in_window->CursorGoNextWord(); }});
+        "<c-right>", {[this] { cursor_.in_window->CursorGoNextWordEnd(true); }});
     keymap_manager_.AddKeyseq("<up>",
                               {[this] { cursor_.in_window->CursorGoUp(); }});
     keymap_manager_.AddKeyseq("<down>",

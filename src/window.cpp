@@ -49,7 +49,9 @@ void Window::CursorGoHome() { frame_.CursorGoHome(); }
 
 void Window::CursorGoEnd() { frame_.CursorGoEnd(); }
 
-void Window::CursorGoNextWord() { frame_.CursorGoNextWord(); }
+void Window::CursorGoNextWordEnd(bool one_more_character) {
+    frame_.CursorGoNextWordEnd(one_more_character);
+}
 
 void Window::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
 
@@ -87,9 +89,9 @@ void Window::DeleteAtCursor() {
     slow:
         const std::string& cur_line = frame_.buffer_->GetLine(cursor_->line);
         std::vector<uint32_t> charater;
-        int len, character_width;
+        int len;
         Result ret = PrevCharacterInUtf8(cur_line, cursor_->byte_offset,
-                                         charater, len, character_width);
+                                         charater, len, nullptr);
         MGO_ASSERT(ret == kOk);
         if (cur_line.size() <= cursor_->byte_offset) {
             range = {{cursor_->line, cursor_->byte_offset - len},
