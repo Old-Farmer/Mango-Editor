@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "fs.h"
+#include "pos.h"
 #include "result.h"
 #include "state.h"
 #include "tree_sitter/api.h"
@@ -71,51 +72,8 @@ struct Line {
     Line(std::string _line_str) : line_str(std::move(_line_str)) {}
 };
 
-class Cursor;
-class Options;
-
-// A Pos object represent a position in the line
-struct Pos {
-    size_t line;
-    size_t byte_offset;
-};
-inline bool operator==(const Pos& pos1, const Pos& pos2) noexcept {
-    return pos1.byte_offset == pos2.byte_offset && pos1.line == pos2.line;
-}
-inline bool operator<(const Pos& pos1, const Pos& pos2) noexcept {
-    return pos1.line < pos2.line ||
-           (pos1.line == pos2.line && pos1.byte_offset < pos2.byte_offset);
-}
-
-// Range represents a text range: [begin, end)
-// NOTE:
-// e.g. if the first line contains "abc", Use {{0, 0}, {0, 3}} to rep a line,
-// Use {{0, 0}, {1, 0}} to rep the whole line with a '\n'.
-struct Range {
-    Pos begin;
-    Pos end;
-
-    bool PosBeforeMe(const Pos& pos) const { return pos < begin; }
-    bool PosAfterMe(const Pos& pos) const { return !(pos < end); }
-
-    // Pos is in Range ?
-    bool PosInMe(const Pos& pos) const {
-        return !(PosAfterMe(pos) || PosBeforeMe(pos));
-    }
-
-    bool RangeBeforeMe(const Range& range) {
-        return range.end == begin || range.end < begin;
-    }
-    bool RangeAfterMe(const Range& range) {
-        return end == range.begin || end < range.begin;
-    }
-    bool RangeOverlapMe(const Range& range) {
-        return !RangeBeforeMe(range) && !RangeAfterMe(range);
-    }
-    bool RangeEqualMe(const Range& range) {
-        return range.begin == begin && range.end == end;
-    }
-};
+struct Cursor;
+struct Options;
 
 // This class reprensents edit operations to the buffer.
 // It can represent 3 OPs:
@@ -215,10 +173,11 @@ class Buffer {
     // ok return kOk
     // cursor_pos_hint will be set to the suggest cursor pos if
     // use_given_pos_hint is false or no such parameter
-    Result Add(const Pos& pos, std::string str, bool use_given_pos_hint,
-               Pos& cursor_pos_hint);
-    Result Delete(const Range& range, Pos* cursor_pos, Pos& cursor_pos_hint);
-    Result Replace(const Range& range, std::string str, Pos* cursor_pos,
+    Result Add(const Pos& pos, std::string str, const Pos* cursor_pos,
+               bool use_given_pos_hint, Pos& cursor_pos_hint);
+    Result Delete(const Range& range, const Pos* cursor_pos,
+                  Pos& cursor_pos_hint);
+    Result Replace(const Range& range, std::string str, const Pos* cursor_pos,
                    bool use_given_pos_hint, Pos& cursor_pos_hint);
 
     // return kNoHistoryAvailable if no action can be done

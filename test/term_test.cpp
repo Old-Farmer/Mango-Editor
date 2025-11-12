@@ -1,7 +1,6 @@
 #include "catch2/catch_test_macros.hpp"
 
 #include "term.h"
-#include "character.h"
 
 using namespace mango;
 

@@ -8,7 +8,7 @@
 using namespace mango;
 
 TEST_CASE("logging test") {
-    logging_file = fopen("test.log", "w+");
+    logging_file = fopen("logging_test.log", "w+");
     REQUIRE(logging_file);
     MGO_LOG_ERROR("%s %d", "hello", 1);
 
@@ -16,4 +16,5 @@ TEST_CASE("logging test") {
     REQUIRE(fstat(fileno(logging_file), &my_stat) == 0);
     // printf("%ld\n", my_stat.st_size);
     REQUIRE(my_stat.st_size == 125);
+    fclose(logging_file);
 }

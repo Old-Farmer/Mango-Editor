@@ -4,6 +4,8 @@
 #include <cstddef>
 #include <optional>
 
+#include "pos.h"
+
 namespace mango {
 
 class Window;
@@ -53,6 +55,11 @@ struct Cursor {
     // TODO: other info
 
     void DontHoldColWant() { b_view_col_want.reset(); }
+    void SetPos(const Pos& pos) {
+        line = pos.line;
+        byte_offset = pos.byte_offset;
+    }
+    Pos ToPos() { return {line, byte_offset}; }
 };
 
 }  // namespace mango

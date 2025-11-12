@@ -3,6 +3,8 @@
 #include <cassert>
 #include <string_view>
 
+#include "result.h"
+
 namespace mango {
 
 #define MGO_DELETE_COPY(ClassName)        \
@@ -49,5 +51,15 @@ void AssertFail(const char* __assertion, const char* __file,
          ? void(0)           \
          : AssertFail(#expr, __ASSERT_FILE, __ASSERT_LINE, __ASSERT_FUNCTION))
 #endif  // !NDEBUG
+
+// Thorw OSException when som syscalls fail.
+// Return kOk if ok, kOuterCommandExecuteFail if outer command fail before or
+// when execvp.
+// When check == true, LOG level will be info instead of error.
+// For parmeters file, argv, read execvp for more info. argv[] should be null
+// terminated.
+Result Exec(const char* file, char* const argv[], const std::string* stdin_data,
+            std::string* stdout_data, std::string* stderr_data, int& exit_code,
+            bool check = false);
 
 }  // namespace mango

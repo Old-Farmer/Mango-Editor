@@ -6,6 +6,7 @@
 
 #include "buffer.h"
 #include "character.h"
+#include "clipboard.h"
 #include "cursor.h"
 #include "options.h"
 #include "syntax.h"
@@ -13,8 +14,12 @@
 namespace mango {
 
 Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options,
-             SyntaxParser* parser) noexcept
-    : buffer_(buffer), cursor_(cursor), parser_(parser), options_(options) {}
+             SyntaxParser* parser, ClipBoard* clipboard) noexcept
+    : buffer_(buffer),
+      cursor_(cursor),
+      clipboard_(clipboard),
+      parser_(parser),
+      options_(options) {}
 
 static int64_t LocateInPos(const std::vector<Highlight>& highlight,
                            const Pos& pos) {
@@ -39,7 +44,18 @@ void Frame::Draw() {
     int64_t highlight_i = -1;
     const std::vector<Highlight>* syntax_highlight = nullptr;
     if (parser_) {
-        auto syntax_context = parser_->GetBufferSyntaxContext(buffer_);
+        Range render_range;
+        if (wrap_) {
+            MGO_ASSERT(false);
+        } else {
+            size_t last_line =
+                std::min(b_view_line_ + height_ - 1, buffer_->LineCnt() - 1);
+            render_range = {{b_view_line_, 0},
+                            {last_line, buffer_->GetLine(last_line).size()}};
+        }
+        auto syntax_context = parser_->GetBufferSyntaxContext(
+            buffer_, render_range);  // render range is larger than the real
+                                     // render range, but it's ok.
         if (syntax_context) {
             syntax_highlight = &syntax_context->syntax_highlight;
         }
@@ -275,7 +291,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     // search througn line
     size_t target_b_view_col = s_col - col_ + b_view_col_;
     SetCursorByBViewCol(target_b_view_col);
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
@@ -299,7 +315,7 @@ void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
     }
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::ScrollCols(int64_t count) { (void)count; }
@@ -320,7 +336,7 @@ void Frame::CursorGoRight() {
                             cursor_->byte_offset, charater, len, nullptr);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset += len;
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoLeft() {
@@ -340,7 +356,7 @@ void Frame::CursorGoLeft() {
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
 
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoUp() {
@@ -354,7 +370,7 @@ void Frame::CursorGoUp() {
     cursor_->line--;
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoDown() {
@@ -368,21 +384,21 @@ void Frame::CursorGoDown() {
     cursor_->line++;
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value());
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoHome() {
     MGO_ASSERT(buffer_);
     cursor_->byte_offset = 0;
     cursor_->DontHoldColWant();
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoEnd() {
     MGO_ASSERT(buffer_);
     cursor_->byte_offset = buffer_->GetLine(cursor_->line).size();
     cursor_->DontHoldColWant();
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoNextWordEnd(bool one_more_character) {
@@ -400,7 +416,7 @@ void Frame::CursorGoNextWordEnd(bool one_more_character) {
                              one_more_character, cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
-    SelectionUpdate();
+    SelectionFollowCursor();
 }
 
 void Frame::CursorGoPrevWord() {
@@ -418,7 +434,16 @@ void Frame::CursorGoPrevWord() {
         PrevWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
-    SelectionUpdate();
+    SelectionFollowCursor();
+}
+
+void Frame::SelectAll() {
+    selection_.active = true;
+    selection_.anchor = {0, 0};
+    selection_.head = {buffer_->LineCnt() - 1,
+                       buffer_->GetLine(buffer_->LineCnt() - 1).size()};
+    cursor_->SetPos(selection_.head);
+    cursor_->DontHoldColWant();
 }
 
 void Frame::DeleteAtCursor() {
@@ -443,8 +468,7 @@ void Frame::DeleteWordBeforeCursor() {
         cur_line = &buffer_->GetLine(cursor_->line);
         deleted_until.byte_offset = cur_line->size();
     } else {
-        deleted_until.line = cursor_->line;
-        deleted_until.byte_offset = cursor_->byte_offset;
+        deleted_until = cursor_->ToPos();
     }
     Result res = PrevWord(*cur_line, deleted_until.byte_offset,
                           deleted_until.byte_offset);
@@ -454,10 +478,7 @@ void Frame::DeleteWordBeforeCursor() {
                         nullptr, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    UpdateHighlight();
+    AfterModify(pos);
 }
 
 void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
@@ -502,10 +523,9 @@ void Frame::Redo() {
     if (buffer_->Redo(pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
+    cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
-    UpdateHighlight();
+    UpdateSyntax();
 }
 
 void Frame::Undo() {
@@ -515,10 +535,70 @@ void Frame::Undo() {
     if (buffer_->Undo(pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
+    cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
-    UpdateHighlight();
+    UpdateSyntax();
+}
+
+void Frame::Copy() {
+    if (selection_.active) {
+        Range range = selection_.ToRange();
+        clipboard_->SetContent(buffer_->GetContent(range), false);
+        SelectionCancell();
+    } else {
+        Range range = {{cursor_->line, 0},
+                       {cursor_->line, buffer_->GetLine(cursor_->line).size()}};
+        clipboard_->SetContent("\n" + buffer_->GetContent(range), true);
+    }
+}
+
+void Frame::Paste() {
+    bool lines;
+    if (selection_.active) {
+        ReplaceSelection(clipboard_->GetContent(lines));
+    } else {
+        std::string content = clipboard_->GetContent(lines);
+        Pos pos;
+        if (lines) {
+            Pos cursor_pos = cursor_->ToPos();
+            buffer_->Add(
+                {cursor_->line, buffer_->GetLine(cursor_->line).size()},
+                std::move(content), &cursor_pos, false, pos);
+        } else {
+            buffer_->Add({cursor_->line, cursor_->byte_offset},
+                         std::move(content), nullptr, false, pos);
+        }
+        AfterModify(pos);
+    }
+}
+
+void Frame::Cut() {
+    if (selection_.active) {
+        Range range = selection_.ToRange();
+        clipboard_->SetContent(buffer_->GetContent(range), false);
+        DeleteSelection();
+    } else {
+        Range range = {{cursor_->line, 0},
+                       {cursor_->line, buffer_->GetLine(cursor_->line).size()}};
+        clipboard_->SetContent("\n" + buffer_->GetContent(range), true);
+
+        // We try to delete a line where cursor is located.
+        Pos pos;
+        auto cur_pos = cursor_->ToPos();
+        if (buffer_->LineCnt() == 1) {
+            return;
+        }
+
+        if (cursor_->line == buffer_->LineCnt() - 1) {
+            range.begin.line--;
+            range.begin.byte_offset = buffer_->GetLine(range.begin.line).size();
+        } else {
+            range.end.line++;
+            range.end.byte_offset = 0;
+        }
+        buffer_->Delete(range, &cur_pos, pos);
+        AfterModify(pos);
+    }
 }
 
 void Frame::DeleteCharacterBeforeCursor() {
@@ -544,10 +624,7 @@ void Frame::DeleteCharacterBeforeCursor() {
     if (buffer_->Delete(range, nullptr, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    UpdateHighlight();
+    AfterModify(pos);
 }
 void Frame::DeleteSelection() {
     Pos pos;
@@ -555,11 +632,8 @@ void Frame::DeleteSelection() {
     if (buffer_->Delete(selection_.ToRange(), &cursor_pos, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    UpdateHighlight();
-    selection_.active = false;
+    AfterModify(pos);
+    SelectionCancell();
 }
 
 void Frame::AddStringAtCursorNoSelection(std::string str,
@@ -571,13 +645,10 @@ void Frame::AddStringAtCursorNoSelection(std::string str,
         pos = *cursor_pos;
     }
     if (buffer_->Add({cursor_->line, cursor_->byte_offset}, std::move(str),
-                     cursor_pos != nullptr, pos) != kOk) {
+                     nullptr, cursor_pos != nullptr, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    UpdateHighlight();
+    AfterModify(pos);
 }
 
 void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
@@ -590,22 +661,24 @@ void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
                          cursor_pos != nullptr, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
-    cursor_->DontHoldColWant();
-    UpdateHighlight();
-    selection_.active = false;
+    AfterModify(pos);
+    SelectionCancell();
 }
 
-void Frame::UpdateHighlight() {
-    if (parser_) parser_->SyntaxHighlightAfterEdit(buffer_);
+void Frame::UpdateSyntax() {
+    if (parser_) parser_->ParseSyntaxAfterEdit(buffer_);
 }
 
-void Frame::SelectionUpdate() {
+void Frame::SelectionFollowCursor() {
     if (selection_.active) {
-        selection_.head.line = cursor_->line;
-        selection_.head.byte_offset = cursor_->byte_offset;
+        selection_.head = cursor_->ToPos();
     }
+}
+
+void Frame::AfterModify(const Pos& cursor_pos) {
+    cursor_->SetPos(cursor_pos);
+    cursor_->DontHoldColWant();
+    UpdateSyntax();
 }
 
 }  // namespace mango

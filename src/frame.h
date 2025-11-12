@@ -9,9 +9,10 @@
 namespace mango {
 
 class Buffer;
-class Cursor;
+struct Cursor;
 class SyntaxParser;
 struct Pos;
+class ClipBoard;
 
 // Frame is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
@@ -19,7 +20,7 @@ class Frame {
    public:
     Frame() {}
     Frame(Buffer* buffer, Cursor* cursor, Options* options,
-          SyntaxParser* parser) noexcept;
+          SyntaxParser* parser, ClipBoard* clipboard) noexcept;
     ~Frame() = default;
     MGO_DELETE_COPY(Frame);
     MGO_DEFAULT_MOVE(Frame);
@@ -49,6 +50,8 @@ class Frame {
     void CursorGoNextWordEnd(bool one_more_character);
     void CursorGoPrevWord();
 
+    void SelectAll();
+
     void DeleteAtCursor();
     void DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
@@ -57,15 +60,22 @@ class Frame {
     void Redo();
     void Undo();
 
+    void Copy();
+    void Paste();
+    void Cut();
+
     void DeleteCharacterBeforeCursor();
     void DeleteSelection();
 
-    void AddStringAtCursorNoSelection(std::string str, const Pos* cursor_pos = nullptr);
+    void AddStringAtCursorNoSelection(std::string str,
+                                      const Pos* cursor_pos = nullptr);
     void ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
    private:
-    void UpdateHighlight();
-    void SelectionUpdate();
+    void UpdateSyntax();
+    void SelectionFollowCursor();
+    void SelectionCancell() { selection_.active = false; }
+    void AfterModify(const Pos& cursor_pos);
 
    public:
     size_t width_ = 0;
@@ -88,6 +98,7 @@ class Frame {
     bool wrap_ = false;
 
     Selection selection_;
+    ClipBoard* clipboard_;
 
    private:
     SyntaxParser* parser_;

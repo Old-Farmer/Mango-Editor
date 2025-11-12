@@ -19,8 +19,8 @@ Use <c-k> as a general leader key.
 - <right> right to move cursor right
 - <c-left> move cursor to the previous word
 - <c-right> move cursor to the next word
-- <up> up arrow to move cursor up
-- <down> down arrow to move cursor down
+- <up> or <c-p> move cursor up
+- <down> or <c-n> move cursor down
 - <c-b><c-n> or <c-pgdn> next buffer
 - <c-b><c-p> or <c-pgup> previous buffer
 - <c-b><c-d> delete buffer
@@ -33,13 +33,18 @@ Use <c-k> as a general leader key.
 - <c-w> del a word
 - <enter> insert a new line
 - <tab> tab to insert tab/spaces (see src/options.h)
-- <ctrl-s> save
+- <c-s> save
 - <c-z> undo
 - <c-y> redo
+- <c-c> copy
+- <c-v> paste
+- <c-x> cut (copy/paste will use OS clipboard if available,
+    install xsel if you want this feature)
+- <c-a> or <c-k><c-l> select all
 
 ### Code Completion(demo)
 
-- <c-k><c-i> trigger code completion
+- <c-k><c-c> trigger code completion
 - <c-n> or <down> select next cmp entry
 - <c-p> or <up> select prev cmp entry
 - <enter> accept this entry

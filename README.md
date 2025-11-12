@@ -19,7 +19,7 @@ This project is far from mature. Do not use it in the production environment.
 - utf-8 support without grapheme cluster
 - mouse support
 - simple edit
-- simple syntax highlighting with tree-sitter(only a few languages now)
+- syntax highlighting with tree-sitter(only a few languages now)
 
 See docs/help.txt for more infomation
 

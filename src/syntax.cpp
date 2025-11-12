@@ -159,15 +159,26 @@ bool SyntaxParser::QueryPredicate(const TSQueryContext& query_context,
     return true;
 }
 
-void SyntaxParser::GenerateHighlight(const TSQueryContext& query_context,
-                                     TSTree* tree, const Buffer* buffer) {
-    TSNode root = ts_tree_root_node(tree);
-    ts_query_cursor_exec(query_cursor_, query_context.query, root);
+void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
+    MGO_ASSERT(filetype_to_query_.count(buffer->filetype()) == 1);
+    TSQueryContext& query_context = filetype_to_query_[buffer->filetype()];
     MGO_ASSERT(buffer_context_.count(buffer->id()) == 1);
     SyntaxContext& context = buffer_context_[buffer->id()];
+
+    TSNode root = ts_tree_root_node(context.tree);
+    TSPoint query_start, query_end;
+    query_start.row = range.begin.line;
+    query_start.column = range.begin.byte_offset;
+    query_end.row = range.end.line;
+    query_end.column = range.end.byte_offset;
+    bool set_range_ret =
+        ts_query_cursor_set_point_range(query_cursor_, query_start, query_end);
+    MGO_ASSERT(set_range_ret);
+
+    ts_query_cursor_exec(query_cursor_, query_context.query, root);
     TSQueryMatch match;
     context.syntax_highlight.clear();
-    std::vector<int64_t> highlights_priority;
+    context.syntax_priority.clear();
 
     while (true) {
         bool match_ok = ts_query_cursor_next_match(query_cursor_, &match);
@@ -201,7 +212,7 @@ void SyntaxParser::GenerateHighlight(const TSQueryContext& query_context,
 
             // TODO: Maybe optimize string compare
             Terminal::AttrPair attr;
-            int priority;
+            int64_t priority;
             auto iter = ts_query_capture_name_to_character_type_->find(name);
             if (iter == ts_query_capture_name_to_character_type_->end()) {
                 attr = options_->attr_table[kNormal];
@@ -213,7 +224,7 @@ void SyntaxParser::GenerateHighlight(const TSQueryContext& query_context,
 
             if (context.syntax_highlight.empty()) {
                 context.syntax_highlight.push_back({range, attr});
-                highlights_priority.push_back(priority);
+                context.syntax_priority.push_back(priority);
                 continue;
             }
 
@@ -221,29 +232,29 @@ void SyntaxParser::GenerateHighlight(const TSQueryContext& query_context,
             // We prefer higher priority if hl area is the same.
             // Greater pattern index == higher prority.
             // TODO: Handle nested highlight, and more.
+            // TODO: Cache highlights info if buffer not modified.
             while (!context.syntax_highlight.empty()) {
                 Highlight& prev_hl = context.syntax_highlight.back();
                 if (prev_hl.range.RangeAfterMe(range)) {
                     context.syntax_highlight.push_back({range, attr});
-                    highlights_priority.push_back(priority);
+                    context.syntax_priority.push_back(priority);
                     break;
                 } else if (prev_hl.range.RangeEqualMe(range)) {
-                    if (highlights_priority.back() > priority) {
+                    if (context.syntax_priority.back() > priority) {
                         break;
                     }
                     prev_hl.attr = attr;
-                    highlights_priority.back() = priority;
+                    context.syntax_priority.back() = priority;
                     break;
                 }
                 context.syntax_highlight.pop_back();
-                highlights_priority.pop_back();
+                context.syntax_priority.pop_back();
             }
         }
     }
 }
 
-void SyntaxParser::SyntaxHighlightInit(const Buffer* buffer) {
-    std::vector<Highlight> highlight;
+void SyntaxParser::SyntaxInit(const Buffer* buffer) {
     auto filetype = buffer->filetype();
     const TSQueryContext* query_context = GetQueryContext(filetype);
     if (query_context == nullptr) {
@@ -266,10 +277,9 @@ void SyntaxParser::SyntaxHighlightInit(const Buffer* buffer) {
         return;
     }
     buffer_context_[buffer->id()].tree = tree;
-    GenerateHighlight(*query_context, tree, buffer);
 }
 
-void SyntaxParser::SyntaxHighlightAfterEdit(Buffer* buffer) {
+void SyntaxParser::ParseSyntaxAfterEdit(Buffer* buffer) {
     auto iter = buffer_context_.find(buffer->id());
     if (iter == buffer_context_.end()) {
         return;
@@ -283,10 +293,7 @@ void SyntaxParser::SyntaxHighlightAfterEdit(Buffer* buffer) {
     if (context.tree == nullptr) {
         MGO_LOG_ERROR("ts_parser_parse error: filetype %s",
                       zstring_view_c_str(buffer->filetype()));
-        return;
     }
-    GenerateHighlight(filetype_to_query_[buffer->filetype()], context.tree,
-                      buffer);
 }
 
 void SyntaxParser::OnBufferDelete(const Buffer* buffer) {
@@ -299,13 +306,14 @@ void SyntaxParser::OnBufferDelete(const Buffer* buffer) {
     buffer_context_.erase(iter);
 }
 
-const SyntaxContext* SyntaxParser::GetBufferSyntaxContext(
-    const Buffer* buffer) {
+const SyntaxContext* SyntaxParser::GetBufferSyntaxContext(const Buffer* buffer,
+                                                          const Range& range) {
     auto iter = buffer_context_.find(buffer->id());
     if (iter == buffer_context_.end()) {
         return nullptr;
     }
 
+    GenerateHighlight(buffer, range);
     return &iter->second;
 }
 

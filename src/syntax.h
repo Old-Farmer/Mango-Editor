@@ -24,6 +24,7 @@ struct Highlight {
 struct SyntaxContext {
     TSTree* tree;
     std::vector<Highlight> syntax_highlight;
+    std::vector<int64_t> syntax_priority;
 };
 
 class SyntaxParser {
@@ -33,10 +34,15 @@ class SyntaxParser {
     MGO_DELETE_COPY(SyntaxParser);
     MGO_DELETE_MOVE(SyntaxParser);
 
-    void SyntaxHighlightInit(const Buffer* buffer);
-    void SyntaxHighlightAfterEdit(Buffer* buffer);
+    void SyntaxInit(const Buffer* buffer);
+    void ParseSyntaxAfterEdit(Buffer* buffer);
     void OnBufferDelete(const Buffer* buffer);
-    const SyntaxContext* GetBufferSyntaxContext(const Buffer* buffer);
+    // Get buffer Syntax Context: Current is Buffer syntax hl info.
+    // Need provide a range, so this function can calculate syntax hl info in the range.
+    // This range should be as small as possible.
+    // throw TSQueryPredicateDirectiveNotSupportException
+    const SyntaxContext* GetBufferSyntaxContext(const Buffer* buffer,
+                                                const Range& range);
 
    private:
     struct TSQueryPatternContext {
@@ -61,8 +67,7 @@ class SyntaxParser {
     const TSQueryContext* GetQueryContext(zstring_view filetype);
 
     // throw TSQueryPredicateDirectiveNotSupportException
-    void GenerateHighlight(const TSQueryContext& query_context, TSTree* tree,
-                           const Buffer* buffer);
+    void GenerateHighlight(const Buffer* buffer, const Range& range);
     // return true to indicate that predicate ok
     bool QueryPredicate(const TSQueryContext& query_context,
                         const TSQueryCapture* capture, const Buffer* buffer,

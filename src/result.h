@@ -21,6 +21,7 @@ enum Result {
     kCommandInvalidArgs,
     kCmpNoSuggest,
     kNoHistoryAvailable,
+    kOuterCommandExecuteFail,  // outer command fail before or when execvp.
 };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};

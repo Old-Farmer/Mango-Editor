@@ -17,8 +17,8 @@
 
 namespace mango {
 
-class InitOptions;
-class Options;
+struct InitOptions;
+struct Options;
 
 class Editor {
    private:
@@ -60,6 +60,8 @@ class Editor {
     void PreProcess();
     void Resize(int width, int height);
 
+    void CursorShow();
+
     // helper methods
     Window* LocateWindow(int s_col, int s_row);
 
@@ -85,6 +87,8 @@ class Editor {
         void FreeContext(ContextID id);
     };
     ContextManager contexts_manager_;
+
+    std::unique_ptr<ClipBoard> clipboard_;
 
     Cursor cursor_;
     // Now only support one window in the screen

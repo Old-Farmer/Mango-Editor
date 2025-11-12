@@ -1,12 +1,13 @@
 #include "mango_peel.h"
 
+#include "clipboard.h"
 #include "cursor.h"
 #include "options.h"
 
 namespace mango {
 
-MangoPeel::MangoPeel(Cursor* cursor, Options* options)
-    : frame_(&buffer_, cursor, options, nullptr), buffer_(options) {
+MangoPeel::MangoPeel(Cursor* cursor, Options* options, ClipBoard* clipboard)
+    : frame_(&buffer_, cursor, options, nullptr, clipboard), buffer_(options) {
     buffer_.Load();
 }
 
@@ -57,10 +58,23 @@ void MangoPeel::AddStringAtCursor(std::string str) {
 
 void MangoPeel::TabAtCursor() { frame_.TabAtCursor(); }
 
+void MangoPeel::Copy() { frame_.Copy(); }
+void MangoPeel::Paste() {
+    MGO_ASSERT(!frame_.selection_.active);
+    bool lines;
+    std::string content = frame_.clipboard_->GetContent(lines);
+    for (char& c: content) {
+        if (c == '\n') {
+            c = ' ';
+        }
+    }
+    frame_.AddStringAtCursor(std::move(content));
+}
+
 void MangoPeel::SetContent(std::string content) {
     buffer_.Clear();
     Pos pos;
-    buffer_.Add({0, 0}, std::move(content), false, pos);
+    buffer_.Add({0, 0}, std::move(content), nullptr, false, pos);
 }
 
 const std::string& MangoPeel::GetContent() { return buffer_.GetLine(0); }

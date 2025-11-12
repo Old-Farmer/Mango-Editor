@@ -280,6 +280,9 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
             ts_edit_.start_byte = OffsetAndInvalidAfterPos(pos);
             ts_edit_.old_end_byte = ts_edit_.start_byte;
             ts_edit_.new_end_byte = ts_edit_.start_byte + str.size();
+            MGO_LOG_DEBUG("delete start,old_end,new_end byte: %u, %u, %u",
+                          ts_edit_.start_byte, ts_edit_.old_end_byte,
+                          ts_edit_.new_end_byte);
         }
     });
 
@@ -344,6 +347,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
     auto _ = gsl::finally([this] { Modified(); });
 
     std::string old_str;
+    size_t old_str_size = 0;
 
     std::string line_where_end_pos_locate;
 
@@ -360,6 +364,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                     old_str.insert(
                         0, std::string("\n") + lines_[end.line].line_str);
                 }
+                old_str_size += 1 + lines_[end.line].line_str.size();
 
                 lines_.erase(lines_.begin() + end.line);
 
@@ -372,10 +377,11 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                 if (record_reverse) {
                     MGO_ASSERT(end.byte_offset <
                                lines_[end.line].line_str.size());
-                    old_str.insert(0, "\n");
                     old_str.insert(0, lines_[end.line].line_str, 0,
                                    end.byte_offset);
+                    old_str.insert(0, "\n");
                 }
+                old_str_size += 1 + end.byte_offset;
 
                 line_where_end_pos_locate =
                     std::move(lines_[end.line].line_str);
@@ -389,6 +395,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                 old_str.insert(0, lines_[end.line].line_str,
                                range.begin.byte_offset,
                                end.byte_offset - range.begin.byte_offset);
+            old_str_size += end.byte_offset - range.begin.byte_offset;
 
             lines_[end.line].line_str.erase(
                 range.begin.byte_offset,
@@ -418,7 +425,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
         ts_edit_.new_end_point.row = cursor_pos_hint.line;
         ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
         ts_edit_.start_byte = OffsetAndInvalidAfterPos(range.begin);
-        ts_edit_.old_end_byte = ts_edit_.start_byte + old_str.size();
+        ts_edit_.old_end_byte = ts_edit_.start_byte + old_str_size;
         ts_edit_.new_end_byte = ts_edit_.start_byte;
     }
 
@@ -428,17 +435,12 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
 std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
                                  Pos& cursor_pos_hint, bool record_reverse) {
     Pos out_pos;
-    std::string old_str = DeleteInner(range, out_pos, record_reverse, false);
+    std::string old_str = DeleteInner(range, out_pos, record_reverse, true);
     AddInner(out_pos, str, cursor_pos_hint, false);
 
-    ts_edit_.start_point.row = range.begin.line;
-    ts_edit_.start_point.column = range.begin.byte_offset;
-    ts_edit_.old_end_point.row = range.end.line;
-    ts_edit_.old_end_point.column = range.end.byte_offset;
+    // Others record in DeleteInner
     ts_edit_.new_end_point.row = cursor_pos_hint.line;
     ts_edit_.new_end_point.column = cursor_pos_hint.byte_offset;
-    ts_edit_.start_byte = OffsetAndInvalidAfterPos(range.begin);
-    ts_edit_.old_end_byte = ts_edit_.start_byte + old_str.size();
     ts_edit_.new_end_byte = ts_edit_.start_byte + str.size();
 
     return old_str;
@@ -490,8 +492,8 @@ void Buffer::Record(BufferEditHistoryItem item) {
     edit_history_->push_back(std::move(item));
 }
 
-Result Buffer::Add(const Pos& pos, std::string str, bool use_given_pos_hint,
-                   Pos& cursor_pos_hint) {
+Result Buffer::Add(const Pos& pos, std::string str, const Pos* cursor_pos,
+                   bool use_given_pos_hint, Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }
@@ -509,12 +511,12 @@ Result Buffer::Add(const Pos& pos, std::string str, bool use_given_pos_hint,
     item.origin_pos_hint = cursor_pos_hint;
 
     item.reverse.range = {pos, orign_pos_hint};
-    item.reverse_pos_hint = pos;
+    item.reverse_pos_hint = cursor_pos ? *cursor_pos : pos;
     Record(std::move(item));
     return kOk;
 }
 
-Result Buffer::Delete(const Range& range, Pos* cursor_pos,
+Result Buffer::Delete(const Range& range, const Pos* cursor_pos,
                       Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
@@ -534,7 +536,7 @@ Result Buffer::Delete(const Range& range, Pos* cursor_pos,
     return kOk;
 }
 
-Result Buffer::Replace(const Range& range, std::string str, Pos* cursor_pos,
+Result Buffer::Replace(const Range& range, std::string str, const Pos* cursor_pos,
                        bool use_given_pos_hint, Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;

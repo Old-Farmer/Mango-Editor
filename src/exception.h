@@ -59,10 +59,10 @@ class FSException : public Exception {
         : Exception(format, args...) {}
 };
 
-class LoggingException : public Exception {
+class LogInitException : public Exception {
    public:
     template <typename... Args>
-    LoggingException(const char* format, Args... args)
+    LogInitException(const char* format, Args... args)
         : Exception(format, args...) {}
 };
 
@@ -93,6 +93,17 @@ class RegexCompileException : public Exception {
     template <typename... Args>
     RegexCompileException(const char* format, Args... args)
         : Exception(format, args...) {}
+};
+
+class OSException : public Exception {
+   public:
+    template <typename... Args>
+    OSException(int error_code, const char* format, Args... args)
+        : Exception(format, args...), error_code_(error_code) {}
+    int error_code() { return error_code_; }
+
+   private:
+    int error_code_;
 };
 
 }  // namespace mango

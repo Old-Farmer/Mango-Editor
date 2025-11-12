@@ -8,7 +8,7 @@ namespace mango {
 class Window {
    public:
     Window(Buffer* buffer, Cursor* cursor, Options* options,
-           SyntaxParser* parser) noexcept;
+           SyntaxParser* parser, ClipBoard* clipboard) noexcept;
     ~Window() = default;
     MGO_DELETE_COPY(Window);
     MGO_DEFAULT_MOVE(Window);
@@ -36,6 +36,8 @@ class Window {
     void CursorGoNextWordEnd(bool one_more_character);
     void CursorGoPrevWord();
 
+    void SelectAll();
+
     void DeleteAtCursor();
     void DeleteWordBeforeCursor();
     // raw means do not treat it as keystroke
@@ -43,6 +45,10 @@ class Window {
     void TabAtCursor();
     void Redo();
     void Undo();
+
+    void Copy();
+    void Paste();
+    void Cut();
 
     void NextBuffer();
     void PrevBuffer();

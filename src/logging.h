@@ -15,7 +15,9 @@ extern FILE* logging_file;
 // TODO: build?
 constexpr zstring_view kloggingFilePath = "build/mango.log";
 
+// throws LoggingException
 void LogInit(const std::string& file);
+void LogDeinit();
 
 inline std::string GetTime(const char* format = "%Y-%m-%d %H:%M:%S") {
     std::stringstream ss;

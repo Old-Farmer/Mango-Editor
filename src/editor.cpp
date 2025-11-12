@@ -3,6 +3,7 @@
 #include <inttypes.h>
 
 #include "character.h"
+#include "clipboard.h"
 #include "constants.h"
 #include "fs.h"
 #include "options.h"
@@ -14,9 +15,11 @@ void Editor::Loop(std::unique_ptr<Options> options,
                   std::unique_ptr<InitOptions> init_options) {
     MGO_LOG_DEBUG("Loop init");
     options_ = std::move(options);
+    clipboard_ = ClipBoard::CreateClipBoard(true);
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, options_.get(), &mode_);
-    peel_ = std::make_unique<MangoPeel>(&cursor_, options_.get());
+    peel_ =
+        std::make_unique<MangoPeel>(&cursor_, options_.get(), clipboard_.get());
     cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, options_.get());
 
     syntax_parser_ = std::make_unique<SyntaxParser>(options_.get());
@@ -38,7 +41,7 @@ void Editor::Loop(std::unique_ptr<Options> options,
     }
     MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
     window_ = std::make_unique<Window>(buf, &cursor_, options_.get(),
-                                       syntax_parser_.get());
+                                       syntax_parser_.get(), clipboard_.get());
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
@@ -148,6 +151,10 @@ void Editor::InitKeymaps() {
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<end>", {[this] { peel_->CursorGoEnd(); }},
                               {Mode::kPeelCommand});
+    keymap_manager_.AddKeyseq("<c-c>", {[this] { peel_->Copy(); }},
+                              {Mode::kPeelCommand});
+    keymap_manager_.AddKeyseq("<c-v>", {[this] { peel_->Paste(); }},
+                              {Mode::kPeelCommand});
 
     // Buffer manangement
     keymap_manager_.AddKeyseq("<c-b><c-n>",
@@ -188,7 +195,7 @@ void Editor::InitKeymaps() {
 
     // cmp
     keymap_manager_.AddKeyseq(
-        "<c-k><c-i>", {[this] {
+        "<c-k><c-c>", {[this] {
             // Trigger completion, A simple demo
             // TODO: support better
             TriggerCmp(
@@ -246,6 +253,14 @@ void Editor::InitKeymaps() {
         }});
     keymap_manager_.AddKeyseq("<c-z>", {[this] { cursor_.in_window->Undo(); }});
     keymap_manager_.AddKeyseq("<c-y>", {[this] { cursor_.in_window->Redo(); }});
+    keymap_manager_.AddKeyseq("<c-c>", {[this] { cursor_.in_window->Copy(); }});
+    keymap_manager_.AddKeyseq("<c-v>",
+                              {[this] { cursor_.in_window->Paste(); }});
+    keymap_manager_.AddKeyseq("<c-x>", {[this] { cursor_.in_window->Cut(); }});
+    keymap_manager_.AddKeyseq("<c-a>",
+                              {[this] { cursor_.in_window->SelectAll(); }});
+    keymap_manager_.AddKeyseq("<c-k><c-l>",
+                              {[this] { cursor_.in_window->SelectAll(); }});
 
     // naviagtion
     keymap_manager_.AddKeyseq("<left>",
@@ -254,12 +269,18 @@ void Editor::InitKeymaps() {
                               {[this] { cursor_.in_window->CursorGoRight(); }});
     keymap_manager_.AddKeyseq(
         "<c-left>", {[this] { cursor_.in_window->CursorGoPrevWord(); }});
-    keymap_manager_.AddKeyseq(
-        "<c-right>", {[this] { cursor_.in_window->CursorGoNextWordEnd(true); }});
+    keymap_manager_.AddKeyseq("<c-right>", {[this] {
+                                  cursor_.in_window->CursorGoNextWordEnd(true);
+                              }});
     keymap_manager_.AddKeyseq("<up>",
                               {[this] { cursor_.in_window->CursorGoUp(); }});
     keymap_manager_.AddKeyseq("<down>",
                               {[this] { cursor_.in_window->CursorGoDown(); }});
+    keymap_manager_.AddKeyseq(
+        "<c-p>", {[this] { cursor_.in_window->CursorGoUp(); }}, {Mode::kEdit});
+    keymap_manager_.AddKeyseq("<c-n>",
+                              {[this] { cursor_.in_window->CursorGoDown(); }},
+                              {Mode::kEdit});
     keymap_manager_.AddKeyseq("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
     keymap_manager_.AddKeyseq("<end>",
@@ -540,7 +561,7 @@ void Editor::PreProcess() {
     if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
         try {
             window_->frame_.buffer_->Load();
-            syntax_parser_->SyntaxHighlightInit(window_->frame_.buffer_);
+            syntax_parser_->SyntaxInit(window_->frame_.buffer_);
         } catch (FileCreateException& e) {
             window_->frame_.buffer_->state() = BufferState::kCannotCreate;
             MGO_LOG_ERROR("%s", e.what());

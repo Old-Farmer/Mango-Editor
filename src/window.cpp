@@ -10,8 +10,8 @@
 
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, Options* options,
-               SyntaxParser* parser) noexcept
-    : frame_(buffer, cursor, options, parser),
+               SyntaxParser* parser, ClipBoard* clipboard) noexcept
+    : frame_(buffer, cursor, options, parser, clipboard),
       cursor_(cursor),
       options_(options),
       parser_(parser) {}
@@ -54,6 +54,8 @@ void Window::CursorGoNextWordEnd(bool one_more_character) {
 }
 
 void Window::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
+
+void Window::SelectAll() { frame_.SelectAll(); }
 
 void Window::DeleteAtCursor() {
     if (frame_.selection_.active) {
@@ -111,10 +113,9 @@ void Window::DeleteAtCursor() {
     if (buffer->Delete(range, nullptr, pos) != kOk) {
         return;
     }
-    cursor_->line = pos.line;
-    cursor_->byte_offset = pos.byte_offset;
+    cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
-    parser_->SyntaxHighlightAfterEdit(buffer);
+    parser_->ParseSyntaxAfterEdit(buffer);
 }
 
 void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
@@ -267,6 +268,10 @@ void Window::TabAtCursor() { frame_.TabAtCursor(); }
 
 void Window::Redo() { frame_.Redo(); }
 void Window::Undo() { frame_.Undo(); }
+
+void Window::Copy() { frame_.Copy(); }
+void Window::Paste() { frame_.Paste(); }
+void Window::Cut() { frame_.Cut(); }
 
 void Window::NextBuffer() {
     if (frame_.buffer_->IsLastBuffer()) {
