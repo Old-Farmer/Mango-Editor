@@ -24,9 +24,9 @@
 ; Types
 
 ((namespace_identifier) @type
- (#match? @type "^[A-Z]"))
+ (#match? @type "^[A-Za-z_]"))
 
-(auto) @type
+(auto) @type.builtin
 
 ; Constants
 
