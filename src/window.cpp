@@ -166,13 +166,16 @@ void Window::TryAutoPair(std::string str) {
         frame_.buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset;
     char cur_c =
         end_of_line
-            ? frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset]
-            : -1;  // -1 here just makes compiler happy, not used.
+            ? -1
+            : frame_.buffer_->GetLine(
+                  cursor_->line)[cursor_->byte_offset];  // -1 here just makes
+                                                         // compiler happy, not
+                                                         // used.
     bool start_of_line = cursor_->byte_offset == 0;
     char prev_c =
         start_of_line
             ? -1
-            : frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset];
+            : frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset - 1];
     // Can we just move cursor next ?
     // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
     if (!start_of_line && !end_of_line) {
@@ -187,6 +190,8 @@ void Window::TryAutoPair(std::string str) {
     // try auto pair
     if (end_of_line || !IsPair(str[0], cur_c)) {
         Pos pos = {cursor_->line, cursor_->byte_offset + 1};
+        auto [_, c_close] = IsPairOpen(str[0]);
+        str += c_close;
         frame_.AddStringAtCursor(std::move(str), &pos);
         return;
     }
