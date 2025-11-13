@@ -1,4 +1,4 @@
-# Mango
+# 🥭Mango
 
 Mango is an modern terminal editor that focuses on simplicity and OOTB.
 
