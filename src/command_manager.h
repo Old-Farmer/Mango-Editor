@@ -6,16 +6,11 @@
 
 #include "result.h"
 #include "utils.h"
+#include "options.h"
 
 namespace mango {
 
 constexpr int8_t kMaxCommandCnt = 6;
-
-enum class Type {
-    kBool,     // bool
-    kInteger,  // int64_t
-    kString,   // std::string
-};
 
 using CommandArg = std::variant<bool, int64_t, std::string>;
 using CommandArgs = CommandArg[kMaxCommandCnt];

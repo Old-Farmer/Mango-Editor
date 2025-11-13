@@ -106,7 +106,7 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<c-q>", {[this] { Quit(); }}, kAllModes);
 
     // peel
-    keymap_manager_.AddKeyseq("<c-p>", {[this] { GotoPeel(); }}, {Mode::kEdit});
+    keymap_manager_.AddKeyseq("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
     keymap_manager_.AddKeyseq(
         "<esc>", {[this] { ExitFromMode(); }},
         {Mode::kPeelCommand, Mode::kFind, Mode::kPeelShow});

@@ -6,6 +6,12 @@
 
 namespace mango {
 
+enum class Type {
+    kBool,     // bool
+    kInteger,  // int64_t
+    kString,   // std::string
+};
+
 enum CharacterType : int {
     kNormal = 0,
     kReverse,
@@ -33,7 +39,7 @@ enum CharacterType : int {
 enum class LineNumberType {
     kNone,
     kAboslute,
-    // kRelative, // Not suppot now
+    // kRelative, // Not support now
 };
 
 // Use many magic numbers here. Just for convinience.
