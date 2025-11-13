@@ -17,6 +17,8 @@ constexpr zstring_view kloggingFilePath = "build/mango.log";
 
 // throws LoggingException
 void LogInit(const std::string& file);
+
+// Deinit the resource, normally shouldn't be called
 void LogDeinit();
 
 inline std::string GetTime(const char* format = "%Y-%m-%d %H:%M:%S") {
@@ -79,7 +81,6 @@ enum class LogLevel { kDebug, kInfo, kWarn, kError };
         MGO_LOG_PREFIX(LogLevel::kInfo, prefix);                \
         fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
                 ##__VA_ARGS__);                                 \
-        fflush(logging_file);                                   \
     } while (0)
 
 #define MGO_LOG(format, ...) MGO_LOG_INFO(format, ##__VA_ARGS__)
