@@ -6,13 +6,12 @@
 
 namespace mango {
 
-enum class Action : int { kQuit = 0 };
-
 enum CharacterType : int {
     kNormal = 0,
     kReverse,
     kSelection,
     kMenu,
+    kLineNumber,
 
     kKeyword,
     kTypeBuiltin,
@@ -31,9 +30,10 @@ enum CharacterType : int {
     __kCharacterTypeCount,
 };
 
-// Some options only useful when the program just starts
-struct InitOptions {
-    std::vector<const char*> begin_files;
+enum class LineNumberType {
+    kNone,
+    kAboslute,
+    // kRelative, // Not suppot now
 };
 
 // Use many magic numbers here. Just for convinience.
@@ -55,6 +55,8 @@ struct Options {
 
     bool auto_pair = true;
 
+    LineNumberType line_number = LineNumberType::kAboslute;
+
     size_t status_line_left_indent = 2;
     size_t status_line_right_indent = 2;
     size_t status_line_sep_width = 2;
@@ -65,5 +67,11 @@ struct Options {
     // NOTE: must greater than 0
     size_t buffer_hitstory_max_item_cnt = 50;
 };
+
+// Some options only useful when the program just starts
+struct InitOptions {
+    std::vector<const char*> begin_files;
+};
+
 
 }  // namespace mango

@@ -4,6 +4,8 @@ Mango is an modern terminal editor that focuses on simplicity and OOTB.
 
 It's my hobby project. I really don't know how far I could go. Any advice is welcome.
 
+![Current ScreenShot](./img/Screenshot1.png)
+
 ## Target
 
 Terminal editors are always difficult to use, hard to configure. Most of them were designed decades ago, so they have complex key bindings, wierd interfaces and need tons of community plugins to become user-friendly. This project aims to make users life easier --- no more high learning curves, no more tons of plugins, no more hundreds lines of configuration. All just out of box. Having fun with codes!

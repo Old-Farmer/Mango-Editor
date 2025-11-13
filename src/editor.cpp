@@ -338,20 +338,20 @@ void Editor::HandleKey(const Terminal::Event& e,
                        std::string* bracketed_paste_buffer) {
     Terminal::KeyInfo key_info = term_.EventKeyInfo(e);
 
-#ifndef NDEBUG
-    bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
-    bool shift = key_info.mod & Terminal::Mod::kShift;
-    bool alt = key_info.mod & Terminal::Mod::kAlt;
-    bool motion = key_info.mod & Terminal::Mod::kMotion;
-    char c[7];
-    int len = UnicodeToUtf8(key_info.codepoint, c);
-    c[len] = '\0';
-    MGO_LOG_DEBUG(
-        "ctrl %d shift %d alt %d motion %d special key %d codepoint "
-        "\\U%08" PRIx32 " char %s",
-        ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
-        key_info.codepoint, c);
-#endif  // !NDEBUG
+    // #ifndef NDEBUG
+    //     bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
+    //     bool shift = key_info.mod & Terminal::Mod::kShift;
+    //     bool alt = key_info.mod & Terminal::Mod::kAlt;
+    //     bool motion = key_info.mod & Terminal::Mod::kMotion;
+    //     char c[7];
+    //     int len = UnicodeToUtf8(key_info.codepoint, c);
+    //     c[len] = '\0';
+    //     MGO_LOG_DEBUG(
+    //         "ctrl %d shift %d alt %d motion %d special key %d codepoint "
+    //         "\\U%08" PRIx32 " char %s",
+    //         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
+    //         key_info.codepoint, c);
+    // #endif  // !NDEBUG
 
     if (bracketed_paste_buffer) {
         if (key_info.IsSpecialKey() && key_info.mod == Terminal::kCtrl &&
@@ -399,7 +399,7 @@ void Editor::HandleKey(const Terminal::Event& e,
 }
 
 void Editor::HandleLeftClick(int s_row, int s_col) {
-    MGO_LOG_DEBUG("left mouse row %d, col %d", s_row, s_col);
+    // MGO_LOG_DEBUG("left mouse row %d, col %d", s_row, s_col);
     Window* win = LocateWindow(s_col, s_row);
     Window* prev_win = cursor_.in_window;
     Pos prev_pos = {cursor_.line, cursor_.byte_offset};
@@ -458,8 +458,8 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
 }
 
 void Editor::HandleRelease(int s_row, int s_col) {
-    MGO_LOG_DEBUG("release mouse row %d, col %d", s_row, s_col);
-
+    (void)s_row, (void)s_col;
+    // MGO_LOG_DEBUG("release mouse row %d, col %d", s_row, s_col);
     cursor_.state_ = CursorState::kReleased;
 }
 

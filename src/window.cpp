@@ -14,7 +14,10 @@ Window::Window(Buffer* buffer, Cursor* cursor, Options* options,
     : frame_(buffer, cursor, options, parser, clipboard),
       cursor_(cursor),
       options_(options),
-      parser_(parser) {}
+      parser_(parser) {
+    // TODO: refactor it better
+    frame_.line_number_ = options->line_number;
+}
 
 void Window::Draw() { frame_.Draw(); }
 

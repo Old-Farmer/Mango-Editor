@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include "buffer.h"
+#include "options.h"
 #include "selection.h"
 #include "term.h"
 #include "utils.h"
@@ -72,10 +73,14 @@ class Frame {
     void ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
    private:
+    size_t CalcLineNumberWidth();
+    void DrawLineNumber();
+
     void UpdateSyntax();
     void SelectionFollowCursor();
     void SelectionCancell() { selection_.active = false; }
     void AfterModify(const Pos& cursor_pos);
+
 
    public:
     size_t width_ = 0;
@@ -96,6 +101,7 @@ class Frame {
     size_t b_view_line_ = 0;
     size_t b_view_col_ = 0;
     bool wrap_ = false;
+    LineNumberType line_number_;
 
     Selection selection_;
     ClipBoard* clipboard_;

@@ -9,6 +9,8 @@ namespace mango {
 MangoPeel::MangoPeel(Cursor* cursor, Options* options, ClipBoard* clipboard)
     : frame_(&buffer_, cursor, options, nullptr, clipboard), buffer_(options) {
     buffer_.Load();
+    // TODO: refactor it.
+    frame_.line_number_ = LineNumberType::kNone;
 }
 
 void MangoPeel::Draw() { frame_.Draw(); }
@@ -63,7 +65,7 @@ void MangoPeel::Paste() {
     MGO_ASSERT(!frame_.selection_.active);
     bool lines;
     std::string content = frame_.clipboard_->GetContent(lines);
-    for (char& c: content) {
+    for (char& c : content) {
         if (c == '\n') {
             c = ' ';
         }

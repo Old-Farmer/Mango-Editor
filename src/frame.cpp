@@ -73,6 +73,10 @@ void Frame::Draw() {
         }
     }
 
+    DrawLineNumber();
+    size_t s_col_for_file_content = col_ + CalcLineNumberWidth();
+    size_t width_for_file_content = width_ - (s_col_for_file_content - col_);
+
     if (wrap_) {
         // TODO: wrap the content
         MGO_ASSERT(false);
@@ -85,7 +89,7 @@ void Frame::Draw() {
 
             if (line_cnt <= b_view_r) {
                 uint32_t codepoint = '~';
-                term_->SetCell(col_, screen_r, &codepoint, 1,
+                term_->SetCell(s_col_for_file_content, screen_r, &codepoint, 1,
                                options_->attr_table[kNormal]);
                 continue;
             }
@@ -116,7 +120,7 @@ void Frame::Draw() {
                     ;
                 } else if (cur_b_view_c >= b_view_col_ &&
                            cur_b_view_c + character_width <=
-                               width_ + b_view_col_) {
+                               width_for_file_content + b_view_col_) {
                     // Decide attr
                     Terminal::AttrPair attr;
                     if (selection_.active &&
@@ -139,8 +143,10 @@ void Frame::Draw() {
                         int space_count = options_->tabstop -
                                           cur_b_view_c % options_->tabstop;
                         while (space_count > 0 &&
-                               cur_b_view_c + 1 <= width_ + b_view_col_) {
-                            int screen_c = cur_b_view_c - b_view_col_ + col_;
+                               cur_b_view_c + 1 <=
+                                   width_for_file_content + b_view_col_) {
+                            int screen_c = cur_b_view_c - b_view_col_ +
+                                           s_col_for_file_content;
                             uint32_t space = kSpaceChar;
                             // Just in view, render the character
                             int ret = term_->SetCell(screen_c, screen_r, &space,
@@ -155,7 +161,8 @@ void Frame::Draw() {
                         }
                         character_width = 0;
                     } else {
-                        int screen_c = cur_b_view_c - b_view_col_ + col_;
+                        int screen_c =
+                            cur_b_view_c - b_view_col_ + s_col_for_file_content;
 
                         // Just in view, render the character
                         int ret =
@@ -222,10 +229,13 @@ void Frame::MakeCursorVisible() {
         cursor_->b_view_col_want = cur_b_view_c;
     }
 
+    size_t s_col_for_file_content = col_ + CalcLineNumberWidth();
+    size_t width_for_file_content = width_ - (s_col_for_file_content - col_);
+
     // adjust col of view
     if (cur_b_view_c < b_view_col_) {
         b_view_col_ = cur_b_view_c;
-    } else if (cur_b_view_c - b_view_col_ >= width_) {
+    } else if (cur_b_view_c - b_view_col_ >= width_for_file_content) {
         b_view_col_ = cur_b_view_c + 2 - width_;
     }
 
@@ -237,7 +247,7 @@ void Frame::MakeCursorVisible() {
     }
 
     cursor_->s_row = row - b_view_line_ + row_;
-    cursor_->s_col = cur_b_view_c - b_view_col_ + col_;
+    cursor_->s_col = cur_b_view_c - b_view_col_ + s_col_for_file_content;
 }
 
 size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
@@ -275,23 +285,28 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(In(s_col, s_row));
 
-    auto _ = gsl::finally([this] { cursor_->DontHoldColWant(); });
-
     size_t cur_b_view_row = s_row - row_ + b_view_line_;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->LineCnt()) {
         cursor_->line = buffer_->LineCnt() - 1;
         cursor_->byte_offset = buffer_->GetLine(buffer_->LineCnt() - 1).size();
+        cursor_->DontHoldColWant();
         return;
     }
 
     cursor_->line = cur_b_view_row;
 
-    // not empty line
-    // search througn line
-    size_t target_b_view_col = s_col - col_ + b_view_col_;
+    // Click at line number columns.
+    size_t line_number_width = CalcLineNumberWidth();
+    if (s_col - col_ < line_number_width) {
+        return;
+    }
+
+    // Search througn line
+    size_t target_b_view_col = s_col - (col_ + line_number_width) + b_view_col_;
     SetCursorByBViewCol(target_b_view_col);
     SelectionFollowCursor();
+    cursor_->DontHoldColWant();
 }
 
 void Frame::ScrollRows(int64_t count, bool cursor_in_frame) {
@@ -663,6 +678,57 @@ void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
     }
     AfterModify(pos);
     SelectionCancell();
+}
+
+size_t Frame::CalcLineNumberWidth() {
+    if (line_number_ == LineNumberType::kNone) {
+        return 0;
+    }
+
+    if (wrap_) {
+        MGO_ASSERT(false);
+    } else {
+        if (line_number_ == LineNumberType::kAboslute) {
+            size_t max_line_number =
+                std::min(b_view_line_ + height_, buffer_->LineCnt());
+            std::stringstream ss;
+            ss << max_line_number;
+            return ss.str().size() + 3;  // 1 spaces left and 2 right
+        }
+    }
+    return 0;
+}
+
+void Frame::DrawLineNumber() {
+    if (line_number_ == LineNumberType::kNone) {
+        return;
+    }
+
+    if (wrap_) {
+        MGO_ASSERT(false);
+    } else {
+        if (line_number_ == LineNumberType::kAboslute) {
+            const size_t line_cnt = buffer_->LineCnt();
+            std::vector<uint32_t> codepoints;
+            for (size_t win_r = 0; win_r < height_; win_r++) {
+                int screen_r = win_r + row_;
+                size_t b_view_r = win_r + b_view_line_;
+
+                if (line_cnt <= b_view_r) {
+                    break;
+                }
+
+                std::stringstream ss;
+                ss << b_view_r + 1;
+                Result res = term_->Print(
+                    col_, screen_r, options_->attr_table[kLineNumber],
+                    (kSpace + ss.str() + std::string(2, kSpaceChar)).c_str());
+                if (res == kTermOutOfBounds) {
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void Frame::UpdateSyntax() {
