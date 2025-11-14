@@ -222,7 +222,7 @@ void Window::TryAutoIndent() {
     bool maunally_set_cursor_pos = false;
     str += indent;
     zstring_view ft = frame_.buffer_->filetype();
-    auto tabspace = GetOpt<int64_t>(kOptTabSpace);
+    auto tabspace = GetOpt<bool>(kOptTabSpace);
     if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
         // traditional languages, try to check () {} []
         // e.g.
