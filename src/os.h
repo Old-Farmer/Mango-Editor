@@ -1,5 +1,6 @@
 #pragma once
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <cerrno>
@@ -95,6 +96,24 @@ inline void Dup2(const Fd& old_fd, int new_fd) {
             throw OSException(errno, "dup2 error: %s", strerror(errno));
         }
         break;
+    }
+}
+
+inline Fd Open(const char* file, int oflags = O_RDWR, mode_t mode = 0644) {
+    Fd fd;
+    while (true) {
+        if (oflags & O_CREAT) {
+            fd.fd = open(file, oflags);
+        } else {
+            fd.fd = open(file, oflags, mode);
+        }
+        if (fd.fd >= 0) {
+            return fd;
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        throw OSException(errno, "open error: %s", strerror(errno));
     }
 }
 

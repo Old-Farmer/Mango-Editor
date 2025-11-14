@@ -29,12 +29,10 @@ void DefaultClipBoard::SetContent(std::string content, bool lines) {
 
 bool XClipBoard::DetectUsable() {
     const char* const argv[] = {"xsel", "--help", NULL};
-    std::string stdout_data;
-    std::string stderr_data;
     int exit_code;
     try {
         Result res = Exec(argv[0], const_cast<char* const*>(argv), nullptr,
-                          &stdout_data, &stderr_data, exit_code);
+                          nullptr, nullptr, exit_code);
         return exit_code == 0 && res == kOk;
     } catch (OSException& e) {
         return false;

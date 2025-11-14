@@ -58,6 +58,8 @@ void AssertFail(const char* __assertion, const char* __file,
 // When check == true, LOG level will be info instead of error.
 // For parmeters file, argv, read execvp for more info. argv[] should be null
 // terminated.
+// stdxxx_data will pipe to the child process fd, if null, corresponding fd will
+// be dupped to /dev/null.
 Result Exec(const char* file, char* const argv[], const std::string* stdin_data,
             std::string* stdout_data, std::string* stderr_data, int& exit_code,
             bool check = false);

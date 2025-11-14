@@ -36,22 +36,30 @@ Result Exec(const char* file, char* const argv[], const std::string* stdin_data,
         // Terminal::GetInstance().Shutdown();
         // catch all in child process
         try {
+            Fd null_dev = Open("/dev/null");
             if (stdin_data) {
                 stdin_pipe[1].Close();
                 Dup2(stdin_pipe[0], STDIN_FILENO);
                 stdin_pipe[0].Close();
+            } else {
+                Dup2(null_dev, STDIN_FILENO);
             }
             if (stdout_data) {
                 stdout_pipe[0].Close();
                 Dup2(stdout_pipe[1], STDOUT_FILENO);
                 stdout_pipe[1].Close();
+            } else {
+                Dup2(null_dev, STDOUT_FILENO);
             }
             if (stderr_data) {
                 stderr_pipe[0].Close();
                 Dup2(stderr_pipe[1], STDERR_FILENO);
                 stderr_pipe[1].Close();
+            } else {
+                Dup2(null_dev, STDERR_FILENO);
             }
             err_pipe[0].Close();
+            null_dev.Close();
 
             if (-1 == execvp(file, argv)) {
                 char buf[128];
