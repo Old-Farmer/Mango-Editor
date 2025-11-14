@@ -38,9 +38,33 @@ static const std::unordered_map<zstring_view, zstring_view> kSuffixToFiletype = 
     {"cmake", "cmake"},
 };
 
+static const std::unordered_map<zstring_view, zstring_view> kFileTypesToStrRep = {
+    {"", ""},
+    {"c", "C"},
+    {"cpp","C++"},
+    {"go","Go"},
+    {"java","Java"},
+    {"kotlin","Kotlin"},
+    {"csharp","C♯"},
+    {"python","Python"},
+    {"lua","Lua"},
+    {"javascript","Javascript"},
+    {"typescript","Typescript"},
+    {"bash","Bash"},
+    {"shell","Shell"},
+    {kDefaultFileType,"txt"},
+    {"json","JSON"},
+    {"toml","TOML"},
+    {"yaml","YAML"},
+    {"markdown","Markdown"},
+    {"cmake","CMake"},
+    {"makefile","Makefil"}
+};
+
 // file name is prior to suffix
 static const std::unordered_map<zstring_view, zstring_view> kNameToFiletype = {
     {"CMakeLists.txt", "cmake"},
+    {"Makefile", "makefile"},
 };
 // clang-format on
 
@@ -72,6 +96,14 @@ std::vector<zstring_view> AllFiletypes() {
         filetypes[i++] = filetype;
     }
     return filetypes;
+}
+
+bool IsFiletype(zstring_view filetype) {
+    return kFileTypesToStrRep.count(filetype) != 0;
+}
+
+zstring_view FiletypeStrRep(zstring_view filetype) {
+    return kFileTypesToStrRep.at(filetype);
 }
 
 }  // namespace mango

@@ -30,7 +30,7 @@ enum class Mode : int {
     kCmp,
 
     kNone,
-    _COUNT,  // not mode, just for count
+    _kCount,  // not mode, just for count
 };
 
 inline bool IsPeel(Mode mode) {

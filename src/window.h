@@ -7,7 +7,7 @@ namespace mango {
 
 class Window {
    public:
-    Window(Buffer* buffer, Cursor* cursor, Options* options,
+    Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
            SyntaxParser* parser, ClipBoard* clipboard) noexcept;
     ~Window() = default;
     MGO_DELETE_COPY(Window);
@@ -70,6 +70,8 @@ class Window {
     SearchState CursorGoNextSearchResult();
     SearchState CursorGoPrevSearchResult();
 
+    const Opts& opts() { return opts_; }
+
    private:
     static int64_t AllocId() noexcept;
     Window() {}  // only for list head
@@ -77,12 +79,20 @@ class Window {
     void TryAutoIndent();
     void TryAutoPair(std::string str);
 
-   public:
-    Frame frame_;
+    template <typename T>
+    T GetOpt(OptKey key) {
+        if (opts_.GetScope(key) == OptScope::kGlobal) {
+            return opts_.global_opts_->GetOpt<T>(key);
+        }
+        if (opts_.GetScope(key) == OptScope::kBuffer) {
+            return frame_.buffer_->opts().GetOpt<T>(key);
+        }
+        return opts_.GetOpt<T>(key);
+    }
 
    private:
     Cursor* cursor_;
-    Options* options_;
+    Opts opts_ = {nullptr};
     SyntaxParser* parser_;
 
     std::vector<Range> search_result_;
@@ -91,6 +101,9 @@ class Window {
 
     int64_t id_ = AllocId();
     static int64_t cur_window_id_;
+
+   public:
+    Frame frame_;
 };
 
 }  // namespace mango

@@ -72,7 +72,7 @@ static const std::unordered_map<std::string_view, Terminal::KeyInfo>
 };
 
 KeyseqManager::KeyseqManager(Mode& mode) : mode_(mode) {
-    MGO_ASSERT(roots_.size() == static_cast<size_t>(Mode::_COUNT));
+    MGO_ASSERT(roots_.size() == static_cast<size_t>(Mode::_kCount));
 }
 
 Result KeyseqManager::ParseKeyseq(const std::string& seq,

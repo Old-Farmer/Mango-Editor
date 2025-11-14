@@ -11,7 +11,7 @@ namespace mango {
 // extend it row numbers.
 class MangoPeel {
    public:
-    MangoPeel(Cursor* cursor, Options* options, ClipBoard* clipboard);
+    MangoPeel(Cursor* cursor, GlobalOpts* global_opts, ClipBoard* clipboard);
     ~MangoPeel() = default;
     MGO_DELETE_COPY(MangoPeel);
     MGO_DEFAULT_MOVE(MangoPeel);
@@ -48,11 +48,12 @@ class MangoPeel {
     void SetContent(std::string content);
     const std::string& GetContent();
 
-   public:
-    Frame frame_;
-
    private:
     Buffer buffer_;  // Unlike window, Peel owns her nofilebacked buffer
+    Opts opts_;
+
+   public:
+    Frame frame_;
 };
 
 }  // namespace mango

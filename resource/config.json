@@ -1,0 +1,21 @@
+{
+    "poll_event_timeout": -1,
+    "scroll_rows": 3,
+    "esc_timeout": 50,
+    "cursor_start_holding_interval": 500,
+    "status_line_sep_width": 2,
+    "cmp_menu_max_height": 8,
+    "cmp_menu_max_width": 20,
+    "edit_history_max_item": 50,
+
+    "tab_stop": 4,
+    "tab_space": true,
+    "auto_indent": true,
+    "auto_pair": true,
+
+    "makefile": {
+        "tab_space": false
+    },
+
+    "line_number": 1
+}

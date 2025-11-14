@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "file.h"
 #include "fs.h"
+#include "options.h"
 #include "pos.h"
 #include "result.h"
 #include "state.h"
@@ -16,55 +18,6 @@
 namespace mango {
 
 constexpr const char* kSwapSuffix = ".mango_swap";
-
-// End of line sequence
-constexpr const char* kEOLSeqLF = "\n";
-constexpr const char* kEOLSeqCRLF = "\r\n";
-constexpr const char* kEOLSeqLFReqStr = "LF";
-constexpr const char* kEOLSeqCRLFReqStr = "CRLF";
-
-enum class EOLSeq { kLF, kCRLF };
-
-std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq);
-
-// A File class, just simple wraps a FILE* handler.
-class File {
-   public:
-    // mode is same as C file stdio api
-    // "r" for readonly
-    // "w" for writeonly
-    // create_if_not_exist only meaningful to read
-    // throws IOException, FileCreateException
-    File(const std::string& path, const char* mode, bool create_if_not_exist);
-    ~File();
-
-    MGO_DELETE_COPY(File);
-    File(File&&) noexcept;
-    File& operator=(File&&) noexcept;
-
-    FILE* file() { return file_; }
-
-    // Read one line from file.
-    // EOLSeq will be stored as the eol seq.
-    // if meet eof, eol_seq will not be set.
-    // throws IOException.
-    // return:
-    // kOk means ok;
-    // kEof means EOF.
-    Result ReadLine(std::string& buf, EOLSeq& eol_seq);
-
-    // Dump the raw file contents to a string.
-    // throw IOException
-    std::string ReadAll();
-
-    // throws IOException
-    void Truncate(size_t size);
-    // throws IOException
-    void Fsync();
-
-   private:
-    FILE* file_;
-};
 
 struct Line {
     std::string line_str;
@@ -109,9 +62,9 @@ class Buffer {
     };
 
    public:
-    Buffer(Options* options);
-    Buffer(Options* options, std::string path, bool read_only = false);
-    Buffer(Options* options, Path path, bool read_only = false);
+    Buffer(GlobalOpts* options);
+    Buffer(GlobalOpts* options, std::string path, bool read_only = false);
+    Buffer(GlobalOpts* options, Path path, bool read_only = false);
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
 
@@ -166,6 +119,14 @@ class Buffer {
     // TODO: optimize it.
     size_t OffsetAndInvalidAfterPos(const Pos& pos);
 
+    template <typename T>
+    T GetOpt(OptKey key) {
+        if (opts_.GetScope(key) == OptScope::kGlobal) {
+            return opts_.global_opts_->GetOpt<T>(key);
+        }
+        return opts_.GetOpt<T>(key);
+    }
+
    public:
     // Make sure that Range or Pos is valid, otherwise behavir
     // is undefined.
@@ -206,6 +167,7 @@ class Buffer {
     }
     zstring_view filetype() const noexcept { return filetype_; }
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
+    const Opts& opts() { return opts_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -259,7 +221,7 @@ class Buffer {
     // A prefiex offset cache, for fast offset calculation.
     std::vector<size_t> offset_per_line_ = {0};
 
-    Options* options_;
+    Opts opts_;
 
     int64_t id_ = AllocId();
 

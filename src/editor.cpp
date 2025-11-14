@@ -11,24 +11,24 @@
 
 namespace mango {
 
-void Editor::Loop(std::unique_ptr<Options> options,
-                  std::unique_ptr<InitOptions> init_options) {
+void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
+                  std::unique_ptr<InitOpts> init_options) {
     MGO_LOG_DEBUG("Loop init");
-    options_ = std::move(options);
+    global_opts_ = std::move(global_opts);
     clipboard_ = ClipBoard::CreateClipBoard(true);
     status_line_ =
-        std::make_unique<StatusLine>(&cursor_, options_.get(), &mode_);
-    peel_ =
-        std::make_unique<MangoPeel>(&cursor_, options_.get(), clipboard_.get());
-    cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, options_.get());
+        std::make_unique<StatusLine>(&cursor_, global_opts_.get(), &mode_);
+    peel_ = std::make_unique<MangoPeel>(&cursor_, global_opts_.get(),
+                                        clipboard_.get());
+    cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, global_opts_.get());
 
-    syntax_parser_ = std::make_unique<SyntaxParser>(options_.get());
+    syntax_parser_ = std::make_unique<SyntaxParser>(global_opts_.get());
 
-    term_.Init(options_.get());
+    term_.Init(global_opts_.get());
 
     // Create all buffers
     for (const char* path : init_options->begin_files) {
-        buffer_manager_.AddBuffer(Buffer(options_.get(), path));
+        buffer_manager_.AddBuffer(Buffer(global_opts_.get(), path));
     }
 
     // Create the first window.
@@ -37,14 +37,15 @@ void Editor::Loop(std::unique_ptr<Options> options,
     if (buffer_manager_.FirstBuffer() != nullptr) {
         buf = buffer_manager_.FirstBuffer();
     } else {
-        buf = buffer_manager_.AddBuffer({options_.get()});
+        buf = buffer_manager_.AddBuffer({global_opts_.get()});
     }
     MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
-    window_ = std::make_unique<Window>(buf, &cursor_, options_.get(),
+    window_ = std::make_unique<Window>(buf, &cursor_, global_opts_.get(),
                                        syntax_parser_.get(), clipboard_.get());
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
+    cursor_.peel = peel_.get();
 
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
@@ -58,6 +59,10 @@ void Editor::Loop(std::unique_ptr<Options> options,
     bool in_bracketed_paste = false;
     std::string bracketed_paste_buffer;
 
+    if (!global_opts_->IsUserConfigValid()) {
+        peel_->SetContent("User config file error! Please check your configuration.");
+    }
+
     // Event Loop
     // TODO: support custom cursor blinking
     while (!quit_) {
@@ -67,7 +72,8 @@ void Editor::Loop(std::unique_ptr<Options> options,
         }
 
         // Poll a new Event
-        have_event_ = term_.Poll(options_->poll_event_timeout_ms);
+        have_event_ =
+            term_.Poll(global_opts_->GetOpt<int64_t>(kOptPollEventTimeout));
         if (!have_event_) {
             continue;
         }
@@ -166,7 +172,7 @@ void Editor::InitKeymaps() {
             Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
             if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
                 cursor_.in_window->AttachBuffer(
-                    buffer_manager_.AddBuffer({options_.get()}));
+                    buffer_manager_.AddBuffer({global_opts_.get()}));
             } else if (cur_buffer->IsFirstBuffer()) {
                 cursor_.in_window->NextBuffer();
             } else {
@@ -317,7 +323,7 @@ void Editor::InitCommands() {
                  return;
              }
              cursor_.in_window->AttachBuffer(
-                 buffer_manager_.AddBuffer(Buffer(options_.get(), path)));
+                 buffer_manager_.AddBuffer(Buffer(global_opts_.get(), path)));
          },
          1});
     command_manager_.AddCommand(
@@ -419,7 +425,8 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(
                 now - cursor_.last_click_time_)
-                .count() < options_->cursor_start_holding_interval_ms) {
+                .count() <
+            global_opts_->GetOpt<int64_t>(kOptCursorStartHoldingInterval)) {
             cursor_.state_ = CursorState::kLeftHolding;
         } else {
             cursor_.last_click_time_ = now;
@@ -494,7 +501,7 @@ void Editor::HandleMouse(const Terminal::Event& e) {
             Window* win = LocateWindow(mouse_info.col, mouse_info.row);
             if (win) {
                 cursor_.in_window->ScrollRows(
-                    options_->scroll_rows_per_mouse_wheel_scroll);
+                    global_opts_->GetOpt<int64_t>(kOptScrollRows));
             }
             // Not locate any area, do nothing
             break;
@@ -503,7 +510,7 @@ void Editor::HandleMouse(const Terminal::Event& e) {
             Window* win = LocateWindow(mouse_info.col, mouse_info.row);
             if (win) {
                 cursor_.in_window->ScrollRows(
-                    -options_->scroll_rows_per_mouse_wheel_scroll);
+                    -global_opts_->GetOpt<int64_t>(kOptScrollRows));
             }
             // Not locate any area, do nothing
             break;
@@ -602,7 +609,7 @@ void Editor::Help() {
         cursor_.in_window->AttachBuffer(b);
         return;
     }
-    b = buffer_manager_.AddBuffer(Buffer(options_.get(), p, true));
+    b = buffer_manager_.AddBuffer(Buffer(global_opts_.get(), p, true));
     cursor_.in_window->AttachBuffer(b);
 }
 

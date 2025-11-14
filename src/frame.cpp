@@ -13,13 +13,13 @@
 
 namespace mango {
 
-Frame::Frame(Buffer* buffer, Cursor* cursor, Options* options,
-             SyntaxParser* parser, ClipBoard* clipboard) noexcept
+Frame::Frame(Buffer* buffer, Cursor* cursor, Opts* opts, SyntaxParser* parser,
+             ClipBoard* clipboard) noexcept
     : buffer_(buffer),
       cursor_(cursor),
       clipboard_(clipboard),
       parser_(parser),
-      options_(options) {}
+      opts_(opts) {}
 
 static int64_t LocateInPos(const std::vector<Highlight>& highlight,
                            const Pos& pos) {
@@ -77,6 +77,9 @@ void Frame::Draw() {
     size_t s_col_for_file_content = col_ + CalcLineNumberWidth();
     size_t width_for_file_content = width_ - (s_col_for_file_content - col_);
 
+    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+
     if (wrap_) {
         // TODO: wrap the content
         MGO_ASSERT(false);
@@ -90,7 +93,7 @@ void Frame::Draw() {
             if (line_cnt <= b_view_r) {
                 uint32_t codepoint = '~';
                 term_->SetCell(s_col_for_file_content, screen_r, &codepoint, 1,
-                               options_->attr_table[kNormal]);
+                               scheme[kNormal]);
                 continue;
             }
 
@@ -125,23 +128,22 @@ void Frame::Draw() {
                     Terminal::AttrPair attr;
                     if (selection_.active &&
                         selection_rendering_range.PosInMe({b_view_r, offset})) {
-                        attr = options_->attr_table[kSelection];
+                        attr = scheme[kSelection];
                     } else if (syntax_highlight == nullptr ||
                                static_cast<int64_t>(syntax_highlight->size()) ==
                                    highlight_i) {
-                        attr = options_->attr_table[kNormal];
+                        attr = scheme[kNormal];
                     } else {
                         if ((*syntax_highlight)[highlight_i].range.PosInMe(
                                 {b_view_r, offset})) {
                             attr = (*syntax_highlight)[highlight_i].attr;
                         } else {
-                            attr = options_->attr_table[kNormal];
+                            attr = scheme[kNormal];
                         }
                     }
 
                     if (character[0] == '\t') {
-                        int space_count = options_->tabstop -
-                                          cur_b_view_c % options_->tabstop;
+                        int space_count = tabstop - cur_b_view_c % tabstop;
                         while (space_count > 0 &&
                                cur_b_view_c + 1 <=
                                    width_for_file_content + b_view_col_) {
@@ -200,6 +202,8 @@ bool Frame::In(size_t s_col, size_t s_row) {
 }
 
 void Frame::MakeCursorVisible() {
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+
     // Calculate the cursor pos if we put the buffer from (0, 0)
     size_t row = cursor_->line;
 
@@ -216,8 +220,7 @@ void Frame::MakeCursorVisible() {
         MGO_ASSERT(res == kOk);
         offset += byte_len;
         if (character[0] == '\t') {
-            cur_b_view_c +=
-                options_->tabstop - cur_b_view_c % options_->tabstop;
+            cur_b_view_c += tabstop - cur_b_view_c % tabstop;
         } else {
             cur_b_view_c += character_width;
         }
@@ -251,6 +254,8 @@ void Frame::MakeCursorVisible() {
 }
 
 size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+
     size_t cur_b_view_line = cursor_->line;
     size_t target_b_view_col = b_view_col;
     const std::string& cur_line = buffer_->GetLine(cur_b_view_line);
@@ -271,8 +276,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
         }
         offset += byte_len;
         if (character[0] == '\t') {
-            cur_b_view_c +=
-                options_->tabstop - cur_b_view_c % options_->tabstop;
+            cur_b_view_c += tabstop - cur_b_view_c % tabstop;
         } else {
             cur_b_view_c += character_width;
         }
@@ -508,11 +512,12 @@ void Frame::TabAtCursor() {
     // TODO: support tab when selection
     selection_.active = false;
 
-    if (!options_->tabspace) {
+    if (!GetOpt<bool>(kOptTabSpace)) {
         AddStringAtCursor("\t");
         return;
     }
 
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
     int64_t cur_b_view_row = cursor_->line;
     const std::string& cur_line = buffer_->GetLine(cur_b_view_row);
     std::vector<uint32_t> character;
@@ -527,7 +532,7 @@ void Frame::TabAtCursor() {
         offset += byte_len;
         cur_b_view_c += character_width;
     }
-    int need_space = options_->tabstop - cur_b_view_c % options_->tabstop;
+    int need_space = tabstop - cur_b_view_c % tabstop;
     AddStringAtCursor(std::string(need_space, kSpaceChar));
 }
 
@@ -681,14 +686,15 @@ void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
 }
 
 size_t Frame::CalcLineNumberWidth() {
-    if (line_number_ == LineNumberType::kNone) {
+    auto line_number = GetOpt<int64_t>(kOptLineNumber);
+    if (line_number == static_cast<int64_t>(LineNumberType::kNone)) {
         return 0;
     }
 
     if (wrap_) {
         MGO_ASSERT(false);
     } else {
-        if (line_number_ == LineNumberType::kAboslute) {
+        if (line_number == static_cast<int64_t>(LineNumberType::kAboslute)) {
             size_t max_line_number =
                 std::min(b_view_line_ + height_, buffer_->LineCnt());
             std::stringstream ss;
@@ -700,14 +706,16 @@ size_t Frame::CalcLineNumberWidth() {
 }
 
 void Frame::DrawLineNumber() {
-    if (line_number_ == LineNumberType::kNone) {
+    auto line_number = GetOpt<int64_t>(kOptLineNumber);
+    if (line_number == static_cast<int64_t>(LineNumberType::kNone)) {
         return;
     }
 
+    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
     if (wrap_) {
         MGO_ASSERT(false);
     } else {
-        if (line_number_ == LineNumberType::kAboslute) {
+        if (line_number == static_cast<int64_t>(LineNumberType::kAboslute)) {
             const size_t line_cnt = buffer_->LineCnt();
             std::vector<uint32_t> codepoints;
             for (size_t win_r = 0; win_r < height_; win_r++) {
@@ -721,7 +729,7 @@ void Frame::DrawLineNumber() {
                 std::stringstream ss;
                 ss << b_view_r + 1;
                 Result res = term_->Print(
-                    col_, screen_r, options_->attr_table[kLineNumber],
+                    col_, screen_r, scheme[kLineNumber],
                     (kSpace + ss.str() + std::string(2, kSpaceChar)).c_str());
                 if (res == kTermOutOfBounds) {
                     break;

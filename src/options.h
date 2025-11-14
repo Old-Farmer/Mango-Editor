@@ -1,15 +1,21 @@
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 
+#include "cursor.h"
 #include "term.h"
 
 namespace mango {
+
+class Buffer;
+class Window;
 
 enum class Type {
     kBool,     // bool
     kInteger,  // int64_t
     kString,   // std::string
+    kPtr,      // void*
 };
 
 enum CharacterType : int {
@@ -37,47 +43,188 @@ enum CharacterType : int {
 };
 
 enum class LineNumberType {
-    kNone,
+    kNone = 0,
     kAboslute,
     // kRelative, // Not support now
 };
 
-// Use many magic numbers here. Just for convinience.
-struct Options {
-    Options();
+// NOTE: The unit of time related opts is ms.
+enum OptKey {
+    kOptPollEventTimeout,
+    kOptScrollRows,
+    kOptEscTimeout,
+    kOptCursorStartHoldingInterval,
+    kOptTabStop,
+    kOptTabSpace,
+    kOptAutoIndent,
+    kOptAutoPair,
+    kOptLineNumber,
+    kOptStatusLineSepWidth,
+    kOptCmpMenuMaxHeight,
+    kOptCmpMenuMaxWidth,
+    kOptEditHistoryMaxItem,
 
-    int poll_event_timeout_ms = -1;
-    int64_t scroll_rows_per_mouse_wheel_scroll = 3;
-    int escape_timeout_ms = 50;
+    kOptColorScheme,
 
-    int cursor_start_holding_interval_ms = 500;
+    __kOptKeyCount,
+};
 
-    std::vector<Terminal::AttrPair> attr_table;
+// Options have scope.
+// global scope options only store in a global table.
+// local scopt options stores not only in global table, but also in a local
+// table when needed, overiding global value of options.
+enum class OptScope {
+    kGlobal,
+    kWindow,
+    kBuffer,
+};
 
-    int tabstop = 4;
-    bool tabspace = true;
+// some info of an options.
+struct OptInfo {
+    OptScope scope;
+    Type type;
+};
 
-    bool auto_indent = true;
+using ColorScheme = Terminal::AttrPair*;
+using ColorSchemeElement = Terminal::AttrPair;
 
-    bool auto_pair = true;
+class Opts;
 
-    LineNumberType line_number = LineNumberType::kAboslute;
+// GlobalOpts is a class that represents all opts.
+class GlobalOpts {
+    friend Opts;
 
-    size_t status_line_left_indent = 2;
-    size_t status_line_right_indent = 2;
-    size_t status_line_sep_width = 2;
+   public:
+    // throw Json::exception, IOException, JsonException
+    // Do not handle them, which always means a bug and should fix
+    // default config.
+    GlobalOpts();
+    ~GlobalOpts();
 
-    size_t cmp_menu_max_height = 8;
-    size_t cmp_menu_max_width = 20;
+    bool IsUserConfigValid() { return user_config_valid_; }
 
-    // NOTE: must greater than 0
-    size_t buffer_hitstory_max_item_cnt = 50;
+    template <typename T>
+    T GetOpt(OptKey key) const {
+        if constexpr (std::is_same_v<T, bool>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kBool);
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kInteger);
+        } else if constexpr (std::is_pointer_v<T>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kPtr);
+        } else {
+            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
+                              "pointer types",
+                        false));
+        }
+
+        if constexpr (std::is_same_v<T, bool>) {
+            return static_cast<bool>(opts_[key]);
+        } else {
+            return reinterpret_cast<T>(opts_[key]);
+        }
+    }
+
+    template <typename T>
+    void SetOpt(OptKey key, T value) {
+        if constexpr (std::is_same_v<T, bool>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kBool);
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kInteger);
+        } else if constexpr (std::is_pointer_v<T>) {
+            MGO_ASSERT(opt_info_[key].type == Type::kPtr);
+        } else {
+            MGO_ASSERT(((void)"SetOpt<T> only supports T = bool, int64_t, or "
+                              "pointer types",
+                        false));
+        }
+
+        opts_[key] = reinterpret_cast<void*>(value);
+    }
+
+   private:
+    void* opts_[__kOptKeyCount];
+    std::unordered_map<zstring_view, std::unordered_map<OptKey, void*>>
+        filetype_opts_;
+    bool user_config_valid_ = false;
+
+   public:
+    const OptInfo* opt_info_;
+};
+
+// Opts is a option table that store some local opts.
+// Local opts will override global opts when it exist.
+// Now only window, mango_peel, buffer and frame use this.
+// Not use it if the current context don't need local opts.
+class Opts {
+   public:
+    Opts(GlobalOpts* global_options);
+
+    void InitAfterBufferLoad(const Buffer* buffer);
+
+    OptScope GetScope(OptKey key) const {
+        return global_opts_->opt_info_[key].scope;
+    }
+
+    template <typename T>
+    T GetOpt(OptKey key) const {
+        if constexpr (std::is_same_v<T, bool>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kBool);
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kInteger);
+        } else if constexpr (std::is_pointer_v<T>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kPtr);
+        } else {
+            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
+                              "pointer types",
+                        false));
+        }
+
+        MGO_ASSERT(OptScope::kGlobal != GetScope(key));
+
+        auto iter = opts_.find(key);
+        if (iter == opts_.end()) {
+            return global_opts_->GetOpt<T>(key);
+        }
+
+        if constexpr (std::is_same_v<T, bool>) {
+            return static_cast<bool>(iter->second);
+        } else {
+            return reinterpret_cast<T>(iter->second);
+        }
+    }
+
+    template <typename T>
+    void SetOpt(OptKey key, T value, bool global = false) {
+        if constexpr (std::is_same_v<T, bool>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kBool);
+        } else if constexpr (std::is_same_v<T, int64_t>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kInteger);
+        } else if constexpr (std::is_pointer_v<T>) {
+            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kPtr);
+        } else {
+            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
+                              "pointer types",
+                        false));
+        }
+
+        if (GetScope(key) == OptScope::kGlobal || global) {
+            global_opts_->SetOpt(key, value);
+            return;
+        }
+
+        opts_[key] = reinterpret_cast<void*>(value);
+    }
+
+   private:
+    std::unordered_map<OptKey, void*> opts_;
+
+   public:
+    GlobalOpts* global_opts_;
 };
 
 // Some options only useful when the program just starts
-struct InitOptions {
+struct InitOpts {
     std::vector<const char*> begin_files;
 };
-
 
 }  // namespace mango

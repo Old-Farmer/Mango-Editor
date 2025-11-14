@@ -31,21 +31,22 @@ This project uses CMake build system.
 
 Requirements:
 
-1. A C++ compiler which supports C++17
+1. A C++ compiler which supports C++17 (I use gcc, clang is not tested)
 2. CMake >= 3.22
-3. make or ninja
+3. Git
+4. make or ninja
 
 ```bash
-# Download/Update tree-sitter grammars
-./download-tree-sitter-grammars.sh third-party/tree-sitter-grammars
-
-# Debug
-mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make -j4
-# Release
-mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make -j4
+# Debug build
+mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j4
+# Release build
+mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j4
 
 # Execute app
 ./mgo
 # Execute test
 ./test
+
+# Package
+mkdir build && cd build && cmake --build . --target package -j4
 ```

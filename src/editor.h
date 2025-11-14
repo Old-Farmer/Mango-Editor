@@ -17,7 +17,7 @@
 
 namespace mango {
 
-struct InitOptions;
+struct InitOpts;
 struct Options;
 
 class Editor {
@@ -30,8 +30,8 @@ class Editor {
 
     // Make sure that options is static lifetime
     // throws TermException
-    void Loop(std::unique_ptr<Options> options,
-              std::unique_ptr<InitOptions> init_options);
+    void Loop(std::unique_ptr<GlobalOpts> global_opts,
+              std::unique_ptr<InitOpts> init_opts);
 
     static Editor& GetInstance();
 
@@ -101,7 +101,7 @@ class Editor {
     bool quit_ = false;
     bool have_event_ = true;
 
-    std::unique_ptr<Options> options_;
+    std::unique_ptr<GlobalOpts> global_opts_;
 
     // Cmp context
     std::function<void(size_t)> cmp_accept_callback_ = nullptr;

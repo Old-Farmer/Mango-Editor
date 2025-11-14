@@ -58,46 +58,50 @@ struct CharacterTypeCaptureNameMappingItem {
     std::vector<std::string_view> capture_names;
 };
 
-const std::vector<CharacterTypeCaptureNameMappingItem>
-    kCharacterTypeToTSQueryCaptureName = {
-        {kFunction, {"function", "funtion.special"}},
-        {kConstant, {"constant", "constant.builtin"}},
-        {kVariable, {"variable"}},
-        {kProperty, {"Property"}},
-        {kNumber, {"number"}},
-        {kTypeBuiltin, {"type.builtin"}},
-        {kType, {"type"}},
-        {kString, {"string", "string.special.key"}},
-        {kComment, {"comment"}},
-        {kOperator, {"operator"}},
-        {kKeyword, {"keyword", "variable.builtin"}},
-        {kDelimiter, {"delimiter"}},
-        {kLabel, {"label"}},
-};
-
 static void SyntaxParserStaticInit(
     const std::unordered_map<std::string_view, CharacterType>*&
         ts_query_capture_name_to_character_type) {
-    static std::unordered_map<std::string_view, CharacterType>
-        static_ts_query_capture_name_to_character_type;
+    static std::unordered_map<std::string_view, CharacterType>*
+        static_ts_query_capture_name_to_character_type = [] {
+            auto ret =
+                new std::unordered_map<std::string_view, CharacterType>();
+            const std::vector<CharacterTypeCaptureNameMappingItem>
+                kCharacterTypeToTSQueryCaptureName = {
+                    {kFunction, {"function", "funtion.special"}},
+                    {kConstant, {"constant", "constant.builtin"}},
+                    {kVariable, {"variable"}},
+                    {kProperty, {"Property"}},
+                    {kNumber, {"number"}},
+                    {kTypeBuiltin, {"type.builtin"}},
+                    {kType, {"type"}},
+                    {kString, {"string", "string.special.key"}},
+                    {kComment, {"comment"}},
+                    {kOperator, {"operator"}},
+                    {kKeyword, {"keyword", "variable.builtin"}},
+                    {kDelimiter, {"delimiter"}},
+                    {kLabel, {"label"}},
+                };
 
-    for (auto& c_type_to_query_name : kCharacterTypeToTSQueryCaptureName) {
-        for (std::string_view query_name : c_type_to_query_name.capture_names) {
-            static_ts_query_capture_name_to_character_type[query_name] =
-                c_type_to_query_name.t;
-        }
-    }
+            for (auto& c_type_to_query_name :
+                 kCharacterTypeToTSQueryCaptureName) {
+                for (std::string_view query_name :
+                     c_type_to_query_name.capture_names) {
+                    (*ret)[query_name] = c_type_to_query_name.t;
+                }
+            }
+            return ret;
+        }();
 
     ts_query_capture_name_to_character_type =
-        &static_ts_query_capture_name_to_character_type;
+        static_ts_query_capture_name_to_character_type;
 }
 
 }  // namespace
 
-SyntaxParser::SyntaxParser(Options* options)
+SyntaxParser::SyntaxParser(GlobalOpts* global_opts)
     : parser_(ts_parser_new()),
       query_cursor_(ts_query_cursor_new()),
-      options_(options) {
+      global_opts_(global_opts) {
     // TODO: refactor here
     filetype_to_language_["c"] = tree_sitter_c();
     filetype_to_language_["cpp"] = tree_sitter_cpp();
@@ -180,6 +184,8 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
     context.syntax_highlight.clear();
     context.syntax_priority.clear();
 
+    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
+
     while (true) {
         bool match_ok = ts_query_cursor_next_match(query_cursor_, &match);
         if (!match_ok) {
@@ -215,10 +221,10 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
             int64_t priority;
             auto iter = ts_query_capture_name_to_character_type_->find(name);
             if (iter == ts_query_capture_name_to_character_type_->end()) {
-                attr = options_->attr_table[kNormal];
+                attr = scheme[kNormal];
                 priority = -1;
             } else {
-                attr = options_->attr_table[iter->second];
+                attr = scheme[iter->second];
                 priority = match.captures[i].index;
             }
 
@@ -371,6 +377,11 @@ void SyntaxParser::InitQueryContex(TSQueryContext& query_context) {
 
 const SyntaxParser::TSQueryContext* SyntaxParser::GetQueryContext(
     zstring_view filetype) {
+    if (filetype.empty()) {
+        filetype_to_query_[""] = {nullptr, {}};
+        return nullptr;
+    }
+
     auto iter = filetype_to_query_.find(filetype);
     if (iter == filetype_to_query_.end()) {
         std::string query_file_path = QueryFilePath(filetype);

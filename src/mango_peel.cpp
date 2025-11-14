@@ -6,11 +6,14 @@
 
 namespace mango {
 
-MangoPeel::MangoPeel(Cursor* cursor, Options* options, ClipBoard* clipboard)
-    : frame_(&buffer_, cursor, options, nullptr, clipboard), buffer_(options) {
+MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
+                     ClipBoard* clipboard)
+    : buffer_(global_opts),
+      opts_(global_opts),
+      frame_(&buffer_, cursor, &opts_, nullptr, clipboard) {
     buffer_.Load();
-    // TODO: refactor it.
-    frame_.line_number_ = LineNumberType::kNone;
+
+    opts_.SetOpt(kOptLineNumber, static_cast<int64_t>(LineNumberType::kNone));
 }
 
 void MangoPeel::Draw() { frame_.Draw(); }

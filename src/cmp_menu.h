@@ -6,7 +6,7 @@
 #include "utils.h"
 namespace mango {
 
-class Options;
+class GlobalOpts;
 class Cursor;
 
 // CmpMenu is a menu that can show some entries. You can select and accept one.
@@ -15,7 +15,7 @@ class Cursor;
 // Make sure that cursor's s_col & s_row have already been calculated.
 class CmpMenu {
    public:
-    CmpMenu(Cursor* cursor, Options* options);
+    CmpMenu(Cursor* cursor, GlobalOpts* options);
     ~CmpMenu() = default;
 
     MGO_DELETE_COPY(CmpMenu);
@@ -49,7 +49,7 @@ class CmpMenu {
 
     bool visible_ = false;
 
-    Options* options_;
+    GlobalOpts* global_opts_;
     Cursor* cursor_;
     Terminal* term_ = &Terminal::GetInstance();
 };

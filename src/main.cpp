@@ -37,15 +37,14 @@ int main(int argc, char* argv[]) {
     Path::GetCwdSys();
     Path::GetAppRootSys();
 
-    LogInit(std::string(Path::GetAppRoot()) +
-            zstring_view_c_str(kloggingFilePath));
+    LogInit(kloggingFilePath);
 
     MGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
     MGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
 
-    auto options = std::make_unique<Options>();
-    auto init_options = std::make_unique<InitOptions>();
-    ParseCmdArgs(argc, argv, options.get(), init_options.get());
+    auto global_opts = std::make_unique<GlobalOpts>();
+    auto init_opts = std::make_unique<InitOpts>();
+    ParseCmdArgs(argc, argv, global_opts.get(), init_opts.get());
     Editor& editor = Editor::GetInstance();
-    editor.Loop(std::move(options), std::move(init_options));
+    editor.Loop(std::move(global_opts), std::move(init_opts));
 }

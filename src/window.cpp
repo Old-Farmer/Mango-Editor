@@ -9,15 +9,12 @@
 #include "syntax.h"
 
 namespace mango {
-Window::Window(Buffer* buffer, Cursor* cursor, Options* options,
+Window::Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
                SyntaxParser* parser, ClipBoard* clipboard) noexcept
-    : frame_(buffer, cursor, options, parser, clipboard),
-      cursor_(cursor),
-      options_(options),
-      parser_(parser) {
-    // TODO: refactor it better
-    frame_.line_number_ = options->line_number;
-}
+    : cursor_(cursor),
+      opts_(global_opts),
+      parser_(parser),
+      frame_(buffer, cursor, &opts_, parser, clipboard) {}
 
 void Window::Draw() { frame_.Draw(); }
 
@@ -74,7 +71,7 @@ void Window::DeleteAtCursor() {
         }
         range = {{cursor_->line - 1, buffer->GetLine(cursor_->line - 1).size()},
                  {cursor_->line, 0}};
-    } else if (options_->tabspace) {
+    } else if (GetOpt<bool>(kOptTabSpace)) {
         bool all_space = true;
         const std::string& line = buffer->GetLine(cursor_->line);
         for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
@@ -145,9 +142,9 @@ void Window::AddStringAtCursor(std::string str, bool raw) {
         return;
     }
 
-    if (options_->auto_indent && c == '\n') {
+    if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
         TryAutoIndent();
-    } else if (options_->auto_pair) {
+    } else if (GetOpt<bool>(kOptAutoPair)) {
         if (IsPair(c)) {
             TryAutoPair(std::move(str));
         } else {
@@ -206,13 +203,13 @@ void Window::TryAutoIndent() {
     // keep with this line's indent
     size_t i = 0;
     size_t cur_indent = 0;
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
     for (; i < line.size(); i++) {
         if (line[i] == kSpaceChar) {
             cur_indent++;
             indent.push_back(line[i]);
         } else if (line[i] == '\t') {
-            cur_indent =
-                (cur_indent / options_->tabstop + 1) * options_->tabstop;
+            cur_indent = (cur_indent / tabstop + 1) * tabstop;
             indent.push_back(line[i]);
         } else {
             break;
@@ -225,6 +222,7 @@ void Window::TryAutoIndent() {
     bool maunally_set_cursor_pos = false;
     str += indent;
     zstring_view ft = frame_.buffer_->filetype();
+    auto tabspace = GetOpt<int64_t>(kOptTabSpace);
     if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
         // traditional languages, try to check () {} []
         // e.g.
@@ -242,9 +240,9 @@ void Window::TryAutoIndent() {
                 break;
             }
 
-            if (options_->tabspace) {
+            if (tabspace) {
                 int need_space =
-                    (cur_indent / options_->tabstop + 1) * options_->tabstop -
+                    (cur_indent / tabstop + 1) * tabstop -
                     cur_indent;
                 str += std::string(need_space, kSpaceChar);
             } else {

@@ -63,7 +63,7 @@ class KeyseqManager {
                        std::vector<Terminal::KeyInfo>& keys);
 
    private:
-    std::vector<Node> roots_{static_cast<size_t>(Mode::_COUNT),
+    std::vector<Node> roots_{static_cast<size_t>(Mode::_kCount),
                              Node{true}};  // one tree per mode
 
     // keyseq state

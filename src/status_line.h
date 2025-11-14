@@ -6,14 +6,14 @@
 namespace mango {
 
 class Cursor;
-class Options;
+class GlobalOpts;
 enum class Mode;
 
 // the status line stay above the mango peel.
 // Only one row.
 class StatusLine {
    public:
-    StatusLine(Cursor* cursor, Options* options, Mode* mode);
+    StatusLine(Cursor* cursor, GlobalOpts* options, Mode* mode);
     ~StatusLine() = default;
     MGO_DELETE_COPY(StatusLine);
     MGO_DEFAULT_MOVE(StatusLine);
@@ -26,7 +26,7 @@ class StatusLine {
 
    private:
     Cursor* cursor_;
-    Options* options_;
+    GlobalOpts* global_opts_;
     Mode* mode_;
 
     Terminal* term_ = &Terminal::GetInstance();

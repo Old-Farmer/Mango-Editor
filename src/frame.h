@@ -19,8 +19,8 @@ class ClipBoard;
 // A Frame must associated with a buffer from rendering
 class Frame {
    public:
-    Frame() {}
-    Frame(Buffer* buffer, Cursor* cursor, Options* options,
+    Frame() = default;
+    Frame(Buffer* buffer, Cursor* cursor, Opts* opts,
           SyntaxParser* parser, ClipBoard* clipboard) noexcept;
     ~Frame() = default;
     MGO_DELETE_COPY(Frame);
@@ -81,6 +81,16 @@ class Frame {
     void SelectionCancell() { selection_.active = false; }
     void AfterModify(const Pos& cursor_pos);
 
+    template<typename T>
+    T GetOpt(OptKey key) {
+        if (opts_->GetScope(key) == OptScope::kGlobal) {
+            return opts_->global_opts_->GetOpt<T>(key);
+        }
+        if (opts_->GetScope(key) == OptScope::kBuffer) {
+            return buffer_->opts().GetOpt<T>(key);
+        }
+        return opts_->GetOpt<T>(key);
+    }
 
    public:
     size_t width_ = 0;
@@ -108,7 +118,7 @@ class Frame {
 
    private:
     SyntaxParser* parser_;
-    Options* options_;
+    Opts* opts_;
     Terminal* term_ = &Terminal::GetInstance();
 };
 

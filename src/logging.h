@@ -6,14 +6,11 @@
 #include <sstream>
 #include <string>
 
-#include "utils.h"
-
 namespace mango {
 
 extern FILE* logging_file;
 
-// TODO: build?
-constexpr zstring_view kloggingFilePath = "build/mango.log";
+extern const std::string kloggingFilePath;
 
 // throws LoggingException
 void LogInit(const std::string& file);

@@ -10,6 +10,9 @@ namespace mango {
 
 class Window;
 class Selection;
+class GlobalOpts;
+class Opts;
+class MangoPeel;
 
 enum class CursorState {
     kReleased,
@@ -38,6 +41,7 @@ struct Cursor {
     std::optional<size_t> b_view_col_want;
 
     Window* in_window;  // nullptr means in MangoPeel
+    MangoPeel* peel;
     Window* restore_from_peel = nullptr;
 
     // Cursor states

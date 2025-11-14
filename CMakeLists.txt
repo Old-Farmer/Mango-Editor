@@ -22,6 +22,8 @@ FetchContent_Declare(
     termbox2
     GIT_REPOSITORY "https://github.com/termbox/termbox2.git"
     GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/termbox2"
 )
 set(TERMBOX2_LIB "${THIRD_PARTY_DIR}/termbox2/libtermbox2.a")
@@ -32,34 +34,43 @@ add_custom_target(build_termbox2
     COMMENT "Building termbox2 library"
     BYPRODUCTS "${TERMBOX2_LIB}"
 )
+FetchContent_MakeAvailable(termbox2)
 
 # GSL
 FetchContent_Declare(GSL
     GIT_REPOSITORY "https://github.com/microsoft/GSL"
     GIT_TAG "v4.2.0"
     GIT_SHALLOW ON
+    GIT_PROGRESS ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/GSL"
 )
+FetchContent_MakeAvailable(GSL)
 
 # json
 FetchContent_Declare(json
     URL "https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz"
     SOURCE_DIR "${THIRD_PARTY_DIR}/json"
 )
+FetchContent_MakeAvailable(json)
 
 # catch2
 FetchContent_Declare(
     Catch2
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG        v3.8.1
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/Catch2"
 )
+FetchContent_MakeAvailable(Catch2)
 
 # tree-sitter
 FetchContent_Declare(
     treesitter
     GIT_REPOSITORY "https://github.com/tree-sitter/tree-sitter.git"
     GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/tree-sitter"
 )
 set(TREESITTER_LIB "${THIRD_PARTY_DIR}/tree-sitter/libtree-sitter.a")
@@ -70,6 +81,7 @@ add_custom_target(build_treesitter
     COMMENT "Building tree-sitter library"
     BYPRODUCTS "${TREESITTER_LIB}"
 )
+FetchContent_Populate(treesitter)
 
 # TODO: maybe we can use nvim-treesitter query?
 # FetchContent_Declare(
@@ -79,7 +91,27 @@ add_custom_target(build_treesitter
 #     SOURCE_DIR "${THIRD_PARTY_DIR}/nvim-treesitter"
 # )
 
-FetchContent_MakeAvailable(termbox2 GSL json Catch2 treesitter)
+# tree-sitter-grammars
+set(TS_GRAMMAR_LANGS
+    c
+    cpp
+    json
+)
+set(TS_GRAMMAR_DIR "${THIRD_PARTY_DIR}/tree-sitter-grammars")
+foreach(LANG IN LISTS TS_GRAMMAR_LANGS)
+    set(URL "https://github.com/tree-sitter/tree-sitter-${LANG}.git")
+    set(NAME ts_grammar_${LANG})
+    FetchContent_Declare(
+        ${NAME}
+        GIT_REPOSITORY ${URL}
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+        SOURCE_DIR "${TS_GRAMMAR_DIR}/tree-sitter-${LANG}"
+    ) 
+    # Use populate Instead of MakeAvailabe to avoid target conflicts.
+    FetchContent_Populate(${NAME})
+endforeach()
 
 # TODO: use ICU and support grapheme cluster
 # # ICU
@@ -111,12 +143,15 @@ target_sources(
   "${SRC_DIR}/editor.cpp"
   "${SRC_DIR}/exception.h"
   "${SRC_DIR}/exception.cpp"
+  "${SRC_DIR}/file.h"
+  "${SRC_DIR}/file.cpp"
   "${SRC_DIR}/filetype.h"
   "${SRC_DIR}/filetype.cpp"
   "${SRC_DIR}/frame.h"
   "${SRC_DIR}/frame.cpp"
   "${SRC_DIR}/fs.h"
   "${SRC_DIR}/fs.cpp"
+  "${SRC_DIR}/json.h"
   "${SRC_DIR}/keyseq_manager.h"
   "${SRC_DIR}/keyseq_manager.cpp"
   "${SRC_DIR}/logging.h"
@@ -145,14 +180,22 @@ target_sources(
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )
-# TODO: better script for more languages
-target_sources(
-  mango_lib PUBLIC
-  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-c/src/parser.c"
-  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-cpp/src/parser.c"
-  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-cpp/src/scanner.c"
-  "${THIRD_PARTY_DIR}/tree-sitter-grammars/tree-sitter-json/src/parser.c"
-)
+
+foreach(LANG IN LISTS TS_GRAMMAR_LANGS)
+    set(BASE "${TS_GRAMMAR_DIR}/tree-sitter-${LANG}/src")
+
+    list(APPEND TS_SOURCES "${BASE}/parser.c")
+
+    if(EXISTS "${BASE}/scanner.c")
+        list(APPEND TS_SOURCES "${BASE}/scanner.c")
+    endif()
+
+    if(EXISTS "${BASE}/scanner.cc")
+        list(APPEND TS_SOURCES "${BASE}/scanner.cc")
+    endif()
+endforeach()
+target_sources(mango_lib PUBLIC ${TS_SOURCES})
+
 target_link_libraries(
   mango_lib
   PUBLIC ${TERMBOX2_LIB} 
@@ -181,9 +224,18 @@ set(TEST_DIR "${CMAKE_SOURCE_DIR}/test")
 add_executable(test)
 target_sources(
   test PUBLIC
+  "${TEST_DIR}/json_test.cpp"
   "${TEST_DIR}/logging_test.cpp"
   "${TEST_DIR}/term_test.cpp"
   "${TEST_DIR}/xxx_manager_test.cpp"
   "${TEST_DIR}/utils_test.cpp"
 )
 target_link_libraries(test PUBLIC mango_lib Catch2::Catch2WithMain)
+
+# Package
+install(TARGETS mgo RUNTIME DESTINATION bin)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/resource/" DESTINATION resource)
+
+set(CPACK_PACKAGE_FILE_NAME "mango-editor-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}")
+set(CPACK_GENERATOR "ZIP")
+include(CPack)

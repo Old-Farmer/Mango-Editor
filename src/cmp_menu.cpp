@@ -6,8 +6,8 @@
 
 namespace mango {
 
-CmpMenu::CmpMenu(Cursor* cursor, Options* options)
-    : options_(options), cursor_(cursor) {}
+CmpMenu::CmpMenu(Cursor* cursor, GlobalOpts* global_opts)
+    : global_opts_(global_opts), cursor_(cursor) {}
 
 void CmpMenu::SetEntries(std::vector<std::string> entries) {
     entries_ = std::move(entries);
@@ -17,8 +17,9 @@ void CmpMenu::SetEntries(std::vector<std::string> entries) {
 
 void CmpMenu::DecideLocAndSize() {
     MGO_ASSERT(entries_.size() > menu_view_line_);
-    size_t shown_enties_cnt = std::min(options_->cmp_menu_max_height,
-                                       entries_.size() - menu_view_line_);
+    size_t shown_enties_cnt =
+        std::min<size_t>(global_opts_->GetOpt<int64_t>(kOptCmpMenuMaxHeight),
+                         entries_.size() - menu_view_line_);
 
     // Decide the menu above or below the cursor?
     // Prefer below cursor.
@@ -53,8 +54,9 @@ void CmpMenu::DecideLocAndSize() {
     }
     // should not be zero
     MGO_ASSERT(max_width != 0);
-    width_ = std::min(std::min(max_width, term_->Width() - col_),
-                      options_->cmp_menu_max_width);
+    width_ =
+        std::min<size_t>(std::min(max_width, term_->Width() - col_),
+                         global_opts_->GetOpt<int64_t>(kOptCmpMenuMaxWidth));
 }
 
 void CmpMenu::Draw() {
@@ -65,10 +67,11 @@ void CmpMenu::Draw() {
     DecideLocAndSize();
 
     MGO_LOG_DEBUG("cmp height %zu", height_);
+    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
     for (size_t r = 0; r < height_; r++) {
         const Terminal::AttrPair& attr = r + menu_view_line_ == menu_cursor_
-                                             ? options_->attr_table[kSelection]
-                                             : options_->attr_table[kMenu];
+                                             ? scheme[kSelection]
+                                             : scheme[kMenu];
 
         const std::string& str = entries_[menu_view_line_ + r];
         size_t offset = 0;

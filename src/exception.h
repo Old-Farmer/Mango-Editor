@@ -106,4 +106,11 @@ class OSException : public Exception {
     int error_code_;
 };
 
+class JsonException: public Exception {
+   public:
+    template <typename... Args>
+    JsonException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
 }  // namespace mango

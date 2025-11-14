@@ -12,129 +12,15 @@
 
 namespace mango {
 
-std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq) {
-    if (eol_seq == EOLSeq::kLF) {
-        os << kEOLSeqLFReqStr;
-    } else if (eol_seq == EOLSeq::kCRLF) {
-        os << kEOLSeqCRLFReqStr;
-    } else {
-        MGO_ASSERT(false);
-    }
-    return os;
-}
-
-File::File(const std::string& path, const char* mode,
-           bool create_if_not_exist) {
-    file_ = fopen(path.c_str(), mode);
-    if (file_ != nullptr) {
-        return;
-    }
-
-    if (!create_if_not_exist || errno != ENOENT) {
-        throw IOException("File %s can't open: %s", path.c_str(),
-                          strerror(errno));
-    }
-
-    file_ = fopen(path.c_str(), "w+");
-    if (file_ == nullptr) {
-        throw FileCreateException("File %s can't create: %s", path.c_str(),
-                                  strerror(errno));
-    }
-}
-
-File::~File() {
-    int ret = fclose(file_);
-    MGO_ASSERT(ret != EOF);
-}
-
-File::File(File&& other) noexcept : file_(other.file_) {
-    other.file_ = nullptr;
-}
-File& File::operator=(File&& other) noexcept {
-    if (&other == this) {
-        return *this;
-    }
-
-    if (file_ != nullptr) {
-        int ret = fclose(file_);
-        MGO_ASSERT(ret != EOF);
-    }
-    file_ = other.file_;
-    other.file_ = nullptr;
-    return *this;
-}
-
-Result File::ReadLine(std::string& buf, EOLSeq& eol_seq) {
-    int c;
-    Result res = kOk;
-    while (true) {
-        c = fgetc(file_);
-        if (c == EOF) {
-            if (feof(file_) != 0) {
-                res = kEof;
-                break;
-            }
-            throw IOException("%s", strerror(errno));
-        }
-        if (c == '\n') {
-            res = kOk;
-            if (buf.empty() || buf.back() != '\r') {
-                eol_seq = EOLSeq::kLF;
-            } else {
-                buf.pop_back();
-                eol_seq = EOLSeq::kCRLF;
-            }
-            break;
-        } else {
-            buf.push_back(c);
-        }
-    }
-    return res;
-}
-
-std::string File::ReadAll() {
-    constexpr size_t size = 4096;
-    char buf[size];
-    std::string ret;
-    while (true) {
-        size_t s = fread(buf, 1, size, file_);
-        ret.append(buf, s);
-        if (s < size) {
-            if (feof(file_)) {
-                return ret;
-            } else if (feof(file_)) {
-                throw IOException("%s", strerror(errno));
-            } else {
-                MGO_ASSERT(false);
-            }
-        }
-    }
-    return ret;
-}
-
-void File::Truncate(size_t size) {
-    int ret = ftruncate64(fileno(file_), size);
-    if (ret == -1) {
-        throw IOException("ftruncate64 error: %s", strerror(errno));
-    }
-}
-
-void File::Fsync() {
-    int ret = fsync(fileno(file_));
-    if (ret == -1) {
-        throw IOException("fsync error: %s", strerror(errno));
-    }
-}
-
 int64_t Buffer::cur_buffer_id_ = 0;
 
-Buffer::Buffer(Options* options) : options_(options) {}
+Buffer::Buffer(GlobalOpts* global_opts) : opts_(global_opts) {}
 
-Buffer::Buffer(Options* options, std::string path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only), options_(options) {}
+Buffer::Buffer(GlobalOpts* global_opts, std::string path, bool read_only)
+    : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
 
-Buffer::Buffer(Options* options, Path path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only), options_(options) {}
+Buffer::Buffer(GlobalOpts* global_opts, Path path, bool read_only)
+    : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
 
 void Buffer::Load() {
     try {
@@ -169,6 +55,8 @@ void Buffer::Load() {
         lines_.push_back({});  // ensure one empty line
         throw;
     }
+
+    opts_.InitAfterBufferLoad(this);
 }
 
 void Buffer::Clear() {
@@ -280,9 +168,6 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
             ts_edit_.start_byte = OffsetAndInvalidAfterPos(pos);
             ts_edit_.old_end_byte = ts_edit_.start_byte;
             ts_edit_.new_end_byte = ts_edit_.start_byte + str.size();
-            MGO_LOG_DEBUG("delete start,old_end,new_end byte: %u, %u, %u",
-                          ts_edit_.start_byte, ts_edit_.old_end_byte,
-                          ts_edit_.new_end_byte);
         }
     });
 
@@ -456,7 +341,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     }
 
     // No item in history, return fast
-    MGO_ASSERT(options_->buffer_hitstory_max_item_cnt > 0);
+    MGO_ASSERT(GetOpt<int64_t>(kOptEditHistoryMaxItem) > 0);
     if (edit_history_->size() == 0) {
         edit_history_->push_back(std::move(item));
         return;
@@ -486,7 +371,8 @@ void Buffer::Record(BufferEditHistoryItem item) {
     }
     // THINK IT: adjacent replaces need to be merged?
 
-    if (edit_history_->size() == options_->buffer_hitstory_max_item_cnt) {
+    if (edit_history_->size() ==
+        static_cast<size_t>(GetOpt<int64_t>(kOptEditHistoryMaxItem))) {
         edit_history_->pop_front();
     }
     edit_history_->push_back(std::move(item));
@@ -536,8 +422,9 @@ Result Buffer::Delete(const Range& range, const Pos* cursor_pos,
     return kOk;
 }
 
-Result Buffer::Replace(const Range& range, std::string str, const Pos* cursor_pos,
-                       bool use_given_pos_hint, Pos& cursor_pos_hint) {
+Result Buffer::Replace(const Range& range, std::string str,
+                       const Pos* cursor_pos, bool use_given_pos_hint,
+                       Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
     }

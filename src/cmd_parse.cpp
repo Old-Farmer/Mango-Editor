@@ -24,8 +24,8 @@ void PrintUsage(int status = EXIT_SUCCESS) {
 
 }  // namespace
 
-void ParseCmdArgs(int argc, char* argv[], Options* options,
-                  InitOptions* init_options) {
+void ParseCmdArgs(int argc, char* argv[], GlobalOpts* options,
+                  InitOpts* init_options) {
     const char* short_opts = "h";
     const option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},

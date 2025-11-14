@@ -29,7 +29,7 @@ struct SyntaxContext {
 
 class SyntaxParser {
    public:
-    SyntaxParser(Options* options);
+    SyntaxParser(GlobalOpts* options);
     ~SyntaxParser();
     MGO_DELETE_COPY(SyntaxParser);
     MGO_DELETE_MOVE(SyntaxParser);
@@ -84,7 +84,7 @@ class SyntaxParser {
     TSParser* parser_ = nullptr;
     TSQueryCursor* query_cursor_;
 
-    Options* options_;
+    GlobalOpts* global_opts_;
 };
 
 }  // namespace mango

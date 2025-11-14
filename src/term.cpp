@@ -23,8 +23,8 @@ void Terminal::InitEscKeyseq(KeyseqManager& m) {
                 {Mode::kNone});
 }
 
-void Terminal::Init(Options* options) {
-    options_ = options;
+void Terminal::Init(GlobalOpts* global_opts) {
+    global_opts_ = global_opts;
 
     esc_keyseq_manager_ = new KeyseqManager(mode_);
     InitEscKeyseq(*esc_keyseq_manager_);
@@ -43,6 +43,7 @@ void Terminal::Init(Options* options) {
     // Enable Bracketed Paste
     tb_sendf("\e[?2004h");
     tb_present();
+    init_ = true;
 }
 
 void Terminal::Shutdown() {
@@ -50,10 +51,8 @@ void Terminal::Shutdown() {
         delete esc_keyseq_manager_;
     }
 
-    if (!shutdown_) {
-        int ret;
-        ret = tb_shutdown();
-        MGO_ASSERT(ret == TB_OK);
+    if (init_) {
+        tb_shutdown();
 
         // Restore cursor
         // NOTE: only work on some terminals
@@ -62,7 +61,7 @@ void Terminal::Shutdown() {
         printf("\e[?2004l");
         fflush(stdout);
 
-        shutdown_ = true;
+        init_ = false;
         esc_keyseq_manager_ = nullptr;
     }
 }
@@ -110,9 +109,12 @@ bool Terminal::Poll(int timeout_ms) {
 
     left_events_.push_back(event_);
 
+    auto esc_timeout = global_opts_->GetOpt<int64_t>(kOptEscTimeout);
+    ;
+
     // Try the first following event
     auto start = std::chrono::steady_clock::now();
-    res = PollInner(options_->escape_timeout_ms);
+    res = PollInner(esc_timeout);
     if (!res) {
         return false;
     }
@@ -131,8 +133,8 @@ bool Terminal::Poll(int timeout_ms) {
         auto end = std::chrono::steady_clock::now();
         while (
             std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-                .count() < options_->escape_timeout_ms) {
-            if (!PollInner(options_->escape_timeout_ms)) {
+                .count() < esc_timeout) {
+            if (!PollInner(esc_timeout)) {
                 return false;
             }
             left_events_.push_back(event_);
@@ -150,7 +152,7 @@ bool Terminal::Poll(int timeout_ms) {
             if (EventIsKey(event_)) {
                 if (std::chrono::duration_cast<std::chrono::milliseconds>(end -
                                                                           start)
-                        .count() < options_->escape_timeout_ms) {
+                        .count() < esc_timeout) {
                     not_timeout = true;
                 }
                 break;

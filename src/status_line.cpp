@@ -5,19 +5,21 @@
 #include "buffer.h"
 #include "character.h"
 #include "cursor.h"
+#include "filetype.h"
 #include "options.h"
 #include "window.h"
 
 namespace mango {
 
-StatusLine::StatusLine(Cursor* cursor, Options* options, Mode* mode)
-    : cursor_(cursor), options_(options), mode_(mode) {}
+StatusLine::StatusLine(Cursor* cursor, GlobalOpts* global_opts, Mode* mode)
+    : cursor_(cursor), global_opts_(global_opts), mode_(mode) {}
 
 void StatusLine::Draw() {
     CharacterType t = kReverse;
 
-    term_->Print(0, row_, options_->attr_table[t],
-                 std::string(width_, kSpaceChar).c_str());
+    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
+
+    term_->Print(0, row_, scheme[t], std::string(width_, kSpaceChar).c_str());
 
     Buffer* b;
     if (IsPeel(*mode_)) {
@@ -31,8 +33,10 @@ void StatusLine::Draw() {
                                          b->path().ThisPath().size())) +
         BufferStateString[static_cast<int>(b->state())];
 
-    Result res = term_->Print(options_->status_line_left_indent, row_,
-                              options_->attr_table[t], cursor_in_info.c_str());
+    auto sep_width = global_opts_->GetOpt<int64_t>(kOptStatusLineSepWidth);
+
+    Result res =
+        term_->Print(sep_width, row_, scheme[t], cursor_in_info.c_str());
     if (res == kTermOutOfBounds) {
         ;
     }
@@ -48,12 +52,14 @@ void StatusLine::Draw() {
         character_in_line = cursor_->character_in_line;
     }
 
-    std::string sep(options_->status_line_sep_width, kSpaceChar);
-    ss << "  " << line << "," << character_in_line << sep << b->eol_seq();
+    std::string sep(sep_width, kSpaceChar);
+    ss << sep << line << "," << character_in_line << sep
+       << FiletypeStrRep(b->filetype()) << sep
+       << (b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:")
+       << b->opts().GetOpt<int64_t>(kOptTabStop) << sep << b->eol_seq();
     // all is ascii character, so str len == width
-    res = term_->Print(
-        width_ - ss.str().length() - options_->status_line_right_indent, row_,
-        options_->attr_table[t], ss.str().c_str());
+    res = term_->Print(width_ - ss.str().length() - sep_width, row_, scheme[t],
+                       ss.str().c_str());
     if (res == kTermOutOfBounds) {
         ;
     }

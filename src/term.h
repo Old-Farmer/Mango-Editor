@@ -27,7 +27,7 @@ inline void PrintTermErrorExit(int error) {
     exit(EXIT_FAILURE);
 }
 
-struct Options;
+class GlobalOpts;
 class KeyseqManager;
 
 class Terminal {
@@ -45,7 +45,7 @@ class Terminal {
     }
 
     // throws TermException
-    void Init(Options* options);
+    void Init(GlobalOpts* global_opts);
 
     // throws TermException
     void Shutdown();
@@ -378,9 +378,9 @@ class Terminal {
     KeyseqManager* esc_keyseq_manager_ = nullptr;
     Mode mode_ = Mode::kNone;  // const
 
-    bool shutdown_ = false;
+    bool init_ = false;
 
-    Options* options_;
+    GlobalOpts* global_opts_;
 };
 
 }  // namespace mango

@@ -25,6 +25,11 @@ class Path {
     static const std::string& GetCwd() noexcept;
     static const std::string& GetAppRoot() noexcept;
 
+    // throw Exception if home can't be detected
+    static std::string GetConfig();
+    static std::string GetCache();
+    static std::string GetHome();
+
     // throws FSException
     static const std::string& GetCwdSys();
     static const std::string& GetAppRootSys();

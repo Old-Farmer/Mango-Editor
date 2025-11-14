@@ -1,5 +1,6 @@
 #include "fs.h"
 
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <cstring>
@@ -9,6 +10,9 @@
 #include "utils.h"
 
 namespace mango {
+
+static constexpr const char* kXDGConfigHomeEnv = "XDG_CONFIG_HOME";
+static constexpr const char* kXDGCacheHomeEnv = "XDG_CACHE_HOME";
 
 Path::Path() {}
 
@@ -53,6 +57,42 @@ const std::string& Path::AbsolutePath() const noexcept {
 const std::string& Path::GetCwd() noexcept { return cwd_; }
 
 const std::string& Path::GetAppRoot() noexcept { return app_root_; }
+
+std::string Path::GetConfig() {
+    const char* env = getenv(kXDGConfigHomeEnv);
+    std::string path;
+    if (env == nullptr) {
+        path = GetHome() + kPathSeperator + ".config" + kPathSeperator;
+    } else {
+        path = std::string(env) + kPathSeperator;
+    }
+    mkdir(path.c_str(), 755);  // best effort, ignore ret
+    return path;
+}
+
+std::string Path::GetCache() {
+    static std::string path = [] {
+        const char* env = getenv(kXDGCacheHomeEnv);
+        std::string path;
+        if (env == nullptr) {
+            path = GetHome() + kPathSeperator + ".cache" + kPathSeperator;
+        } else {
+            path = std::string(env) + kPathSeperator;
+        }
+        mkdir(path.c_str(), 755);  // best effort, ignore ret
+        return path;
+    }();
+    return path;
+}
+
+std::string Path::GetHome() {
+    const char* env = getenv("HOME");
+    // TODO: better home detection?
+    if (env == nullptr) {
+        throw Exception("%s", "HOME detection fail");
+    }
+    return env;
+}
 
 const std::string& Path::GetCwdSys() {
     cwd_version_++;

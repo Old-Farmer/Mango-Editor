@@ -6,7 +6,7 @@ namespace mango {
 
 // Parse command line arguments and resuls will be written in options.
 // If some error occurs or -h(--help) is in args, this function just calls exit.
-void ParseCmdArgs(int argc, char* argv[], Options* options,
-                  InitOptions* init_options);
+void ParseCmdArgs(int argc, char* argv[], GlobalOpts* options,
+                  InitOpts* init_options);
 
 }  // namespace mango
