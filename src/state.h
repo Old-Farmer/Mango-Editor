@@ -15,19 +15,21 @@ enum class BufferState : int {
     kCannotRead = 2,
     kHaveNotRead = 3,
     kCannotCreate = 4,
-    kReadOnly = 5
+    kReadOnly = 5,
+    kCodingInvalid = 6,
 };
 
-constexpr const char* BufferStateString[] = {"[Modified]",    "",
-                                             "[Can't Read]",  "[Haven't Read]",
-                                             "[Can' Create]", "[Read Only]"};
+constexpr const char* BufferStateString[] = {
+    "[Modified]",       "",
+    "[Can't Read]",     "[Haven't Read]",
+    "[Can' Create]",    "[Read Only]",
+    "[Coding Invalid]",
+};
 
 enum class Mode : int {
     kEdit = 0,
     kPeelCommand,  // user is inputting sth
     kPeelShow,     // peel shows some multirow output
-    kFind,
-    kCmp,
 
     kNone,
     _kCount,  // not mode, just for count

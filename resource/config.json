@@ -7,6 +7,7 @@
     "cmp_menu_max_height": 8,
     "cmp_menu_max_width": 20,
     "edit_history_max_item": 50,
+    "basic_word_completion": false,
 
     "tab_stop": 4,
     "tab_space": true,

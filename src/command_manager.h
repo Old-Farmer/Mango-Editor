@@ -34,7 +34,7 @@ class CommandManager {
     void RemoveCommand(const std::string& name);
     // return 
     // kOk
-    // kCommandNotExist,
+    // kNotExist,
     // kCommandInvalidArgs,
     Result EvalCommand(const std::string& str, CommandArgs args,
                        Command*& command);

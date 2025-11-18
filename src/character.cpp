@@ -1,98 +1,166 @@
 #include "character.h"
 
-#include <inttypes.h>
-
-#include "term.h"
-
 namespace mango {
+
+int Character::Width() {
+    MGO_ASSERT(!codepoints_.empty());
+    return CharacterWidth(codepoints_.data(), codepoints_.size());
+}
+
+int CharacterWidth(const Codepoint* codepoints, size_t cnt) {
+    // TODO: I haven't decide a totally right way to calc character width,
+    // use the following appraoch as a tmp workaround.
+    // ref:
+    // https://github.com/jameslanska/unicode-display-width
+    // https://github.com/helix-editor/helix/issues/6012
+    // https://github.com/kovidgoyal/kitty/issues/5047
+    // https://mitchellh.com/writing/grapheme-clusters-in-terminals
+    //
+    // https://hexdocs.pm/string_width/internals.html#:~:text=The%20width%20of%20a%20grapheme,codepoint%2C%20its%20width%20is%20wide.
+    if (cnt == 1) {
+        return utf8proc_charwidth(codepoints[0]);
+    }
+
+    int width = 0;
+    for (size_t i = 0; i < cnt; i++) {
+        width = std::max(utf8proc_charwidth(codepoints[0]), width);
+    }
+    return width;
+}
 
 bool IsUtf8BeginByte(char b) {
     return (static_cast<std::byte>(b) >> 6) != static_cast<std::byte>(0b10);
 }
 
-Result NextCharacterInUtf8(const std::string& str, int64_t offset,
-                           std::vector<uint32_t>& character, int& byte_len,
-                           int* width) {
-    character.resize(1);
-    byte_len = Utf8ToUnicode(&str[offset], character[0]);
-    if (byte_len < 0) {
-        byte_len = -byte_len;
-        character[0] = kReplacementChar;
-        if (width) *width = 1;
-        MGO_LOG_INFO("Meet error character in buffer");
-        return kOk;
-    }
-    if (width) {
-        *width = Terminal::WCWidth(character[0]);
-        if (*width <= 0) {
-            MGO_LOG_INFO(
-                "Meet non-printable or wcwidth == 0 character \\U%08" PRIx32
-                " in buffer, width = %d",
-                character[0], *width);
-            *width = 1;
-            if (character[0] == '\t') {
-                ;
-            } else {
-                character[0] = kReplacementChar;
-            }
+bool CheckUtf8Valid(std::string_view str) {
+    size_t offset = 0;
+    size_t end_offset = str.size();
+    Codepoint codepoint;
+    while (offset < end_offset) {
+        int byte_len;
+        if (kInvalidCoding == Utf8ToUnicode(&str[offset], end_offset - offset,
+                                            byte_len, codepoint)) {
+            return false;
         }
+        offset += byte_len;
     }
+    return true;
+}
+
+Result ThisCharacterInUtf8(std::string_view str, int64_t offset,
+                           Character& character, int& byte_len) {
+    MGO_ASSERT(static_cast<size_t>(offset) < str.size());
+
+    character.Clear();
+    Codepoint codepoint;
+    Codepoint last_codepoint;
+    utf8proc_int32_t state = 0;
+    int64_t cur_offset = offset;
+    int64_t end_offset = str.size();
+    while (cur_offset < end_offset) {
+        int byte_eat;
+        Result res = Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
+        MGO_ASSERT(kOk == res);
+        if (character.CodePointCount() == 0) {
+            character.Push(codepoint);
+        } else {
+            utf8proc_bool is_break = utf8proc_grapheme_break_stateful(
+                last_codepoint, codepoint, &state);
+            if (is_break) {
+                break;
+            }
+            character.Push(codepoint);
+        }
+        last_codepoint = codepoint;
+        cur_offset += byte_eat;
+    }
+    byte_len = cur_offset - offset;
     return kOk;
 }
 
-Result PrevCharacterInUtf8(const std::string& str, int64_t offset,
-                           std::vector<uint32_t>& character, int& byte_len,
-                           int* width) {
-    size_t origin_offset = offset;
-    character.resize(1);
-    offset--;
-    while (offset >= 0) {
-        if (IsUtf8BeginByte(str[offset])) {
-            byte_len = Utf8ToUnicode(&str[offset], character[0]);
-            if (byte_len < 0) {
-                byte_len = -byte_len;
-                character[0] = kReplacementChar;
-                if (width) *width = 1;
-                MGO_LOG_INFO("Meet error character in buffer");
-                return kOk;
-            }
-            if (width) {
-                *width = Terminal::WCWidth(character[0]);
-                if (*width <= 0) {
-                    MGO_LOG_INFO(
-                        "Meet non-printable or wcwidth == 0 character "
-                        "\\U%08" PRIx32 " in buffer, width = %d",
-                        character[0], *width);
-                    *width = 1;
-                    if (character[0] == '\t') {
-                        ;
-                    } else {
-                        character[0] = kReplacementChar;
+Result PrevCharacterInUtf8(std::string_view str, int64_t offset,
+                           Character& character, int& byte_len) {
+    MGO_ASSERT(offset > 0);
+
+    character.Clear();
+    int64_t cur_offset = offset;
+    cur_offset--;
+    int byte_eat;
+    std::vector<Codepoint> codepoints_reverse;
+    std::vector<int64_t> offset_reverse;
+    utf8proc_int32_t state;
+    while (cur_offset >= 0) {
+        if (IsUtf8BeginByte(str[cur_offset])) {
+            Codepoint codepoint;
+            Result res =
+                Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
+            MGO_ASSERT(res == kOk);
+            if (!codepoints_reverse.empty()) {
+                // Safe as a state 0 grapheme break check.
+                // See
+                // https://github.com/JuliaStrings/utf8proc/discussions/314#discussioncomment-14983853
+                // A lot of codepoint is other bound class, including ascii
+                // and chinese, so it will be likey to stop early.
+                if (utf8proc_get_property(codepoint)->boundclass ==
+                    UTF8PROC_BOUNDCLASS_OTHER) {
+                    state = 0;
+                    if (utf8proc_grapheme_break_stateful(
+                            codepoint, codepoints_reverse.back(), &state)) {
+                        break;
                     }
                 }
             }
-            break;
+            codepoints_reverse.push_back(codepoint);
+            offset_reverse.push_back(cur_offset);
         }
-        offset--;
+        cur_offset--;
     }
-    if (offset < 0) {
-        byte_len = origin_offset;
-        character[0] = kReplacementChar;
+
+    // Impossible becasue we assume coding is correct.
+    MGO_ASSERT(!codepoints_reverse.empty());
+
+    // We have found a break or we touch the beginning of the str,
+    // we start find the last break before offset starting from the
+    // codepoint_reverse.back().
+
+    // Only one codepoint, fast return, most case.
+    if (codepoints_reverse.size() == 1) {
+        character.Push(codepoints_reverse.back());
+        byte_len = offset - offset_reverse.back();
+        return kOk;
     }
+
+    state = 0;
+    int last_break = -1;
+    for (int i = codepoints_reverse.size() - 2; i >= 0; i--) {
+        if (utf8proc_grapheme_break_stateful(codepoints_reverse[i + 1],
+                                             codepoints_reverse[i], &state)) {
+            last_break = i;
+            state = 0;
+        }
+    }
+    if (last_break == -1) {
+        last_break = codepoints_reverse.size() - 1;
+    }
+    for (int i = last_break; i >= 0; i--) {
+        character.Push(codepoints_reverse[i]);
+    }
+    byte_len = offset - offset_reverse[last_break];
     return kOk;
 }
 
-Result NextWord(const std::string& str, size_t offset,
-                size_t& next_word_offset) {
-    std::vector<uint32_t> character;
+bool IsWordCharacter(char c) { return c == '_' || isalnum(c); }
+
+Result NextWordBegin(const std::string& str, size_t offset,
+                     size_t& next_word_offset) {
+    Character character;
     int byte_len;
     bool found_non_word_character = false;
     while (offset < str.size()) {
-        Result res =
-            NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
+        Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
-        if (character[0] <= CHAR_MAX &&
-            (str[offset] == '_' || isalnum(str[offset]))) {
+        char c;
+        if (character.Ascii(c) && IsWordCharacter(c)) {
             if (found_non_word_character) {
                 next_word_offset = offset;
                 return kOk;
@@ -106,20 +174,19 @@ Result NextWord(const std::string& str, size_t offset,
     return kOk;
 }
 
-Result NextWordEnd(const std::string& str, size_t offset,
-                   bool one_more_character, size_t& next_word_end_offset) {
-    std::vector<uint32_t> character;
+Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
+               size_t& next_word_end_offset) {
+    Character character;
     int byte_len;
     bool found_word_character = false;
-    Result res = NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
+    Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
     MGO_ASSERT(res == kOk);
     offset += byte_len;
     while (offset < str.size()) {
-        Result res =
-            NextCharacterInUtf8(str, offset, character, byte_len, nullptr);
+        Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
-        if (character[0] <= CHAR_MAX &&
-            (str[offset] == '_' || isalnum(str[offset]))) {
+        char c;
+        if (character.Ascii(c) && IsWordCharacter(c)) {
             found_word_character = true;
         } else {
             if (found_word_character) {
@@ -145,24 +212,23 @@ Result NextWordEnd(const std::string& str, size_t offset,
     return kOk;
 }
 
-Result PrevWord(const std::string& str, size_t offset,
-                size_t& prev_word_offset) {
+Result WordBegin(const std::string& str, size_t offset,
+                 size_t& prev_word_offset) {
     if (offset == 0) {
         prev_word_offset = 0;
         return kOk;
     }
 
     int64_t inner_offset = offset;
-    std::vector<uint32_t> character;
+    Character character;
     int byte_len;
     bool found_word_character = false;
     while (inner_offset > 0) {
-        Result res = PrevCharacterInUtf8(str, inner_offset, character, byte_len,
-                                         nullptr);
+        Result res =
+            PrevCharacterInUtf8(str, inner_offset, character, byte_len);
         MGO_ASSERT(res == kOk);
-        if (character[0] <= CHAR_MAX &&
-            (str[inner_offset - byte_len] == '_' ||
-             isalnum(str[inner_offset - byte_len]))) {
+        char c;
+        if (character.Ascii(c) && IsWordCharacter(c)) {
             found_word_character = true;
         } else {
             if (found_word_character) {
@@ -172,8 +238,32 @@ Result PrevWord(const std::string& str, size_t offset,
         }
         inner_offset -= byte_len;
     }
-    prev_word_offset = 0;
+    if (found_word_character) {
+        prev_word_offset = 0;
+        return kOk;
+    } else {
+        prev_word_offset = 0;
+        return kNotExist;
+    }
     return kOk;
+}
+
+size_t StringWidth(const std::string& str) {
+    Character character;
+    size_t offset = 0;
+    size_t width = 0;
+    while (offset < str.size()) {
+        int len;
+        Result res = ThisCharacterInUtf8(str, offset, character, len);
+        MGO_ASSERT(res == kOk);
+        int character_width = character.Width();
+        if (character_width <= 0) {
+            character_width = kReplacementCharWidth;
+        }
+        offset += len;
+        width += character_width;
+    }
+    return width;
 }
 
 }  // namespace mango

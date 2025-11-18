@@ -40,7 +40,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
     // TODO: maybe use cpp-20 heterogeneous lookups for better performance
     auto iter = commands_.find(std::string(splitted_str[0]));
     if (iter == commands_.end()) {
-        return kCommandNotExist;
+        return kNotExist;
     }
 
     Command& c = iter->second;

@@ -39,7 +39,9 @@ static int64_t LocateInPos(const std::vector<Highlight>& highlight,
 
 void Frame::Draw() {
     MGO_ASSERT(buffer_ != nullptr);
-    MGO_ASSERT(buffer_->IsLoad());
+    if (!buffer_->IsLoad()) {
+        return;
+    }
 
     int64_t highlight_i = -1;
     const std::vector<Highlight>* syntax_highlight = nullptr;
@@ -91,7 +93,7 @@ void Frame::Draw() {
             size_t b_view_r = win_r + b_view_line_;
 
             if (line_cnt <= b_view_r) {
-                uint32_t codepoint = '~';
+                Codepoint codepoint = '~';
                 term_->SetCell(s_col_for_file_content, screen_r, &codepoint, 1,
                                scheme[kNormal]);
                 continue;
@@ -110,19 +112,23 @@ void Frame::Draw() {
                 }
             }
             const std::string& cur_line = buffer_->GetLine(b_view_r);
-            std::vector<uint32_t> character;
+            Character character;
             size_t cur_b_view_c = 0;
             size_t offset = 0;
             while (offset < cur_line.size()) {
                 int character_width;
                 int byte_len;
-                Result res = NextCharacterInUtf8(cur_line, offset, character,
-                                                 byte_len, &character_width);
+                Result res =
+                    ThisCharacterInUtf8(cur_line, offset, character, byte_len);
                 MGO_ASSERT(res == kOk);
+                character_width = character.Width();
+                // character_width = 3;
                 if (cur_b_view_c < b_view_col_) {
                     ;
                 } else if (cur_b_view_c >= b_view_col_ &&
-                           cur_b_view_c + character_width <=
+                           cur_b_view_c + (character_width <= 0
+                                               ? 1
+                                               : character_width) <=
                                width_for_file_content + b_view_col_) {
                     // Decide attr
                     Terminal::AttrPair attr;
@@ -142,37 +148,57 @@ void Frame::Draw() {
                         }
                     }
 
-                    if (character[0] == '\t') {
-                        int space_count = tabstop - cur_b_view_c % tabstop;
-                        while (space_count > 0 &&
-                               cur_b_view_c + 1 <=
-                                   width_for_file_content + b_view_col_) {
-                            int screen_c = cur_b_view_c - b_view_col_ +
-                                           s_col_for_file_content;
-                            uint32_t space = kSpaceChar;
-                            // Just in view, render the character
-                            int ret = term_->SetCell(screen_c, screen_r, &space,
-                                                     1, attr);
-                            if (ret == kTermOutOfBounds) {
-                                // User resize the screen now, just skip the
-                                // left cols in this row
-                                break;
+                    if (character_width <= 0) {
+                        // we meet unprintable or zero-width character
+                        char c;
+                        if (character.Ascii(c) && c == '\t') {
+                            int space_count = tabstop - cur_b_view_c % tabstop;
+                            while (space_count > 0 &&
+                                   cur_b_view_c + 1 <=
+                                       width_for_file_content + b_view_col_) {
+                                int screen_c = cur_b_view_c - b_view_col_ +
+                                               s_col_for_file_content;
+                                Codepoint space = kSpaceChar;
+                                // Just in view, render the character
+                                int ret = term_->SetCell(screen_c, screen_r,
+                                                         &space, 1, attr);
+                                if (ret == kTermOutOfBounds) {
+                                    // User resize the screen now, just skip the
+                                    // left cols in this row
+                                    break;
+                                }
+                                space_count--;
+                                cur_b_view_c++;
                             }
-                            space_count--;
-                            cur_b_view_c++;
+                            character_width = 0;
+                        } else {
+                            MGO_LOG_INFO(
+                                "Meet non-printable or wcwidth == 0 character");
+                            character.Clear();
+                            character.Push(kReplacementChar);
+                            character_width = kReplacementCharWidth;
                         }
-                        character_width = 0;
-                    } else {
+                    }
+                    if (character_width > 0) {
                         int screen_c =
                             cur_b_view_c - b_view_col_ + s_col_for_file_content;
 
+                        // std::stringstream ss;
+                        // ss << "render "
+                        //    << std::string_view(cur_line.c_str() + offset,
+                        //                        byte_len)
+                        //    << "in col: " << screen_c << ", row: " << screen_r
+                        //    << ", width: " << character_width;
+                        // MGO_LOG_DEBUG("%s", ss.str().c_str());
+
                         // Just in view, render the character
-                        int ret =
-                            term_->SetCell(screen_c, screen_r, character.data(),
-                                           character.size(), attr);
+                        Result ret = term_->SetCell(
+                            screen_c, screen_r, character.Codepoints(),
+                            character.CodePointCount(), attr);
                         if (ret == kTermOutOfBounds) {
                             // User resize the screen now, just skip the left
                             // cols in this row
+                            MGO_LOG_DEBUG("Out of bound");
                             break;
                         }
                     }
@@ -208,22 +234,25 @@ void Frame::MakeCursorVisible() {
     size_t row = cursor_->line;
 
     const std::string& cur_line = buffer_->GetLine(cursor_->line);
-    std::vector<uint32_t> character;
+    Character character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
     cursor_->character_in_line = 0;
     while (offset < cursor_->byte_offset) {
-        int character_width;
         int byte_len;
-        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         &character_width);
+        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         offset += byte_len;
-        if (character[0] == '\t') {
-            cur_b_view_c += tabstop - cur_b_view_c % tabstop;
-        } else {
-            cur_b_view_c += character_width;
+        int character_width = character.Width();
+        if (character_width <= 0) {
+            char c;
+            if (character.Ascii(c) && c == '\t') {
+                character_width = tabstop - cur_b_view_c % tabstop;
+            } else {
+                character_width = kReplacementCharWidth;
+            }
         }
+        cur_b_view_c += character_width;
         cursor_->character_in_line++;
     }
 
@@ -259,15 +288,22 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
     size_t cur_b_view_line = cursor_->line;
     size_t target_b_view_col = b_view_col;
     const std::string& cur_line = buffer_->GetLine(cur_b_view_line);
-    std::vector<uint32_t> character;
+    Character character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
     while (offset < cur_line.size()) {
-        int character_width;
         int byte_len;
-        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         &character_width);
+        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
+        int character_width = character.Width();
+        if (character_width <= 0) {
+            char c;
+            if (character.Ascii(c) && c == '\t') {
+                character_width = tabstop - cur_b_view_c % tabstop;
+            } else {
+                character_width = kReplacementCharWidth;
+            }
+        }
         if (cur_b_view_c <= target_b_view_col &&
             target_b_view_col < cur_b_view_c + character_width) {
             cursor_->line = cur_b_view_line;
@@ -275,11 +311,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
             return cur_b_view_c;
         }
         offset += byte_len;
-        if (character[0] == '\t') {
-            cur_b_view_c += tabstop - cur_b_view_c % tabstop;
-        } else {
-            cur_b_view_c += character_width;
-        }
+        cur_b_view_c += character_width;
     }
     cursor_->byte_offset = offset;
     return cur_b_view_c;
@@ -348,11 +380,10 @@ void Frame::CursorGoRight() {
         return;
     }
 
-    std::vector<uint32_t> charater;
+    Character charater;
     int len;
-    Result ret =
-        NextCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                            cursor_->byte_offset, charater, len, nullptr);
+    Result ret = ThisCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                                     cursor_->byte_offset, charater, len);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset += len;
     SelectionFollowCursor();
@@ -367,11 +398,10 @@ void Frame::CursorGoLeft() {
         return;
     }
 
-    std::vector<uint32_t> charater;
+    Character charater;
     int len;
-    Result ret =
-        PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                            cursor_->byte_offset, charater, len, nullptr);
+    Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                                     cursor_->byte_offset, charater, len);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
 
@@ -431,8 +461,8 @@ void Frame::CursorGoNextWordEnd(bool one_more_character) {
         cursor_->byte_offset = 0;
         cur_line = &buffer_->GetLine(cursor_->line);
     }
-    Result res = NextWordEnd(*cur_line, cursor_->byte_offset,
-                             one_more_character, cursor_->byte_offset);
+    Result res = WordEnd(*cur_line, cursor_->byte_offset, one_more_character,
+                         cursor_->byte_offset);
     MGO_ASSERT(res == kOk);
     cursor_->DontHoldColWant();
     SelectionFollowCursor();
@@ -450,8 +480,8 @@ void Frame::CursorGoPrevWord() {
         cursor_->byte_offset = cur_line->size();
     }
     Result res =
-        PrevWord(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
-    MGO_ASSERT(res == kOk);
+        WordBegin(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
+    MGO_ASSERT(res == kOk || res == kNotExist);
     cursor_->DontHoldColWant();
     SelectionFollowCursor();
 }
@@ -489,9 +519,9 @@ void Frame::DeleteWordBeforeCursor() {
     } else {
         deleted_until = cursor_->ToPos();
     }
-    Result res = PrevWord(*cur_line, deleted_until.byte_offset,
-                          deleted_until.byte_offset);
-    MGO_ASSERT(res == kOk);
+    Result res = WordBegin(*cur_line, deleted_until.byte_offset,
+                           deleted_until.byte_offset);
+    MGO_ASSERT(res == kOk || res == kNotExist);
     Pos pos;
     if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
                         nullptr, pos) != kOk) {
@@ -508,6 +538,22 @@ void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
     }
 }
 
+Result Frame::Replace(const Range& range, std::string str,
+                      const Pos* cursor_pos) {
+    Pos pos;
+    if (cursor_pos != nullptr) {
+        pos = *cursor_pos;
+    }
+    Pos cur_cursor_pos = {cursor_->line, cursor_->byte_offset};
+    Result res = buffer_->Replace(range, std::move(str), &cur_cursor_pos,
+                                  cursor_pos != nullptr, pos);
+    if (res != kOk) {
+        return res;
+    }
+    AfterModify(pos);
+    return kOk;
+}
+
 void Frame::TabAtCursor() {
     // TODO: support tab when selection
     selection_.active = false;
@@ -520,15 +566,22 @@ void Frame::TabAtCursor() {
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
     int64_t cur_b_view_row = cursor_->line;
     const std::string& cur_line = buffer_->GetLine(cur_b_view_row);
-    std::vector<uint32_t> character;
+    Character character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
     while (offset < cursor_->byte_offset) {
-        int character_width;
         int byte_len;
-        Result res = NextCharacterInUtf8(cur_line, offset, character, byte_len,
-                                         &character_width);
+        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
+        int character_width = character.Width();
+        if (character_width <= 0) {
+            char c;
+            if (character.Ascii(c) && c == '\t') {
+                character_width = tabstop - cur_b_view_c % tabstop;
+            } else {
+                character_width = kReplacementCharWidth;
+            }
+        }
         offset += byte_len;
         cur_b_view_c += character_width;
     }
@@ -574,10 +627,16 @@ void Frame::Copy() {
 
 void Frame::Paste() {
     bool lines;
+    std::string content = clipboard_->GetContent(lines);
+    if (content.empty()) {
+        // Nothing in clipboard, do nothing at all.
+        // TODO: when error codition occur,
+        // content will also be empty, maybe a notification mechansim?
+        return;
+    }
     if (selection_.active) {
-        ReplaceSelection(clipboard_->GetContent(lines));
+        ReplaceSelection(std::move(content));
     } else {
-        std::string content = clipboard_->GetContent(lines);
         Pos pos;
         if (lines) {
             Pos cursor_pos = cursor_->ToPos();
@@ -631,11 +690,10 @@ void Frame::DeleteCharacterBeforeCursor() {
             {cursor_->line - 1, buffer_->GetLine(cursor_->line - 1).size()},
             {cursor_->line, 0}};
     } else {
-        std::vector<uint32_t> charater;
+        Character charater;
         int len;
-        Result ret =
-            PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                cursor_->byte_offset, charater, len, nullptr);
+        Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
+                                         cursor_->byte_offset, charater, len);
         MGO_ASSERT(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};
@@ -672,16 +730,9 @@ void Frame::AddStringAtCursorNoSelection(std::string str,
 }
 
 void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
-    Pos pos;
-    if (cursor_pos != nullptr) {
-        pos = *cursor_pos;
-    }
-    Pos cur_cursor_pos = {cursor_->line, cursor_->byte_offset};
-    if (buffer_->Replace(selection_.ToRange(), std::move(str), &cur_cursor_pos,
-                         cursor_pos != nullptr, pos) != kOk) {
+    if (Replace(selection_.ToRange(), std::move(str), cursor_pos) != kOk) {
         return;
     }
-    AfterModify(pos);
     SelectionCancell();
 }
 

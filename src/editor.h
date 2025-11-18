@@ -40,9 +40,9 @@ class Editor {
 
     void GotoPeel();
     void ExitFromMode();
-    void TriggerCmp(std::function<void(size_t)> accept_call_back,
-                    std::function<void(void)> cancel_call_back,
-                    std::vector<std::string> entries);
+    void TriggerCompletionAndSetContext(Completer* completer, bool autocmp);
+    void CancellCompletion();
+    bool CompletionTriggered();
     void SearchNext();
     void SearchPrev();
 
@@ -104,9 +104,8 @@ class Editor {
     std::unique_ptr<GlobalOpts> global_opts_;
 
     // Cmp context
-    std::function<void(size_t)> cmp_accept_callback_ = nullptr;
-    std::function<void()> cmp_cancel_callback_ = nullptr;
     Mode mode_trigger_cmp_;
+    Completer* tmp_completer_;
 
     Terminal& term_ = Terminal::GetInstance();
 };

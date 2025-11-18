@@ -23,6 +23,15 @@ Buffer::Buffer(GlobalOpts* global_opts, Path path, bool read_only)
     : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
 
 void Buffer::Load() {
+    auto _ = gsl::finally([this] {
+        opts_.InitAfterBufferLoad(this);
+        if (GetOpt<bool>(kOptBasicWordCompletion)) {
+            basic_word_completer_ =
+                std::make_unique<BufferBasicWordCompleter>(this);
+            basic_word_completer_->Enable();
+        }
+    });
+
     try {
         lines_.clear();
 
@@ -38,6 +47,12 @@ void Buffer::Load() {
         while (true) {
             std::string buf;
             Result ret = f.ReadLine(buf, eol_seq_);
+            if (!CheckUtf8Valid(buf)) {
+                lines_.clear();
+                lines_.push_back({});
+                state_ = BufferState::kCodingInvalid;
+                throw CodeingException("%s", "utf8 encoding error");
+            }
             lines_.emplace_back(std::move(buf));
             if (ret == kEof) {
                 break;
@@ -51,12 +66,17 @@ void Buffer::Load() {
 
         state_ =
             read_only_ ? BufferState::kReadOnly : BufferState::kNotModified;
-    } catch (IOException& e) {
+    } catch (FileCreateException& e) {
+        lines_.clear();
         lines_.push_back({});  // ensure one empty line
+        state_ = BufferState::kCannotCreate;
+        throw;
+    } catch (IOException& e) {
+        lines_.clear();
+        lines_.push_back({});  // ensure one empty line
+        state_ = BufferState::kCannotRead;
         throw;
     }
-
-    opts_.InitAfterBufferLoad(this);
 }
 
 void Buffer::Clear() {
@@ -72,6 +92,10 @@ Result Buffer::Write() {
 
     if (!IsLoad()) {
         return kBufferCannotLoad;
+    }
+
+    if (read_only()) {
+        return kBufferReadOnly;
     }
 
     std::string swap_file_path = path_.AbsolutePath() + kSwapSuffix;
@@ -171,6 +195,8 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
         }
     });
 
+    if (basic_word_completer_) basic_word_completer_->BeforeAdd(pos, str);
+
     size_t i = 0;
     cursor_pos_hint = pos;
     std::vector<size_t> new_line_offset;
@@ -230,6 +256,8 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
 std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                                 bool record_reverse, bool record_ts_edit) {
     auto _ = gsl::finally([this] { Modified(); });
+
+    if (basic_word_completer_) basic_word_completer_->BeforeDelete(range);
 
     std::string old_str;
     size_t old_str_size = 0;
@@ -386,17 +414,17 @@ Result Buffer::Add(const Pos& pos, std::string str, const Pos* cursor_pos,
     if (read_only()) {
         return kBufferReadOnly;
     }
-    Pos orign_pos_hint;
-    AddInner(pos, str, orign_pos_hint, true);
+    Pos origin_pos_hint;
+    AddInner(pos, str, origin_pos_hint, true);
     if (!use_given_pos_hint) {
-        cursor_pos_hint = orign_pos_hint;
+        cursor_pos_hint = origin_pos_hint;
     }
     BufferEditHistoryItem item;
     item.origin.range = {pos, pos};
     item.origin.str = std::move(str);
     item.origin_pos_hint = cursor_pos_hint;
 
-    item.reverse.range = {pos, orign_pos_hint};
+    item.reverse.range = {pos, origin_pos_hint};
     item.reverse_pos_hint = cursor_pos ? *cursor_pos : pos;
     Record(std::move(item));
     return kOk;

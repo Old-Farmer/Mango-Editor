@@ -20,8 +20,8 @@ class ClipBoard;
 class Frame {
    public:
     Frame() = default;
-    Frame(Buffer* buffer, Cursor* cursor, Opts* opts,
-          SyntaxParser* parser, ClipBoard* clipboard) noexcept;
+    Frame(Buffer* buffer, Cursor* cursor, Opts* opts, SyntaxParser* parser,
+          ClipBoard* clipboard) noexcept;
     ~Frame() = default;
     MGO_DELETE_COPY(Frame);
     MGO_DEFAULT_MOVE(Frame);
@@ -57,6 +57,9 @@ class Frame {
     void DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
     void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
+    // kOk for truely done
+    Result Replace(const Range& range, std::string str,
+                 const Pos* cursor_pos = nullptr);
     void TabAtCursor();
     void Redo();
     void Undo();
@@ -81,7 +84,7 @@ class Frame {
     void SelectionCancell() { selection_.active = false; }
     void AfterModify(const Pos& cursor_pos);
 
-    template<typename T>
+    template <typename T>
     T GetOpt(OptKey key) {
         if (opts_->GetScope(key) == OptScope::kGlobal) {
             return opts_->global_opts_->GetOpt<T>(key);

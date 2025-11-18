@@ -2,7 +2,6 @@
 
 #include <vector>
 
-#include "character.h"
 #include "keyseq_manager.h"
 #include "options.h"
 
@@ -23,6 +22,11 @@ void Terminal::InitEscKeyseq(KeyseqManager& m) {
                 {Mode::kNone});
 }
 
+int my_tb_wcswidth_fn(uint32_t* ch, size_t nch) {
+    return CharacterWidth(
+        const_cast<Codepoint*>(reinterpret_cast<const Codepoint*>(ch)), nch);
+}
+
 void Terminal::Init(GlobalOpts* global_opts) {
     global_opts_ = global_opts;
 
@@ -39,6 +43,8 @@ void Terminal::Init(GlobalOpts* global_opts) {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
+
+    tb_set_wcswidth_fn(my_tb_wcswidth_fn);
 
     // Enable Bracketed Paste
     tb_sendf("\e[?2004h");
@@ -197,20 +203,6 @@ bool Terminal::Poll(int timeout_ms) {
         }
     }
     return true;
-}
-
-size_t Terminal::StringWidth(const std::string& str) {
-    std::vector<uint32_t> character;
-    size_t offset = 0;
-    size_t width = 0;
-    while (offset < str.size()) {
-        int len, c_width;
-        Result res = NextCharacterInUtf8(str, offset, character, len, &c_width);
-        MGO_ASSERT(res == kOk);
-        width += c_width;
-        offset += len;
-    }
-    return width;
 }
 
 }  // namespace mango

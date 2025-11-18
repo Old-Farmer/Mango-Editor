@@ -60,7 +60,8 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     std::string bracketed_paste_buffer;
 
     if (!global_opts_->IsUserConfigValid()) {
-        peel_->SetContent("User config file error! Please check your configuration.");
+        peel_->SetContent(
+            "User config file error! Please check your configuration.");
     }
 
     // Event Loop
@@ -84,10 +85,13 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
             HandleKey(e,
                       in_bracketed_paste ? &bracketed_paste_buffer : nullptr);
         } else if (term_.EventIsMouse(e)) {
+            CancellCompletion();
             HandleMouse(e);
         } else if (term_.EventIsResize(e)) {
+            CancellCompletion();
             HandleResize(e);
         } else {
+            CancellCompletion();
             Terminal::EventType t = term_.WhatEvent(e);
             if (t == Terminal::EventType::kBracketedPasteOpen) {
                 in_bracketed_paste = true;
@@ -105,17 +109,18 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     }
 }
 
-void Editor::InitKeymaps() {
-    std::vector<Mode> efp = {Mode::kEdit, Mode::kFind, Mode::kPeelCommand};
+// Keyseq has a type member, we use it to distinguish keymaps.
+// bitwise const
+constexpr int kNotCancellCmp = 1;
 
+void Editor::InitKeymaps() {
     // quit
     keymap_manager_.AddKeyseq("<c-q>", {[this] { Quit(); }}, kAllModes);
 
     // peel
     keymap_manager_.AddKeyseq("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
-    keymap_manager_.AddKeyseq(
-        "<esc>", {[this] { ExitFromMode(); }},
-        {Mode::kPeelCommand, Mode::kFind, Mode::kPeelShow});
+    keymap_manager_.AddKeyseq("<esc>", {[this] { ExitFromMode(); }},
+                              {Mode::kPeelCommand, Mode::kPeelShow});
     keymap_manager_.AddKeyseq(
         "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
         {Mode::kPeelCommand});
@@ -194,45 +199,13 @@ void Editor::InitKeymaps() {
                                                peel_->AddStringAtCursor("s ");
                                            },
                                        });
-    keymap_manager_.AddKeyseq("<c-p>", {[this] { SearchPrev(); }},
-                              {Mode::kFind});
-    keymap_manager_.AddKeyseq("<c-n>", {[this] { SearchNext(); }},
-                              {Mode::kFind});
+    keymap_manager_.AddKeyseq("<c-k><c-p>", {[this] { SearchPrev(); }});
+    keymap_manager_.AddKeyseq("<c-k><c-n>", {[this] { SearchNext(); }});
 
     // cmp
-    keymap_manager_.AddKeyseq(
-        "<c-k><c-c>", {[this] {
-            // Trigger completion, A simple demo
-            // TODO: support better
-            TriggerCmp(
-                [this](size_t size) {
-                    std::stringstream ss;
-                    ss << "User select " << size;
-                    peel_->SetContent(ss.str());
-                },
-                [this] { peel_->SetContent("User cancel cmp"); },
-                {"hello", "yes", "good"});
-        }},
-        {Mode::kEdit});
-    keymap_manager_.AddKeyseq("<c-p>", {[this] { cmp_menu_->SelectPrev(); }},
-                              {Mode::kCmp});
-    keymap_manager_.AddKeyseq("<c-n>", {[this] { cmp_menu_->SelectNext(); }},
-                              {Mode::kCmp});
-    keymap_manager_.AddKeyseq("<up>", {[this] { cmp_menu_->SelectPrev(); }},
-                              {Mode::kCmp});
-    keymap_manager_.AddKeyseq("<down>", {[this] { cmp_menu_->SelectNext(); }},
-                              {Mode::kCmp});
-    keymap_manager_.AddKeyseq("<esc>", {[this] {
-                                  cmp_menu_->Clear();
-                                  cmp_cancel_callback_();
-                                  ExitFromMode();
-                              }},
-                              {Mode::kCmp});
-    keymap_manager_.AddKeyseq("<enter>", {[this] {
-                                  cmp_accept_callback_(cmp_menu_->Accept());
-                                  ExitFromMode();
-                              }},
-                              {Mode::kCmp});
+    keymap_manager_.AddKeyseq("<c-k><c-c>", {[this] {
+                                  cursor_.in_window->TriggerCompletion(false);
+                              }});
 
     // edit
     keymap_manager_.AddKeyseq(
@@ -242,19 +215,32 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<tab>",
                               {[this] { cursor_.in_window->TabAtCursor(); }});
     keymap_manager_.AddKeyseq(
-        "<enter>", {[this] { cursor_.in_window->AddStringAtCursor("\n"); }});
+        "<enter>", {[this] {
+                        if (CompletionTriggered()) {
+                            tmp_completer_->Accept(cmp_menu_->Accept(),
+                                                   &cursor_);
+                            tmp_completer_ = nullptr;
+                        } else {
+                            cursor_.in_window->AddStringAtCursor("\n");
+                        }
+                    },
+                    kNotCancellCmp});
     keymap_manager_.AddKeyseq(
         "<c-s>", {[this] {
             try {
                 Result res = cursor_.in_window->frame_.buffer_->Write();
                 if (res == kBufferNoBackupFile) {
-                    // TODO: notify user
+                    peel_->SetContent("Buffer no backup file");
                 } else if (res == kBufferCannotLoad) {
-                    // TODO: notify user
+                    peel_->SetContent("Buffer can't load");
+                } else if (res == kBufferReadOnly) {
+                    peel_->SetContent("Buffer read only");
                 }
             } catch (IOException& e) {
                 MGO_LOG_ERROR("%s", e.what());
-                // TODO: notify user
+                std::stringstream ss;
+                ss << "Buffer can't save: " << e.what();
+                peel_->SetContent(ss.str());
             }
         }});
     keymap_manager_.AddKeyseq("<c-z>", {[this] { cursor_.in_window->Undo(); }});
@@ -278,15 +264,40 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<c-right>", {[this] {
                                   cursor_.in_window->CursorGoNextWordEnd(true);
                               }});
-    keymap_manager_.AddKeyseq("<up>",
-                              {[this] { cursor_.in_window->CursorGoUp(); }});
+    keymap_manager_.AddKeyseq("<up>", {[this] {
+                                           if (CompletionTriggered()) {
+                                               cmp_menu_->SelectPrev();
+                                           } else {
+                                               cursor_.in_window->CursorGoUp();
+                                           }
+                                       },
+                                       kNotCancellCmp});
     keymap_manager_.AddKeyseq("<down>",
-                              {[this] { cursor_.in_window->CursorGoDown(); }});
-    keymap_manager_.AddKeyseq(
-        "<c-p>", {[this] { cursor_.in_window->CursorGoUp(); }}, {Mode::kEdit});
+                              {[this] {
+                                   if (CompletionTriggered()) {
+                                       cmp_menu_->SelectNext();
+                                   } else {
+                                       cursor_.in_window->CursorGoDown();
+                                   }
+                               },
+                               kNotCancellCmp});
+    keymap_manager_.AddKeyseq("<c-p>", {[this] {
+                                            if (CompletionTriggered()) {
+                                                cmp_menu_->SelectPrev();
+                                            } else {
+                                                cursor_.in_window->CursorGoUp();
+                                            }
+                                        },
+                                        kNotCancellCmp});
     keymap_manager_.AddKeyseq("<c-n>",
-                              {[this] { cursor_.in_window->CursorGoDown(); }},
-                              {Mode::kEdit});
+                              {[this] {
+                                   if (CompletionTriggered()) {
+                                       cmp_menu_->SelectNext();
+                                   } else {
+                                       cursor_.in_window->CursorGoDown();
+                                   }
+                               },
+                               kNotCancellCmp});
     keymap_manager_.AddKeyseq("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
     keymap_manager_.AddKeyseq("<end>",
@@ -299,6 +310,7 @@ void Editor::InitKeymaps() {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
+    keymap_manager_.AddKeyseq("<esc>", {[this] { (void)this; }});
 }
 
 void Editor::InitCommands() {
@@ -331,7 +343,6 @@ void Editor::InitCommands() {
          "",
          {Type::kString},
          [this](CommandArgs args) {
-             mode_ = Mode::kFind;
              MGO_LOG_DEBUG("search %s", std::get<std::string>(args[0]).c_str());
              cursor_.in_window->BuildSearchContext(
                  std::get<std::string>(args[0]));
@@ -369,7 +380,7 @@ void Editor::HandleKey(const Terminal::Event& e,
             bracketed_paste_buffer->append(kReplacement);
             MGO_LOG_INFO("Unknown Special key in bracketed paste");
         } else {
-            char c[7];
+            char c[4];
             int len = UnicodeToUtf8(key_info.codepoint, c);
             MGO_ASSERT(len > 0);
             bracketed_paste_buffer->append(c);
@@ -380,12 +391,14 @@ void Editor::HandleKey(const Terminal::Event& e,
     Keyseq* handler;
     Result res = keymap_manager_.FeedKey(key_info, handler);
     if (res == kKeyseqError) {
-        // pure characters
+        // pure codepoint
         // not handled by the keymap manager
+        // TODO: combining character and grapheme cluster support.
+        CancellCompletion();
         if (!key_info.IsSpecialKey() && key_info.mod == 0) {
             uint32_t codepoint = key_info.codepoint;
 
-            char c[7];
+            char c[4];
             int len = UnicodeToUtf8(codepoint, c);
             MGO_ASSERT(len > 0);
             if (IsPeel(mode_)) {
@@ -401,6 +414,9 @@ void Editor::HandleKey(const Terminal::Event& e,
     }
 
     // Match Done
+    if (!(handler->type & kNotCancellCmp)) {
+        CancellCompletion();
+    }
     handler->f();
 }
 
@@ -549,13 +565,9 @@ void Editor::Draw() {
         return;
     }
 
-    if (window_->frame_.buffer_->IsLoad()) {
-        window_->Draw();
-    }
-
+    window_->Draw();
     status_line_->Draw();
-
-    peel_->frame_.Draw();
+    peel_->Draw();
 
     // Put it at last so it can override some parts
     cmp_menu_->Draw();
@@ -569,17 +581,12 @@ void Editor::PreProcess() {
         try {
             window_->frame_.buffer_->Load();
             syntax_parser_->SyntaxInit(window_->frame_.buffer_);
-        } catch (FileCreateException& e) {
-            window_->frame_.buffer_->state() = BufferState::kCannotCreate;
-            MGO_LOG_ERROR("%s", e.what());
-            // TODO: Notify the user
-        } catch (IOException& e) {
-            window_->frame_.buffer_->state() = BufferState::kCannotRead;
+        } catch (Exception& e) {
             MGO_LOG_ERROR(
                 "buffer %s : %s",
                 window_->frame_.buffer_->path().AbsolutePath().c_str(),
                 e.what());
-            // TODO: Notify the user
+            // TODO: Maybe Notify the user
         }
     }
 
@@ -632,19 +639,11 @@ void Editor::ExitFromMode() {
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
         cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
-    } else if (mode_ == Mode::kFind) {
-        peel_->SetContent("");
-        MGO_ASSERT(cursor_.in_window);
-        cursor_.in_window->DestorySearchContext();
-    } else if (mode_ == Mode::kCmp) {
-        mode_ = mode_trigger_cmp_;
-        return;
     }
     mode_ = Mode::kEdit;
 }
 
 void Editor::SearchNext() {
-    MGO_ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();
@@ -664,7 +663,6 @@ void Editor::SearchNext() {
 }
 
 void Editor::SearchPrev() {
-    MGO_ASSERT(mode_ == Mode::kFind);
     peel_->SetContent("");
     std::stringstream ss;
     auto& pattern = cursor_.in_window->GetSearchPattern();
@@ -683,16 +681,49 @@ void Editor::SearchPrev() {
     peel_->SetContent(ss.str());
 }
 
-void Editor::TriggerCmp(std::function<void(size_t)> accept_call_back,
-                        std::function<void(void)> cancel_call_back,
-                        std::vector<std::string> entries) {
-    cmp_accept_callback_ = std::move(accept_call_back);
-    cmp_cancel_callback_ = std::move(cancel_call_back);
-    mode_trigger_cmp_ = mode_;
+void Editor::TriggerCompletionAndSetContext(Completer* completer,
+                                            bool autocmp) {
+    MGO_ASSERT(!CompletionTriggered());
+
+    if (completer == nullptr) {
+        if (autocmp) {
+            return;
+        }
+        peel_->SetContent("No completion source");
+        return;
+    }
+
+    if (tmp_completer_) {
+        tmp_completer_->Cancel();
+    }
+
+    std::vector<std::string> entries;
+    completer->Suggest(cursor_.ToPos(), entries);
+    if (entries.empty()) {
+        completer->Cancel();
+        if (!autocmp) {
+            peel_->SetContent("No completion");
+        }
+        return;
+    }
+
+    tmp_completer_ = completer;
     cmp_menu_->SetEntries(std::move(entries));
     cmp_menu_->visible() = true;
-    mode_ = Mode::kCmp;
 }
+
+void Editor::CancellCompletion() {
+    if (!CompletionTriggered()) {
+        return;
+    }
+
+    tmp_completer_->Cancel();
+    tmp_completer_ = nullptr;
+    cmp_menu_->Clear();
+    cmp_menu_->visible() = false;
+}
+
+bool Editor::CompletionTriggered() { return tmp_completer_ != nullptr; }
 
 void*& Editor::ContextManager::GetContext(ContextID id) {
     return contexts_[id];

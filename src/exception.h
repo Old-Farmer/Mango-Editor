@@ -52,6 +52,13 @@ class FileCreateException : public IOException {
         : IOException(format, args...) {}
 };
 
+class CodeingException : public Exception {
+   public:
+    template <typename... Args>
+    CodeingException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
 class FSException : public Exception {
    public:
     template <typename... Args>
@@ -106,10 +113,10 @@ class OSException : public Exception {
     int error_code_;
 };
 
-class JsonException: public Exception {
+class TypeMismatchException : public Exception {
    public:
     template <typename... Args>
-    JsonException(const char* format, Args... args)
+    TypeMismatchException(const char* format, Args... args)
         : Exception(format, args...) {}
 };
 

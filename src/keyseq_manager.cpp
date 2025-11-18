@@ -154,15 +154,25 @@ Result KeyseqManager::RemoveKeyseq(const std::string& seq,
         if (!to_end || !node->end) {
             continue;
         }
+        node->end = false;
+        if (!node->nexts.empty()) {
+            continue;
+        }
+
         delete node;
         while (!sta.empty()) {
             auto [node, iter] = sta.top();
+            node->nexts.erase(iter);
             if (node->end) {
-                node->nexts.erase(iter);
+                break;
+            }
+            if (!node->nexts.empty()) {
                 break;
             }
 
-            delete node;
+            if (node != &roots_[static_cast<int>(mode)]) {
+                delete node;
+            }
             sta.pop();
         }
     }
@@ -193,6 +203,5 @@ Result KeyseqManager::FeedKey(const Terminal::KeyInfo& key, Keyseq*& handler) {
         return kKeyseqMatched;
     }
 }
-
 
 }  // namespace mango

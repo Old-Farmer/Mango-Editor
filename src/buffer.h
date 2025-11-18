@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "completer.h"
 #include "file.h"
 #include "fs.h"
 #include "options.h"
@@ -68,7 +69,8 @@ class Buffer {
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
 
-    // throws IOException, FileCreateException
+    // throws IOException, FileCreateException, CodingException
+    // if it is a no file backup buffer, any of above exceptions won't throw.
     void Load();
 
     void Clear();
@@ -130,8 +132,10 @@ class Buffer {
    public:
     // Make sure that Range or Pos is valid, otherwise behavir
     // is undefined.
-    // error return kBufferCannotLoad, kBufferReadOnly
-    // ok return kOk
+    // Also, make sure that all edit op will not corrupt buffer coding
+    // correctness, otherwise behavior is undefined.
+    // One error,
+    // return kBufferCannotLoad, kBufferReadOnly; On ok, return kOk, and
     // cursor_pos_hint will be set to the suggest cursor pos if
     // use_given_pos_hint is false or no such parameter
     Result Add(const Pos& pos, std::string str, const Pos* cursor_pos,
@@ -168,6 +172,7 @@ class Buffer {
     zstring_view filetype() const noexcept { return filetype_; }
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
     const Opts& opts() { return opts_; }
+    Completer* completer() { return basic_word_completer_.get(); }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -220,6 +225,8 @@ class Buffer {
 
     // A prefiex offset cache, for fast offset calculation.
     std::vector<size_t> offset_per_line_ = {0};
+
+    std::unique_ptr<BufferBasicWordCompleter> basic_word_completer_;
 
     Opts opts_;
 

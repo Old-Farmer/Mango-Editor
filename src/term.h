@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "character.h"
 #include "exception.h"
 #include "logging.h"
 #include "result.h"
@@ -92,10 +93,12 @@ class Terminal {
     // return
     // kOk for ok
     // kTermOutOfBounds for out of bounds
-    Result SetCell(int col, int row, uint32_t* codepoint, size_t n_codepoint,
-                   const AttrPair& attr) {
-        int ret =
-            tb_set_cell_ex(col, row, codepoint, n_codepoint, attr.fg, attr.bg);
+    Result SetCell(int col, int row, const Codepoint* codepoint,
+                   size_t n_codepoint, const AttrPair& attr) {
+        int ret = tb_set_cell_ex(
+            col, row,
+            const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(codepoint)),
+            n_codepoint, attr.fg, attr.bg);
         if (ret == TB_OK) {
             return kOk;
         } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
@@ -358,16 +361,6 @@ class Terminal {
     static KeyInfo EventKeyInfo(const Event& e) noexcept {
         return {e.ch, static_cast<SpecialKey>(e.key), static_cast<Mod>(e.mod)};
     }
-
-    // Utilities funtions
-
-    // -1 for not printable
-    // 0 for combining character
-    // 1 for 1 col
-    // 2 for 2 col
-    static int WCWidth(uint32_t ch) noexcept { return tb_wcwidth(ch); }
-
-    static size_t StringWidth(const std::string& str);
 
    private:
     Event event_;

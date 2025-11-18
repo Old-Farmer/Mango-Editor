@@ -5,6 +5,7 @@
 #include "buffer.h"
 #include "character.h"
 #include "cursor.h"
+#include "editor.h"
 #include "options.h"
 #include "syntax.h"
 
@@ -63,6 +64,8 @@ void Window::DeleteAtCursor() {
         return;
     }
 
+    bool trigger_auto_cmp = false;
+
     Buffer* buffer = frame_.buffer_;
     Range range;
     if (cursor_->byte_offset == 0) {  // first byte
@@ -90,20 +93,41 @@ void Window::DeleteAtCursor() {
     } else {
     slow:
         const std::string& cur_line = frame_.buffer_->GetLine(cursor_->line);
-        std::vector<uint32_t> charater;
+        Character character;
         int len;
-        Result ret = PrevCharacterInUtf8(cur_line, cursor_->byte_offset,
-                                         charater, len, nullptr);
+        Result ret =
+            PrevCharacterInUtf8(cur_line, cursor_->byte_offset, character, len);
         MGO_ASSERT(ret == kOk);
-        if (cur_line.size() <= cursor_->byte_offset) {
+
+        // Should we trigger auto cmp at delete?
+        char c = -1;
+        if (character.Ascii(c) && IsWordCharacter(c)) {
+            int byte_offset = cursor_->byte_offset - len;
+            if (byte_offset == 0) {
+                trigger_auto_cmp = true;
+            } else {
+                Character character;
+                // prev prev character is also a word character.
+                int len;
+                Result res =
+                    PrevCharacterInUtf8(cur_line, byte_offset, character, len);
+                MGO_ASSERT(res == kOk);
+                trigger_auto_cmp = character.Ascii(c) && IsWordCharacter(c);
+            }
+        }
+
+        if (cur_line.size() == cursor_->byte_offset) {
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line, cursor_->byte_offset}};
         } else {
             // may delete pairs
-            char this_char = cur_line[cursor_->byte_offset];
+            int this_len;
+            char this_char;
+            ThisCharacterInUtf8(cur_line, cursor_->byte_offset, character,
+                                this_len);
             bool need_delete_pairs =
-                charater[0] <= CHAR_MAX && IsPair(charater[0], this_char);
-            range = {{cursor_->line, cursor_->byte_offset - 1},
+                c != -1 && character.Ascii(this_char) && IsPair(c, this_char);
+            range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line,
                       cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
         }
@@ -116,6 +140,9 @@ void Window::DeleteAtCursor() {
     cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
     parser_->ParseSyntaxAfterEdit(buffer);
+    if (trigger_auto_cmp) {
+        TriggerCompletion(true);
+    }
 }
 
 void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
@@ -149,8 +176,17 @@ void Window::AddStringAtCursor(std::string str, bool raw) {
             TryAutoPair(std::move(str));
         } else {
             frame_.AddStringAtCursor(std::move(str));
+            // ascii, good trigger autocmp point
+            // TODO: support config
+            if (IsWordCharacter(c)) {
+                TriggerCompletion(true);
+            }
         }
     }
+}
+
+Result Window::Replace(const Range& range, std::string str) {
+    return frame_.Replace(range, std::move(str));
 }
 
 void Window::TryAutoPair(std::string str) {
@@ -242,8 +278,7 @@ void Window::TryAutoIndent() {
 
             if (tabspace) {
                 int need_space =
-                    (cur_indent / tabstop + 1) * tabstop -
-                    cur_indent;
+                    (cur_indent / tabstop + 1) * tabstop - cur_indent;
                 str += std::string(need_space, kSpaceChar);
             } else {
                 str += "\t";
@@ -278,6 +313,11 @@ void Window::Undo() { frame_.Undo(); }
 void Window::Copy() { frame_.Copy(); }
 void Window::Paste() { frame_.Paste(); }
 void Window::Cut() { frame_.Cut(); }
+
+void Window::TriggerCompletion(bool autocmp) {
+    Editor::GetInstance().TriggerCompletionAndSetContext(
+        frame_.buffer_->completer(), autocmp);
+}
 
 void Window::NextBuffer() {
     if (frame_.buffer_->IsLastBuffer()) {

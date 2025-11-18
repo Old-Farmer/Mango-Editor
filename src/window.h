@@ -42,6 +42,8 @@ class Window {
     void DeleteWordBeforeCursor();
     // raw means do not treat it as keystroke
     void AddStringAtCursor(std::string str, bool raw = false);
+    // See Frame::Replace
+    Result Replace(const Range& range, std::string str);
     void TabAtCursor();
     void Redo();
     void Undo();
@@ -49,6 +51,8 @@ class Window {
     void Copy();
     void Paste();
     void Cut();
+
+    void TriggerCompletion(bool autocmp);
 
     void NextBuffer();
     void PrevBuffer();

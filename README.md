@@ -18,12 +18,12 @@ This project is far from mature. Do not use it in the production environment.
 
 ## Features
 
-- utf-8 support without grapheme cluster
+- unicode support(utf-8)
 - mouse support
 - simple edit
 - syntax highlighting with tree-sitter(only a few languages now)
 
-See docs/help.txt for more infomation
+See docs/help.md for more infomation
 
 ## Build
 
@@ -37,10 +37,12 @@ Requirements:
 4. make or ninja
 
 ```bash
+mkdir build && cd build
+
 # Debug build
-mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j4
+cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j8
 # Release build
-mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j4
+cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j8
 
 # Execute app
 ./mgo
@@ -48,5 +50,10 @@ mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build 
 ./test
 
 # Package
-mkdir build && cd build && cmake --build . --target package -j4
+cmake --build . --target package -j8
+
+# This project agressively use FetchConent.
+# Set FETCHCONTENT_FULLY_DISCONNECTED=ON to disable checking
+# if you want to frequently modify CMakeLists.txt after a full fetch.
+cmake -DFETCHCONTENT_FULLY_DISCONNECTED=ON ..
 ```

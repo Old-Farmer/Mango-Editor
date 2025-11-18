@@ -12,7 +12,7 @@ endif()
 # Includes
 # Use FetchContent instead of ExternalProject for fast building
 include(FetchContent)
-Set(FETCHCONTENT_QUIET FALSE)
+set(FETCHCONTENT_QUIET OFF)
 
 # third-party
 set(THIRD_PARTY_DIR "${CMAKE_SOURCE_DIR}/third-party")
@@ -20,8 +20,8 @@ set(THIRD_PARTY_DIR "${CMAKE_SOURCE_DIR}/third-party")
 # termbox2
 FetchContent_Declare(
     termbox2
-    GIT_REPOSITORY "https://github.com/termbox/termbox2.git"
-    GIT_TAG master
+    GIT_REPOSITORY "https://github.com/Old-Farmer/termbox2.git"
+    GIT_TAG dev
     GIT_SHALLOW ON
     GIT_PROGRESS ON
     SOURCE_DIR "${THIRD_PARTY_DIR}/termbox2"
@@ -34,10 +34,29 @@ add_custom_target(build_termbox2
     COMMENT "Building termbox2 library"
     BYPRODUCTS "${TERMBOX2_LIB}"
 )
-FetchContent_MakeAvailable(termbox2)
+FetchContent_Populate(termbox2)
+
+FetchContent_Declare(
+    utf8proc
+    GIT_REPOSITORY "https://github.com/JuliaStrings/utf8proc.git"
+    GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+    SOURCE_DIR "${THIRD_PARTY_DIR}/utf8proc"
+)
+set(UTF8PROC_LIB "${THIRD_PARTY_DIR}/utf8proc/libutf8proc.a")
+set(UTF8PROC_INCLUDE_DIR "${THIRD_PARTY_DIR}/utf8proc")
+add_custom_target(build_utf8proc
+    COMMAND make
+    WORKING_DIRECTORY "${THIRD_PARTY_DIR}/utf8proc"
+    COMMENT "Building utf8proc library"
+    BYPRODUCTS "${UTF8PROC_LIB}"
+)
+FetchContent_Populate(utf8proc)
 
 # GSL
-FetchContent_Declare(GSL
+FetchContent_Declare(
+    GSL
     GIT_REPOSITORY "https://github.com/microsoft/GSL"
     GIT_TAG "v4.2.0"
     GIT_SHALLOW ON
@@ -83,6 +102,17 @@ add_custom_target(build_treesitter
 )
 FetchContent_Populate(treesitter)
 
+FetchContent_Declare(
+    json_rpc_cxx
+    GIT_REPOSITORY "https://github.com/jsonrpcx/json-rpc-cxx.git"
+    GIT_TAG master
+    GIT_SHALLOW ON
+    GIT_PROGRESS ON
+    SOURCE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx"
+)
+set(JSON_RPC_CXX_INCLUDE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx/include")
+FetchContent_MakeAvailable(json_rpc_cxx)
+
 # TODO: maybe we can use nvim-treesitter query?
 # FetchContent_Declare(
 #     nvim_treesitter
@@ -120,7 +150,7 @@ endforeach()
 # Mango library
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 add_library(mango_lib STATIC)
-add_dependencies(mango_lib build_termbox2 build_treesitter)
+add_dependencies(mango_lib build_termbox2 build_treesitter build_utf8proc)
 target_sources(
   mango_lib PUBLIC
   "${SRC_DIR}/buffer_manager.h"
@@ -137,6 +167,8 @@ target_sources(
   "${SRC_DIR}/cmp_menu.cpp"
   "${SRC_DIR}/command_manager.h"
   "${SRC_DIR}/command_manager.cpp"
+  "${SRC_DIR}/completer.h"
+  "${SRC_DIR}/completer.cpp"
   "${SRC_DIR}/cursor.h"
   "${SRC_DIR}/cursor.cpp"
   "${SRC_DIR}/editor.h"
@@ -175,6 +207,8 @@ target_sources(
   "${SRC_DIR}/status_line.cpp"
   "${SRC_DIR}/term.h"
   "${SRC_DIR}/term.cpp"
+  "${SRC_DIR}/trie.h"
+  "${SRC_DIR}/trie.cpp"
   "${SRC_DIR}/utils.h"
   "${SRC_DIR}/utils.cpp"
   "${SRC_DIR}/window.h"
@@ -198,14 +232,21 @@ target_sources(mango_lib PUBLIC ${TS_SOURCES})
 
 target_link_libraries(
   mango_lib
-  PUBLIC ${TERMBOX2_LIB} 
-  PUBLIC Microsoft.GSL::GSL 
-  PUBLIC nlohmann_json::nlohmann_json
-  PUBLIC ${TREESITTER_LIB}
+  PUBLIC
+    ${TERMBOX2_LIB}
+    Microsoft.GSL::GSL 
+    nlohmann_json::nlohmann_json
+    ${TREESITTER_LIB}
+    ${UTF8PROC_LIB}
 )
 target_include_directories(
   mango_lib 
-  PUBLIC "${SRC_DIR}" "${TERMBOX2_INCLUDE_DIR}" "${TREESITTER_INCLUDE_DIR}"
+  PUBLIC
+  "${SRC_DIR}"
+  "${TERMBOX2_INCLUDE_DIR}"
+  "${TREESITTER_INCLUDE_DIR}"
+  "${JSON_RPC_CXX_INCLUDE_DIR}"
+  "${UTF8PROC_INCLUDE_DIR}"
 )
 
 target_compile_definitions(mango_lib PUBLIC TB_OPT_ATTR_W=64 TB_OPT_EGC)
@@ -224,11 +265,13 @@ set(TEST_DIR "${CMAKE_SOURCE_DIR}/test")
 add_executable(test)
 target_sources(
   test PUBLIC
+  "${TEST_DIR}/data_structure_test.cpp"
   "${TEST_DIR}/json_test.cpp"
   "${TEST_DIR}/logging_test.cpp"
   "${TEST_DIR}/term_test.cpp"
-  "${TEST_DIR}/xxx_manager_test.cpp"
+  "${TEST_DIR}/unicode_test.cpp"
   "${TEST_DIR}/utils_test.cpp"
+  "${TEST_DIR}/xxx_manager_test.cpp"
 )
 target_link_libraries(test PUBLIC mango_lib Catch2::Catch2WithMain)
 

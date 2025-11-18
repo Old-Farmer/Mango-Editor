@@ -56,10 +56,7 @@ Use `<c-k>` as a general leader key.
     delete buffer
 
 - `<c-f>`
-    search. `<c-n>` or `<c-p>` to jump to search result when in search mode
-
-- `<esc>`
-    escape to edit mode
+    search. `<c-k><c-n>` or `<c-k><c-p>` to jump to search result when in search mode
 
 ### Edit
 
@@ -176,3 +173,14 @@ Note that you can set per filetype buffer options like:
 ## Logging
 
 The path of logging file is `%XDG_CACHE_HOME/mango.log`.
+
+## NOTE
+
+### Unicode && UTF-8
+
+Unicode is a complex topic, and I support it carefully, but bugs may be occured due to **lack of knowledgement, poor support of low-level library or terminal issues**. Please feel free to report any issue that you have encountered.
+
+References:
+
+- [UAX#11](http://www.unicode.org/reports/tr11/)
+- [UAX#29](http://www.unicode.org/reports/tr29/)

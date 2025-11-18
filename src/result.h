@@ -9,17 +9,17 @@ namespace mango {
 enum Result {
     kOk = 0,
     kError,
+    kNotExist, // sth. not exist
+    kInvalidCoding,
+    kEof,
     kTermOutOfBounds,
     kBufferNoBackupFile,
     kBufferCannotLoad,
     kBufferReadOnly,
-    kEof,
     kKeyseqError,
     kKeyseqDone,
     kKeyseqMatched,
-    kCommandNotExist,
     kCommandInvalidArgs,
-    kCmpNoSuggest,
     kNoHistoryAvailable,
     kOuterCommandExecuteFail,  // outer command fail before or when execvp.
 };

@@ -63,6 +63,7 @@ enum OptKey {
     kOptCmpMenuMaxHeight,
     kOptCmpMenuMaxWidth,
     kOptEditHistoryMaxItem,
+    kOptBasicWordCompletion,
 
     kOptColorScheme,
 
@@ -90,12 +91,15 @@ using ColorSchemeElement = Terminal::AttrPair;
 
 class Opts;
 
+#define MGO_IF_TYPE_MISMATCH_THROW(expr) \
+    if (!(expr)) throw TypeMismatchException("%s", #expr)
+
 // GlobalOpts is a class that represents all opts.
 class GlobalOpts {
     friend Opts;
 
    public:
-    // throw Json::exception, IOException, JsonException
+    // throw Json::exception, IOException, TypeMismatchException
     // Do not handle them, which always means a bug and should fix
     // default config.
     GlobalOpts();
@@ -106,15 +110,15 @@ class GlobalOpts {
     template <typename T>
     T GetOpt(OptKey key) const {
         if constexpr (std::is_same_v<T, bool>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kBool);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kBool);
         } else if constexpr (std::is_same_v<T, int64_t>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kInteger);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kInteger);
         } else if constexpr (std::is_pointer_v<T>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kPtr);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kPtr);
         } else {
-            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
-                              "pointer types",
-                        false));
+            static_assert(false,
+                          "GetOpt<T> only supports T = bool, int64_t, or "
+                          "pointer types");
         }
 
         if constexpr (std::is_same_v<T, bool>) {
@@ -127,15 +131,15 @@ class GlobalOpts {
     template <typename T>
     void SetOpt(OptKey key, T value) {
         if constexpr (std::is_same_v<T, bool>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kBool);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kBool);
         } else if constexpr (std::is_same_v<T, int64_t>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kInteger);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kInteger);
         } else if constexpr (std::is_pointer_v<T>) {
-            MGO_ASSERT(opt_info_[key].type == Type::kPtr);
+            MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kPtr);
         } else {
-            MGO_ASSERT(((void)"SetOpt<T> only supports T = bool, int64_t, or "
-                              "pointer types",
-                        false));
+            static_assert(false,
+                          "GetOpt<T> only supports T = bool, int64_t, or "
+                          "pointer types");
         }
 
         opts_[key] = reinterpret_cast<void*>(value);
@@ -168,15 +172,18 @@ class Opts {
     template <typename T>
     T GetOpt(OptKey key) const {
         if constexpr (std::is_same_v<T, bool>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kBool);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kBool);
         } else if constexpr (std::is_same_v<T, int64_t>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kInteger);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kInteger);
         } else if constexpr (std::is_pointer_v<T>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kPtr);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kPtr);
         } else {
-            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
-                              "pointer types",
-                        false));
+            static_assert(false,
+                          "GetOpt<T> only supports T = bool, int64_t, or "
+                          "pointer types");
         }
 
         MGO_ASSERT(OptScope::kGlobal != GetScope(key));
@@ -196,15 +203,18 @@ class Opts {
     template <typename T>
     void SetOpt(OptKey key, T value, bool global = false) {
         if constexpr (std::is_same_v<T, bool>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kBool);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kBool);
         } else if constexpr (std::is_same_v<T, int64_t>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kInteger);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kInteger);
         } else if constexpr (std::is_pointer_v<T>) {
-            MGO_ASSERT(global_opts_->opt_info_[key].type == Type::kPtr);
+            MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
+                                       Type::kPtr);
         } else {
-            MGO_ASSERT(((void)"GetOpt<T> only supports T = bool, int64_t, or "
-                              "pointer types",
-                        false));
+            static_assert(false,
+                          "SetOpt<T> only supports T = bool, int64_t, or "
+                          "pointer types");
         }
 
         if (GetScope(key) == OptScope::kGlobal || global) {

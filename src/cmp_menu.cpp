@@ -48,7 +48,7 @@ void CmpMenu::DecideLocAndSize() {
     size_t max_width = 0;
     for (size_t i = menu_view_line_; i < shown_enties_cnt + menu_view_line_;
          i++) {
-        size_t w = Terminal::StringWidth(entries_[i]);
+        size_t w = StringWidth(entries_[i]);
         entries_width_[i - menu_view_line_] = w;
         max_width = std::max(w, max_width);
     }
@@ -76,19 +76,23 @@ void CmpMenu::Draw() {
         const std::string& str = entries_[menu_view_line_ + r];
         size_t offset = 0;
         size_t menu_col = 0;
-        std::vector<uint32_t> character;
+        Character character;
         while (offset < str.size()) {
-            int character_width;
             int byte_len;
-            Result res = NextCharacterInUtf8(str, offset, character, byte_len,
-                                             &character_width);
+            Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
+            int character_width = character.Width();
             MGO_ASSERT(res == kOk);
+            if (character_width <= 0) {
+                character.Clear();
+                character.Push(kReplacementChar);
+                character_width = kReplacementCharWidth;
+            }
             // TODO: use entries_width
             // for show ... when space is not enough for long width entries
             if (menu_col + character_width <= width_) {
-                Result res =
-                    term_->SetCell(menu_col + col_, r + row_, character.data(),
-                                   character.size(), attr);
+                Result res = term_->SetCell(menu_col + col_, r + row_,
+                                            character.Codepoints(),
+                                            character.CodePointCount(), attr);
                 if (res == kTermOutOfBounds) {
                     // User resize the screen now, just skip the
                     // left cols in this row
@@ -102,7 +106,7 @@ void CmpMenu::Draw() {
         }
         // make paddings because menu have different bg color
         while (menu_col < width_) {
-            uint32_t space = kSpaceChar;
+            Codepoint space = kSpaceChar;
             Result res =
                 term_->SetCell(menu_col + col_, r + row_, &space, 1, attr);
             if (res == kTermOutOfBounds) {

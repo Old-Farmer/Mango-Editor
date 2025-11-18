@@ -68,6 +68,10 @@ void MangoPeel::Paste() {
     MGO_ASSERT(!frame_.selection_.active);
     bool lines;
     std::string content = frame_.clipboard_->GetContent(lines);
+    if (content.empty()) {
+        return;
+    }
+
     for (char& c : content) {
         if (c == '\n') {
             c = ' ';

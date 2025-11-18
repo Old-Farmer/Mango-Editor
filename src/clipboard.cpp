@@ -1,5 +1,6 @@
 #include "clipboard.h"
 
+#include "character.h"
 #include "constants.h"
 #include "exception.h"
 #include "utils.h"
@@ -64,6 +65,9 @@ std::string XClipBoard::GetContent(bool& lines) const {
     }
 
     if (in_wsl) WslFilterCharacter(content);
+    if (!CheckUtf8Valid(content)) {
+        return "";
+    }
     if (lines_) {
         // Assume content is utf-8?
         // TODO: Really?
@@ -90,8 +94,9 @@ void XClipBoard::SetContent(std::string content, bool lines) {
 }
 
 void XClipBoard::WslFilterCharacter(std::string& content) {
-    for (auto iter = content.begin(); iter != content.end();) {
-        if (*iter == '\r') {
+    auto iter_end = content.end() - 1;
+    for (auto iter = content.begin(); iter != iter_end;) {
+        if (*iter == '\r' && *(iter + 1) == '\n') {
             iter = content.erase(iter);
         } else {
             iter++;

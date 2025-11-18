@@ -5,18 +5,19 @@
 
 #include "result.h"
 #include "state.h"
-#include "utils.h"
 #include "term.h"
+#include "utils.h"
 
 namespace mango {
 
 struct Keyseq {
     std::string name;
     std::string description;
+    int type;
     std::function<void()> f;
 
     Keyseq() = default;
-    Keyseq(std::function<void()> _f) : f(_f) {}
+    Keyseq(std::function<void()> _f, int _type = 0) : type(_type), f(_f) {}
 };
 
 class KeyseqManager {
