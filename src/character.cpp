@@ -23,7 +23,10 @@ int CharacterWidth(const Codepoint* codepoints, size_t cnt) {
 
     int width = 0;
     for (size_t i = 0; i < cnt; i++) {
-        width = std::max(utf8proc_charwidth(codepoints[0]), width);
+        width = std::max(utf8proc_charwidth(codepoints[i]), width);
+        if (width == 2) {
+            break;
+        }
     }
     return width;
 }
