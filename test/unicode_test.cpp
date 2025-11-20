@@ -3,8 +3,13 @@
 
 using namespace mango;
 
+// TODO: better unicode test
+
 TEST_CASE("test string display width") {
-    REQUIRE(StringWidth("你好12") == 4 + 2);
+    CHECK(StringWidth("你好12") == 4 + 2);
+    CHECK(StringWidth(" a é न 🇺🇸 👩‍👩‍👧 🏳️‍🌈 👨‍⚕️ 👩‍🚀 💖 "
+                        "z") == 26);
+    CHECK(StringWidth("A á ❤️ ☝︎ ✊🏿 👨‍👩‍👧‍👦 👩‍❤️‍💋‍👩 🇨🇳 1️⃣ 🏳️‍🌈 ❤︎‍🔥 🧑‍🍼 ǟ̋") == 33);
 }
 
 TEST_CASE("bound class test") {
@@ -15,34 +20,4 @@ TEST_CASE("bound class test") {
 
     REQUIRE(Utf8ToUnicode("柴", strlen("柴"), byte_eat, c) == kOk);
     REQUIRE(utf8proc_get_property(c)->boundclass == UTF8PROC_BOUNDCLASS_OTHER);
-}
-
-TEST_CASE("Grapheme detection") {
-    Character c;
-    int byte_len;
-    const char* str;
-    str = "💖";
-    ThisCharacterInUtf8(str, 0, c, byte_len);
-    CHECK(byte_len == strlen(str));
-    CHECK(c.Width() == 2);
-
-    str = "🇺🇸";
-    ThisCharacterInUtf8(str, 0, c, byte_len);
-    CHECK(byte_len == strlen(str));
-    // CHECK(c.Width() == 2); // TODO: RI seems is one width, fix it.
-
-    str = "🏳️‍🌈";
-    ThisCharacterInUtf8(str, 0, c, byte_len);
-    CHECK(byte_len == strlen(str));
-    CHECK(c.Width() == 2);
-
-    str = "👩‍👩‍👧";
-    ThisCharacterInUtf8(str, 0, c, byte_len);
-    CHECK(byte_len == strlen(str));
-    CHECK(c.Width() == 2);
-
-    str = "é";
-    ThisCharacterInUtf8(str, 0, c, byte_len);
-    CHECK(byte_len == strlen(str));
-    CHECK(c.Width() == 1);
 }

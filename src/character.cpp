@@ -7,26 +7,43 @@ int Character::Width() {
     return CharacterWidth(codepoints_.data(), codepoints_.size());
 }
 
+// TODO: I haven't decide a totally right way to calc character width,
+// use the following appraoch as a tmp workaround.
+// Possible ref:
+// https://github.com/jameslanska/unicode-display-width
+// https://github.com/helix-editor/helix/issues/6012
+// https://github.com/kovidgoyal/kitty/issues/5047
+// https://mitchellh.com/writing/grapheme-clusters-in-terminals
+// https://hexdocs.pm/string_width/internals.html#:~:text=The%20width%20of%20a%20grapheme,codepoint%2C%20its%20width%20is%20wide.
+
+// Finally ref:
+// https://sw.kovidgoyal.net/kitty/text-sizing-protocol
+
+static constexpr Codepoint kRIStart = 0x1F1E6;
+static constexpr int kRICnt = 26;
+static constexpr Codepoint kVS15 = 0xFE0E;
+static constexpr Codepoint kVS16 = 0xFE0F;
+
+static int WCWidth(Codepoint codepoint) {
+    // Fix RI width
+    if (codepoint >= kRIStart && codepoint < kRIStart + kRICnt) {
+        return 2;
+    }
+    return utf8proc_charwidth(codepoint);
+}
+// We use the first codepoint wcwidth. If we encounter VS later, we adjust the
+// width. It is pretty fine enough, although VSes only take effect after certain
+// categories of codepoints, but we don't check categories now.
 int CharacterWidth(const Codepoint* codepoints, size_t cnt) {
-    // TODO: I haven't decide a totally right way to calc character width,
-    // use the following appraoch as a tmp workaround.
-    // ref:
-    // https://github.com/jameslanska/unicode-display-width
-    // https://github.com/helix-editor/helix/issues/6012
-    // https://github.com/kovidgoyal/kitty/issues/5047
-    // https://mitchellh.com/writing/grapheme-clusters-in-terminals
-    //
-    // https://hexdocs.pm/string_width/internals.html#:~:text=The%20width%20of%20a%20grapheme,codepoint%2C%20its%20width%20is%20wide.
+    int width = WCWidth(codepoints[0]);
     if (cnt == 1) {
-        return utf8proc_charwidth(codepoints[0]);
+        return width;
     }
 
-    int width = 0;
-    for (size_t i = 0; i < cnt; i++) {
-        width = std::max(utf8proc_charwidth(codepoints[i]), width);
-        if (width == 2) {
-            break;
-        }
+    if (width == 1 && codepoints[1] == kVS16) {
+        width = 2;
+    } else if (width == 2 && codepoints[1] == kVS15) {
+        width = 1;
     }
     return width;
 }
