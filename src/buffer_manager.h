@@ -19,8 +19,8 @@ class BufferManager {
 
     Buffer* AddBuffer(Buffer buffer);
     void RemoveBuffer(Buffer* buffer);
-    Buffer* FirstBuffer();
-    Buffer* LastBuffer();
+    Buffer* Begin();
+    Buffer* End(); // exclusive
     Buffer* FindBuffer(Path& path);
     Buffer* FindBuffer(int64_t id);
 

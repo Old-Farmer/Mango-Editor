@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "pos.h"
-#include "trie.h"
 #include "utils.h"
 
 namespace mango {
@@ -60,21 +59,15 @@ class BufferBasicWordCompleter : public Completer {
     void Enable();
     void Disable();
 
-    void BeforeAdd(const Pos& pos, const std::string& str);
-    void BeforeDelete(const Range& range);
-
    private:
-    void ChangeWordsBeforeAdd(const Range& range);
-    void ChangeWordsBeforeDelete(const Range& range);
+    struct WordRange {
+        size_t begin;
+        size_t end;
+    };
 
-    void AddWordsOnRange(const Range& range);
-
-    void AddWords(std::string_view str);
-
-    enum class PosInWordRange { kNone, kBegin, kEnd, kMid };
+    std::vector<WordRange> GetWords(std::string_view str);
 
     const Buffer* buffer_;
-    Trie words_trie_;
     bool enabled_;
 
     std::vector<std::string> suggestions_;

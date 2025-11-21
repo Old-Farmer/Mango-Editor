@@ -36,6 +36,7 @@ add_custom_target(build_termbox2
 )
 FetchContent_Populate(termbox2)
 
+# utf8proc
 FetchContent_Declare(
     utf8proc
     GIT_REPOSITORY "https://github.com/JuliaStrings/utf8proc.git"
@@ -102,16 +103,16 @@ add_custom_target(build_treesitter
 )
 FetchContent_Populate(treesitter)
 
-FetchContent_Declare(
-    json_rpc_cxx
-    GIT_REPOSITORY "https://github.com/jsonrpcx/json-rpc-cxx.git"
-    GIT_TAG master
-    GIT_SHALLOW ON
-    GIT_PROGRESS ON
-    SOURCE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx"
-)
-set(JSON_RPC_CXX_INCLUDE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx/include")
-FetchContent_MakeAvailable(json_rpc_cxx)
+# FetchContent_Declare(
+#     json_rpc_cxx
+#     GIT_REPOSITORY "https://github.com/jsonrpcx/json-rpc-cxx.git"
+#     GIT_TAG master
+#     GIT_SHALLOW ON
+#     GIT_PROGRESS ON
+#     SOURCE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx"
+# )
+# set(JSON_RPC_CXX_INCLUDE_DIR "${THIRD_PARTY_DIR}/json-rpc-cxx/include")
+# FetchContent_MakeAvailable(json_rpc_cxx)
 
 # TODO: maybe we can use nvim-treesitter query?
 # FetchContent_Declare(
@@ -190,6 +191,7 @@ target_sources(
   "${SRC_DIR}/logging.cpp"
   "${SRC_DIR}/mango_peel.h"
   "${SRC_DIR}/mango_peel.cpp"
+  "${SRC_DIR}/mouse.h"
   "${SRC_DIR}/options.h"
   "${SRC_DIR}/options.cpp"
   "${SRC_DIR}/pos.h"
@@ -245,7 +247,6 @@ target_include_directories(
   "${SRC_DIR}"
   "${TERMBOX2_INCLUDE_DIR}"
   "${TREESITTER_INCLUDE_DIR}"
-  "${JSON_RPC_CXX_INCLUDE_DIR}"
   "${UTF8PROC_INCLUDE_DIR}"
 )
 

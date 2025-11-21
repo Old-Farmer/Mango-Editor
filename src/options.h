@@ -52,7 +52,6 @@ enum class LineNumberType {
 enum OptKey {
     kOptPollEventTimeout,
     kOptScrollRows,
-    kOptEscTimeout,
     kOptCursorStartHoldingInterval,
     kOptTabStop,
     kOptTabSpace,

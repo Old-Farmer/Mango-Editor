@@ -3,13 +3,14 @@
 
 using namespace mango;
 
-// TODO: better unicode test
-
 TEST_CASE("test string display width") {
     CHECK(StringWidth("你好12") == 4 + 2);
-    CHECK(StringWidth(" a é न 🇺🇸 👩‍👩‍👧 🏳️‍🌈 👨‍⚕️ 👩‍🚀 💖 "
-                        "z") == 26);
-    CHECK(StringWidth("A á ❤️ ☝︎ ✊🏿 👨‍👩‍👧‍👦 👩‍❤️‍💋‍👩 🇨🇳 1️⃣ 🏳️‍🌈 ❤︎‍🔥 🧑‍🍼 ǟ̋") == 33);
+    CHECK(StringWidth(" a é न 🇺🇸 👩‍👩‍👧 🏳️‍🌈 👨‍⚕️ 👩‍🚀 "
+                      "💖 "
+                      "z") == 26);
+    CHECK(StringWidth("A á ❤️ ☝︎ ✊🏿 👨‍👩‍👧‍👦 👩‍❤️‍💋‍👩 🇨🇳 1️⃣ "
+                      "🏳️‍🌈 ❤︎‍🔥 🧑‍🍼 ǟ̋") ==
+          33);
 }
 
 TEST_CASE("bound class test") {

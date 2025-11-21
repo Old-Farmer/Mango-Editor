@@ -5,7 +5,6 @@
 #include "buffer.h"
 #include "character.h"
 #include "cursor.h"
-#include "editor.h"
 #include "options.h"
 #include "syntax.h"
 
@@ -50,11 +49,11 @@ void Window::CursorGoHome() { frame_.CursorGoHome(); }
 
 void Window::CursorGoEnd() { frame_.CursorGoEnd(); }
 
-void Window::CursorGoNextWordEnd(bool one_more_character) {
-    frame_.CursorGoNextWordEnd(one_more_character);
+void Window::CursorGoWordEnd(bool one_more_character) {
+    frame_.CursorGoWordEnd(one_more_character);
 }
 
-void Window::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
+void Window::CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
 
 void Window::SelectAll() { frame_.SelectAll(); }
 
@@ -63,8 +62,6 @@ void Window::DeleteAtCursor() {
         frame_.DeleteSelection();
         return;
     }
-
-    bool trigger_auto_cmp = false;
 
     Buffer* buffer = frame_.buffer_;
     Range range;
@@ -99,21 +96,11 @@ void Window::DeleteAtCursor() {
             PrevCharacterInUtf8(cur_line, cursor_->byte_offset, character, len);
         MGO_ASSERT(ret == kOk);
 
-        // Should we trigger auto cmp at delete?
         char c = -1;
         if (character.Ascii(c) && IsWordCharacter(c)) {
-            int byte_offset = cursor_->byte_offset - len;
-            if (byte_offset == 0) {
-                trigger_auto_cmp = true;
-            } else {
-                Character character;
-                // prev prev character is also a word character.
-                int len;
-                Result res =
-                    PrevCharacterInUtf8(cur_line, byte_offset, character, len);
-                MGO_ASSERT(res == kOk);
-                trigger_auto_cmp = character.Ascii(c) && IsWordCharacter(c);
-            }
+            ;
+        } else {
+            c = -1;
         }
 
         if (cur_line.size() == cursor_->byte_offset) {
@@ -140,9 +127,6 @@ void Window::DeleteAtCursor() {
     cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
     parser_->ParseSyntaxAfterEdit(buffer);
-    if (trigger_auto_cmp) {
-        TriggerCompletion(true);
-    }
 }
 
 void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
@@ -176,11 +160,6 @@ void Window::AddStringAtCursor(std::string str, bool raw) {
             TryAutoPair(std::move(str));
         } else {
             frame_.AddStringAtCursor(std::move(str));
-            // ascii, good trigger autocmp point
-            // TODO: support config
-            if (IsWordCharacter(c)) {
-                TriggerCompletion(true);
-            }
         }
     }
 }
@@ -313,11 +292,6 @@ void Window::Undo() { frame_.Undo(); }
 void Window::Copy() { frame_.Copy(); }
 void Window::Paste() { frame_.Paste(); }
 void Window::Cut() { frame_.Cut(); }
-
-void Window::TriggerCompletion(bool autocmp) {
-    Editor::GetInstance().TriggerCompletionAndSetContext(
-        frame_.buffer_->completer(), autocmp);
-}
 
 void Window::NextBuffer() {
     if (frame_.buffer_->IsLastBuffer()) {

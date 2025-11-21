@@ -198,21 +198,14 @@ class Terminal {
 
    public:
     // throws TermException
+    // timeout == -1 means infinite blocking
     bool Poll(int timeout_ms);
 
-    using Event = tb_event;
+    bool EventIsResize() { return event_.type == TB_EVENT_RESIZE; }
 
-    const Event& GetEvent() { return event_; }
+    bool EventIsKey() { return event_.type == TB_EVENT_KEY; }
 
-    static bool EventIsResize(const Event& e) {
-        return e.type == TB_EVENT_RESIZE;
-    }
-
-    static bool EventIsKey(const Event& e) { return e.type == TB_EVENT_KEY; }
-
-    static bool EventIsMouse(const Event& e) {
-        return e.type == TB_EVENT_MOUSE;
-    }
+    bool EventIsMouse() { return event_.type == TB_EVENT_MOUSE; }
 
     enum class EventType : uint8_t {
         kResize = TB_EVENT_RESIZE,
@@ -222,9 +215,7 @@ class Terminal {
         kBracketedPasteClose,
     };
 
-    static EventType WhatEvent(const Event& e) {
-        return static_cast<EventType>(e.type);
-    }
+    EventType WhatEvent() { return static_cast<EventType>(event_.type); }
 
     struct ResizeInfo {
         int width;
@@ -328,7 +319,7 @@ class Terminal {
     // special key xor codepoint
     // and mod
     struct KeyInfo {
-        uint32_t codepoint;
+        Codepoint codepoint;
         SpecialKey special_key;
         Mod mod;
 
@@ -340,7 +331,7 @@ class Terminal {
         }
 
         static constexpr KeyInfo CreateNormalKey(
-            uint32_t codepoint, Mod mod = static_cast<Mod>(0)) {
+            Codepoint codepoint, Mod mod = static_cast<Mod>(0)) {
             MGO_ASSERT(codepoint != 0);
             return {codepoint, {}, mod};
         }
@@ -352,22 +343,22 @@ class Terminal {
         }
     };
 
-    static ResizeInfo EventResizeInfo(const Event& e) noexcept {
-        return {e.w, e.h};
+    ResizeInfo EventResizeInfo() noexcept { return {event_.w, event_.h}; }
+    MouseInfo EventMouseInfo() noexcept {
+        return {event_.x, event_.y, static_cast<MouseKey>(event_.key)};
     }
-    static MouseInfo EventMouseInfo(const Event& e) noexcept {
-        return {e.x, e.y, static_cast<MouseKey>(e.key)};
-    }
-    static KeyInfo EventKeyInfo(const Event& e) noexcept {
-        return {e.ch, static_cast<SpecialKey>(e.key), static_cast<Mod>(e.mod)};
+    KeyInfo EventKeyInfo() noexcept {
+        return {static_cast<Codepoint>(event_.ch),
+                static_cast<SpecialKey>(event_.key),
+                static_cast<Mod>(event_.mod)};
     }
 
    private:
-    Event event_;
+    tb_event event_;
 
     // When parsing escape key seq, some events occurs and interrupt it, we
-    // should kept it in left_events and report them.
-    std::vector<Event> left_events_;
+    // should kept it in left_events and report them later.
+    std::vector<tb_event> left_events_;
     KeyseqManager* esc_keyseq_manager_ = nullptr;
     Mode mode_ = Mode::kNone;  // const
 

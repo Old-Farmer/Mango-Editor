@@ -1,13 +1,15 @@
 {
-    "poll_event_timeout": -1,
+    "poll_event_timeout": 50,
     "scroll_rows": 3,
-    "esc_timeout": 50,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
     "cmp_menu_max_height": 8,
     "cmp_menu_max_width": 20,
-    "edit_history_max_item": 50,
-    "basic_word_completion": false,
+    "edit_history_max_item": 1000,
+
+    "basic_word_completion": true,
+
+    "line_number": 1,
 
     "tab_stop": 4,
     "tab_space": true,
@@ -16,7 +18,5 @@
 
     "makefile": {
         "tab_space": false
-    },
-
-    "line_number": 1
+    }
 }

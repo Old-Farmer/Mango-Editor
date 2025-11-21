@@ -39,7 +39,7 @@ static const std::unordered_map<zstring_view, zstring_view> kSuffixToFiletype = 
 };
 
 static const std::unordered_map<zstring_view, zstring_view> kFileTypesToStrRep = {
-    {"", "🥭"},
+    {"", "None"},
     {"c", "C"},
     {"cpp","C++"},
     {"go","Go"},

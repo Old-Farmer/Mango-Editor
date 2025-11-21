@@ -23,22 +23,19 @@ void BufferManager::RemoveBuffer(Buffer* buffer) {
     buffers_.erase(id);
 }
 
-Buffer* BufferManager::FirstBuffer() {
+Buffer* BufferManager::Begin() {
     if (list_head_.next_ == &list_tail_) {
         return nullptr;
     }
     return list_head_.next_;
 }
 
-Buffer* BufferManager::LastBuffer() {
-    if (list_head_.next_ == &list_tail_) {
-        return nullptr;
-    }
-    return list_tail_.prev_;
+Buffer* BufferManager::End() {
+    return &list_tail_;
 }
 
 Buffer* BufferManager::FindBuffer(Path& path) {
-    for (auto b = FirstBuffer(); b != LastBuffer(); b = b->next_) {
+    for (auto b = Begin(); b != End(); b = b->next_) {
         if (b->path().ThisPath() == path.ThisPath()) {
             return b;
         }

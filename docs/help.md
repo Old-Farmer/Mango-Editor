@@ -137,28 +137,39 @@ Support options:
 1. tab_stop  
     scope: buffer,
     type: int,
-    default: 4
+    default: 4,
+    desc: tab aligment.
 
 2. tab_space  
     scope: buffer,
     type: bool,
-    default: true
+    default: true,
+    desc: when hit tab, insert space or just tab.
 
 3. auto_indent  
     scope: buffer,
     type: bool,
-    default: true
+    default: true,
+    desc: auto indentation.
 
 4. auto_pair  
     scope: buffer,
     type: bool,
-    default: true
+    default: true,
+    desc: auto pair for brackets, etc.
 
 5. line_number  
     scope: window,
     type: int,
     available: 0 = none, 1 = absolute,
-    default: 1
+    default: 1,
+    desc: show line number.
+
+6. basic_word_completion  
+    scope: global,
+    type: bool,
+    default: true,
+    desc: a baisc ascii word completion.
 
 Note that you can set per filetype buffer options like:
 
@@ -184,3 +195,4 @@ References:
 
 - [UAX#11](http://www.unicode.org/reports/tr11/)
 - [UAX#29](http://www.unicode.org/reports/tr29/)
+- [UTX#51](https://unicode.org/reports/tr51/)

@@ -4,9 +4,12 @@
 
 namespace mango {
 
-enum class MouseState : int {
-    kPressed,
+enum class MouseState {
     kReleased,
+    kLeftNotReleased,
+    kRightNotReleased,
+    kMiddleNotReleased,
+    kLeftHolding,
 };
 
 enum class BufferState : int {

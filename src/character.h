@@ -49,6 +49,8 @@ class Character {
 
     int Width();
 
+    std::string ToString();
+
    private:
     std::vector<Codepoint> codepoints_;
 };

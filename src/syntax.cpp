@@ -177,7 +177,14 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
     query_end.column = range.end.byte_offset;
     bool set_range_ret =
         ts_query_cursor_set_point_range(query_cursor_, query_start, query_end);
-    MGO_ASSERT(set_range_ret);
+    if (!set_range_ret) {
+        MGO_LOG_INFO("ts_query_cursor_set_point_range error: start row %" PRIu32
+                     ", start col %" PRIu32 ", end row %" PRIu32
+                     ", end col %" PRIu32,
+                     query_start.row, query_start.column, query_end.row,
+                     query_end.column);
+        return;
+    }
 
     ts_query_cursor_exec(query_cursor_, query_context.query, root);
     TSQueryMatch match;

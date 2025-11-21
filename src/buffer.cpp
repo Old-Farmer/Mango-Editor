@@ -195,8 +195,6 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
         }
     });
 
-    if (basic_word_completer_) basic_word_completer_->BeforeAdd(pos, str);
-
     size_t i = 0;
     cursor_pos_hint = pos;
     std::vector<size_t> new_line_offset;
@@ -256,8 +254,6 @@ void Buffer::AddInner(const Pos& pos, const std::string& str,
 std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
                                 bool record_reverse, bool record_ts_edit) {
     auto _ = gsl::finally([this] { Modified(); });
-
-    if (basic_word_completer_) basic_word_completer_->BeforeDelete(range);
 
     std::string old_str;
     size_t old_str_size = 0;

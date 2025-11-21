@@ -7,6 +7,20 @@ int Character::Width() {
     return CharacterWidth(codepoints_.data(), codepoints_.size());
 }
 
+std::string Character::ToString() {
+    std::string str;
+    char buf[4];
+    for (Codepoint codepoint : codepoints_) {
+        int len = UnicodeToUtf8(codepoint, buf);
+        if (len == 0) {
+            return "";
+        } else {
+            str.append(buf, len);
+        }
+    }
+    return str;
+}
+
 // TODO: I haven't decide a totally right way to calc character width,
 // use the following appraoch as a tmp workaround.
 // Possible ref:
@@ -40,10 +54,12 @@ int CharacterWidth(const Codepoint* codepoints, size_t cnt) {
         return width;
     }
 
-    if (width == 1 && codepoints[1] == kVS16) {
-        width = 2;
-    } else if (width == 2 && codepoints[1] == kVS15) {
-        width = 1;
+    for (size_t i = 1; i < cnt; i++) {
+        if (codepoints[i] == kVS16 && width == 1) {
+            width = 2;
+        } else if (codepoints[i] == kVS15 && width == 2) {
+            width = 1;
+        }
     }
     return width;
 }
@@ -196,6 +212,10 @@ Result NextWordBegin(const std::string& str, size_t offset,
 
 Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
                size_t& next_word_end_offset) {
+    if (offset == str.size()) {
+        return kOk;
+    }
+
     Character character;
     int byte_len;
     bool found_word_character = false;
@@ -213,7 +233,7 @@ Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
                 if (one_more_character) {
                     next_word_end_offset = offset;
                 } else {
-                    next_word_end_offset = offset - 1;
+                    next_word_end_offset = offset - 1;  // 1 is safe for ascii
                 }
                 return kOk;
             }

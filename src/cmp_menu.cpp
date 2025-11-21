@@ -17,6 +17,7 @@ void CmpMenu::SetEntries(std::vector<std::string> entries) {
 
 void CmpMenu::DecideLocAndSize() {
     MGO_ASSERT(entries_.size() > menu_view_line_);
+    // TODO: fix calc when screen is very small, like 1 height
     size_t shown_enties_cnt =
         std::min<size_t>(global_opts_->GetOpt<int64_t>(kOptCmpMenuMaxHeight),
                          entries_.size() - menu_view_line_);
@@ -48,7 +49,8 @@ void CmpMenu::DecideLocAndSize() {
     size_t max_width = 0;
     for (size_t i = menu_view_line_; i < shown_enties_cnt + menu_view_line_;
          i++) {
-        size_t w = StringWidth(entries_[i]);
+        size_t w = StringWidth(entries_[i]) +
+                   2;  // 2 is two spaces before and after and entry.
         entries_width_[i - menu_view_line_] = w;
         max_width = std::max(w, max_width);
     }
@@ -77,6 +79,7 @@ void CmpMenu::Draw() {
         size_t offset = 0;
         size_t menu_col = 0;
         Character character;
+        // TODO: render a space before an entry.
         while (offset < str.size()) {
             int byte_len;
             Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
@@ -94,8 +97,6 @@ void CmpMenu::Draw() {
                                             character.Codepoints(),
                                             character.CodePointCount(), attr);
                 if (res == kTermOutOfBounds) {
-                    // User resize the screen now, just skip the
-                    // left cols in this row
                     break;
                 }
             } else {

@@ -48,10 +48,10 @@ void MangoPeel::CursorGoHome() { frame_.CursorGoHome(); }
 void MangoPeel::CursorGoEnd() { frame_.CursorGoEnd(); }
 
 void MangoPeel::CursorGoNextWordEnd(bool one_more_character) {
-    frame_.CursorGoNextWordEnd(one_more_character);
+    frame_.CursorGoWordEnd(one_more_character);
 }
 
-void MangoPeel::CursorGoPrevWord() { frame_.CursorGoPrevWord(); }
+void MangoPeel::CursorGoPrevWord() { frame_.CursorGoWordBegin(); }
 
 void MangoPeel::DeleteCharacterBeforeCursor() { frame_.DeleteAtCursor(); }
 

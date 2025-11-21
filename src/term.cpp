@@ -38,7 +38,9 @@ void Terminal::Init(GlobalOpts* global_opts) {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
-    ret = tb_set_input_mode(TB_INPUT_ESC | TB_INPUT_MOUSE);  // enable mouse
+    // NOTE: We use esc mode, so pure codepoint will not have any mod.
+    // And enable mouse.
+    ret = tb_set_input_mode(TB_INPUT_ESC | TB_INPUT_MOUSE);
     if (ret != TB_OK) {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
@@ -73,21 +75,19 @@ void Terminal::Shutdown() {
 }
 
 bool Terminal::PollInner(int timeout_ms) {
-    int ret;
-    if (timeout_ms == -1) {
-        ret = tb_poll_event(&event_);
-    } else {
+    while (true) {
+        int ret;
         ret = tb_peek_event(&event_, timeout_ms);
+        if (ret == TB_ERR_NO_EVENT) {
+            return false;
+        } else if (ret == TB_ERR_POLL && tb_last_errno() == EINTR) {
+            continue;
+        } else if (ret != TB_OK) {
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
+            throw TermException("%s", tb_strerror(ret));
+        }
+        return true;
     }
-    if (ret == TB_ERR_NO_EVENT) {
-        return false;
-    } else if (ret == TB_ERR_POLL && tb_last_errno() == EINTR) {
-        return false;
-    } else if (ret != TB_OK) {
-        MGO_LOG_ERROR("%s", tb_strerror(ret));
-        throw TermException("%s", tb_strerror(ret));
-    }
-    return true;
 }
 
 bool Terminal::Poll(int timeout_ms) {
@@ -102,90 +102,58 @@ bool Terminal::Poll(int timeout_ms) {
     if (!res) {
         return false;
     }
-    if (!EventIsKey(event_)) {
+    if (event_.type != TB_EVENT_KEY) {
         return true;
     }
 
     // We implement a mechenism for custom escape seq detection on termbox2.
-    KeyInfo key_info = EventKeyInfo(event_);
-    if (!key_info.IsSpecialKey() || key_info.mod != 0 ||
-        key_info.special_key != SpecialKey::kEsc) {
+    if (event_.key != TB_KEY_ESC) {
         return true;
     }
 
     left_events_.push_back(event_);
 
-    auto esc_timeout = global_opts_->GetOpt<int64_t>(kOptEscTimeout);
-    ;
-
     // Try the first following event
-    auto start = std::chrono::steady_clock::now();
-    res = PollInner(esc_timeout);
+    res = PollInner(0);
     if (!res) {
-        return false;
+        // pop up esc
+        left_events_.erase(left_events_.begin());
+        return true;
     }
 
+    // Interrupt by mouse event and resize event.
+    // Although a resize event always return first when tty
+    // and resize event all arrived, we don't care this because we believe we
+    // will have chars in buffer if we encounter escape sequence.
+    if (event_.type != TB_EVENT_KEY) {
+        // pop up esc
+        event_ = left_events_[0];
+        left_events_.erase(left_events_.begin());
+        return true;
+    }
     left_events_.push_back(event_);
 
-    // Interrupt by mouse event. Can't be escape seqs.
-    if (EventIsMouse(event_)) {
-        return false;
-    }
-
-    // We meet resize event, because termbox2 resize event return first is tty
-    // and resize event all arrived, so we retry until we can meet a key event.
-    bool not_timeout = false;
-    if (EventIsResize(event_)) {
-        auto end = std::chrono::steady_clock::now();
-        while (
-            std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
-                .count() < esc_timeout) {
-            if (!PollInner(esc_timeout)) {
-                return false;
-            }
-            left_events_.push_back(event_);
-
-            // Interrupt by mouse event. Can't be escape seqs.
-            if (EventIsMouse(event_)) {
-                return false;
-            }
-
-            end = std::chrono::steady_clock::now();
-            if (EventIsResize(event_)) {
-                continue;
-            }
-
-            if (EventIsKey(event_)) {
-                if (std::chrono::duration_cast<std::chrono::milliseconds>(end -
-                                                                          start)
-                        .count() < esc_timeout) {
-                    not_timeout = true;
-                }
-                break;
-            }
-        }
-        if (!not_timeout) {
-            return false;
-        }
-    }
-
-    // We have esc >= 0 resize events and a key event in left_events
-    // and event_ is the key event
+    // We have esc event and a key event in left_events
+    // and event_ is the key event.
     while (true) {
         Keyseq* handler;
-        Result res =
-            esc_keyseq_manager_->FeedKey(EventKeyInfo(event_), handler);
+        if (event_.ch > CHAR_MAX) {
+            // pop up esc
+            event_ = left_events_[0];
+            left_events_.erase(left_events_.begin());
+            return true;
+        }
+        Result res = esc_keyseq_manager_->FeedKey(EventKeyInfo(), handler);
         if (res == kKeyseqError) {
-            return false;
+            // pop up esc
+            event_ = left_events_[0];
+            left_events_.erase(left_events_.begin());
+            return true;
         } else if (res == kKeyseqDone) {
             handler->f();
             for (auto iter = left_events_.begin();
                  iter != left_events_.end();) {
-                if (EventIsKey(*iter)) {
-                    iter = left_events_.erase(iter);
-                } else {
-                    iter++;
-                }
+                iter = left_events_.erase(iter);
             }
             return true;
         }
@@ -193,13 +161,19 @@ bool Terminal::Poll(int timeout_ms) {
         // escape seq should be ready in the user space termbox2 buffer
         bool poll_res = PollInner(0);
         if (!poll_res) {
-            return false;
+            // pop up esc
+            event_ = left_events_[0];
+            left_events_.erase(left_events_.begin());
+            return true;
         }
 
         left_events_.push_back(event_);
 
-        if (!EventIsKey(event_)) {
-            return false;
+        if (event_.type != TB_EVENT_KEY) {
+            // pop up esc
+            event_ = left_events_[0];
+            left_events_.erase(left_events_.begin());
+            return true;
         }
     }
     return true;

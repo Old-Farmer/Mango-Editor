@@ -15,7 +15,6 @@ static const std::string kUserConfigPath =
 static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"poll_event_timeout", kOptPollEventTimeout},
     {"scroll_rows", kOptScrollRows},
-    {"esc_timeout", kOptEscTimeout},
     {"cursor_start_holding_interval", kOptCursorStartHoldingInterval},
     {"tab_stop", kOptTabStop},
     {"tab_space", kOptTabSpace},
@@ -35,7 +34,6 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptPollEventTimeout] = {OptScope::kGlobal,
                                                  Type::kInteger};
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
-        static_opt_info[kOptEscTimeout] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
                                                            Type::kInteger};
         static_opt_info[kOptStatusLineSepWidth] = {OptScope::kGlobal,

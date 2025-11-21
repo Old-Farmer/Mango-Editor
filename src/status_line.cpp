@@ -19,6 +19,7 @@ void StatusLine::Draw() {
 
     auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
 
+    // make this line reverse
     term_->Print(0, row_, scheme[t], std::string(width_, kSpaceChar).c_str());
 
     Buffer* b;

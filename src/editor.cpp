@@ -1,6 +1,6 @@
 #include "editor.h"
 
-#include <inttypes.h>
+// #include <inttypes.h>
 
 #include "character.h"
 #include "clipboard.h"
@@ -10,6 +10,9 @@
 #include "term.h"
 
 namespace mango {
+
+static constexpr int kScreenMinWidth = 10;
+static constexpr int kScreenMinHeight = 3;
 
 void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                   std::unique_ptr<InitOpts> init_options) {
@@ -34,8 +37,8 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     // Create the first window.
     // If no buffer then create one no file backup buffer.
     Buffer* buf;
-    if (buffer_manager_.FirstBuffer() != nullptr) {
-        buf = buffer_manager_.FirstBuffer();
+    if (buffer_manager_.Begin() != nullptr) {
+        buf = buffer_manager_.Begin();
     } else {
         buf = buffer_manager_.AddBuffer({global_opts_.get()});
     }
@@ -67,32 +70,50 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     // Event Loop
     // TODO: support custom cursor blinking
     while (!quit_) {
-        if (have_event_) {
-            PreProcess();
-            Draw();
+        // When the screen is too small, rendering is hard to cope with,
+        // so we just not do anything, swallow all events otherthan resize until
+        // the screen is bigger again.
+        while (term_.Height() < kScreenMinHeight ||
+               term_.Width() < kScreenMinWidth) {
+            if (term_.Poll(
+                    global_opts_->GetOpt<int64_t>(kOptPollEventTimeout))) {
+                if (term_.EventIsResize()) {
+                    HandleResize();
+                }
+            }
         }
 
+        PreProcess();
+        Draw();
+
         // Poll a new Event
-        have_event_ =
+        bool have_event =
             term_.Poll(global_opts_->GetOpt<int64_t>(kOptPollEventTimeout));
-        if (!have_event_) {
+        if (!have_event) {
+            // We have a timeout, no user input ready, Good time to trigger a
+            // autocmp.
+            if (show_cmp_menu_) {
+                TriggerCompletion(true);
+            } else {
+                CancellCompletion();
+            }
             continue;
         }
 
+        show_cmp_menu_ = false;
+
         // Handle it and do sth
-        auto& e = term_.GetEvent();
-        if (term_.EventIsKey(e)) {
-            HandleKey(e,
-                      in_bracketed_paste ? &bracketed_paste_buffer : nullptr);
-        } else if (term_.EventIsMouse(e)) {
-            CancellCompletion();
-            HandleMouse(e);
-        } else if (term_.EventIsResize(e)) {
-            CancellCompletion();
-            HandleResize(e);
+        if (term_.EventIsKey()) {
+            HandleKey(in_bracketed_paste ? &bracketed_paste_buffer : nullptr);
+        } else if (term_.EventIsMouse()) {
+            // CancellCompletion();
+            HandleMouse();
+        } else if (term_.EventIsResize()) {
+            // CancellCompletion();
+            HandleResize();
         } else {
-            CancellCompletion();
-            Terminal::EventType t = term_.WhatEvent(e);
+            // CancellCompletion();
+            Terminal::EventType t = term_.WhatEvent();
             if (t == Terminal::EventType::kBracketedPasteOpen) {
                 in_bracketed_paste = true;
             } else if (t == Terminal::EventType::kBracketedPasteClose) {
@@ -108,10 +129,6 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         }
     }
 }
-
-// Keyseq has a type member, we use it to distinguish keymaps.
-// bitwise const
-constexpr int kNotCancellCmp = 1;
 
 void Editor::InitKeymaps() {
     // quit
@@ -204,27 +221,28 @@ void Editor::InitKeymaps() {
 
     // cmp
     keymap_manager_.AddKeyseq("<c-k><c-c>", {[this] {
-                                  cursor_.in_window->TriggerCompletion(false);
+                                  TriggerCompletion(false);
+                                  show_cmp_menu_ = true;
                               }});
 
     // edit
-    keymap_manager_.AddKeyseq(
-        "<bs>", {[this] { cursor_.in_window->DeleteAtCursor(); }});
+    keymap_manager_.AddKeyseq("<bs>", {[this] {
+                                  cursor_.in_window->DeleteAtCursor();
+                                  show_cmp_menu_ = true;
+                              }});
     keymap_manager_.AddKeyseq(
         "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
     keymap_manager_.AddKeyseq("<tab>",
                               {[this] { cursor_.in_window->TabAtCursor(); }});
     keymap_manager_.AddKeyseq(
         "<enter>", {[this] {
-                        if (CompletionTriggered()) {
-                            tmp_completer_->Accept(cmp_menu_->Accept(),
-                                                   &cursor_);
-                            tmp_completer_ = nullptr;
-                        } else {
-                            cursor_.in_window->AddStringAtCursor("\n");
-                        }
-                    },
-                    kNotCancellCmp});
+            if (CompletionTriggered()) {
+                tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_);
+                tmp_completer_ = nullptr;
+            } else {
+                cursor_.in_window->AddStringAtCursor("\n");
+            }
+        }});
     keymap_manager_.AddKeyseq(
         "<c-s>", {[this] {
             try {
@@ -260,44 +278,41 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<right>",
                               {[this] { cursor_.in_window->CursorGoRight(); }});
     keymap_manager_.AddKeyseq(
-        "<c-left>", {[this] { cursor_.in_window->CursorGoPrevWord(); }});
-    keymap_manager_.AddKeyseq("<c-right>", {[this] {
-                                  cursor_.in_window->CursorGoNextWordEnd(true);
-                              }});
+        "<c-left>", {[this] { cursor_.in_window->CursorGoWordBegin(); }});
+    keymap_manager_.AddKeyseq(
+        "<c-right>", {[this] { cursor_.in_window->CursorGoWordEnd(true); }});
     keymap_manager_.AddKeyseq("<up>", {[this] {
-                                           if (CompletionTriggered()) {
-                                               cmp_menu_->SelectPrev();
-                                           } else {
-                                               cursor_.in_window->CursorGoUp();
-                                           }
-                                       },
-                                       kNotCancellCmp});
-    keymap_manager_.AddKeyseq("<down>",
-                              {[this] {
-                                   if (CompletionTriggered()) {
-                                       cmp_menu_->SelectNext();
-                                   } else {
-                                       cursor_.in_window->CursorGoDown();
-                                   }
-                               },
-                               kNotCancellCmp});
+                                  if (CompletionTriggered()) {
+                                      cmp_menu_->SelectPrev();
+                                      show_cmp_menu_ = true;
+                                  } else {
+                                      cursor_.in_window->CursorGoUp();
+                                  }
+                              }});
+    keymap_manager_.AddKeyseq("<down>", {[this] {
+                                  if (CompletionTriggered()) {
+                                      cmp_menu_->SelectNext();
+                                      show_cmp_menu_ = true;
+                                  } else {
+                                      cursor_.in_window->CursorGoDown();
+                                  }
+                              }});
     keymap_manager_.AddKeyseq("<c-p>", {[this] {
-                                            if (CompletionTriggered()) {
-                                                cmp_menu_->SelectPrev();
-                                            } else {
-                                                cursor_.in_window->CursorGoUp();
-                                            }
-                                        },
-                                        kNotCancellCmp});
-    keymap_manager_.AddKeyseq("<c-n>",
-                              {[this] {
-                                   if (CompletionTriggered()) {
-                                       cmp_menu_->SelectNext();
-                                   } else {
-                                       cursor_.in_window->CursorGoDown();
-                                   }
-                               },
-                               kNotCancellCmp});
+                                  if (CompletionTriggered()) {
+                                      cmp_menu_->SelectPrev();
+                                      show_cmp_menu_ = true;
+                                  } else {
+                                      cursor_.in_window->CursorGoUp();
+                                  }
+                              }});
+    keymap_manager_.AddKeyseq("<c-n>", {[this] {
+                                  if (CompletionTriggered()) {
+                                      cmp_menu_->SelectNext();
+                                      show_cmp_menu_ = true;
+                                  } else {
+                                      cursor_.in_window->CursorGoDown();
+                                  }
+                              }});
     keymap_manager_.AddKeyseq("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
     keymap_manager_.AddKeyseq("<end>",
@@ -310,7 +325,11 @@ void Editor::InitKeymaps() {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
-    keymap_manager_.AddKeyseq("<esc>", {[this] { (void)this; }});
+    keymap_manager_.AddKeyseq("<esc>", {[this] {
+                                  if (CompletionTriggered()) {
+                                      CancellCompletion();
+                                  }
+                              }});
 }
 
 void Editor::InitCommands() {
@@ -351,9 +370,8 @@ void Editor::InitCommands() {
          1});
 }
 
-void Editor::HandleKey(const Terminal::Event& e,
-                       std::string* bracketed_paste_buffer) {
-    Terminal::KeyInfo key_info = term_.EventKeyInfo(e);
+void Editor::HandleKey(std::string* bracketed_paste_buffer) {
+    Terminal::KeyInfo key_info = term_.EventKeyInfo();
 
     // #ifndef NDEBUG
     //     bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
@@ -388,15 +406,23 @@ void Editor::HandleKey(const Terminal::Event& e,
         return;
     }
 
+    // We treat one codepoint as a key event instead of one grapheme.
+    //
+    // The main reason is that we don't know how users press keys and do input
+    // due to terminial limitaion, so it will not be that necessary to parse
+    // codepoints as graphemes.
+
+    Result res = kKeyseqError;
     Keyseq* handler;
-    Result res = keymap_manager_.FeedKey(key_info, handler);
+    if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
+        res = keymap_manager_.FeedKey(key_info, handler);
+    }
     if (res == kKeyseqError) {
-        // pure codepoint
-        // not handled by the keymap manager
-        // TODO: combining character and grapheme cluster support.
-        CancellCompletion();
-        if (!key_info.IsSpecialKey() && key_info.mod == 0) {
-            uint32_t codepoint = key_info.codepoint;
+        // Pure codepoints not handled by the keymap manager.
+        // Use single codepoint to edit buffers is quite safe here.
+        // There are only some very rare edge cases when autopair are triggered.
+        if (!key_info.IsSpecialKey()) {
+            Codepoint codepoint = key_info.codepoint;
 
             char c[4];
             int len = UnicodeToUtf8(codepoint, c);
@@ -406,6 +432,8 @@ void Editor::HandleKey(const Terminal::Event& e,
             } else {
                 cursor_.in_window->AddStringAtCursor(c);
             }
+            // After insert, we can have an opportunity to trigger auto cmp.
+            show_cmp_menu_ = true;
         }
         return;
     } else if (res == kKeyseqMatched) {
@@ -413,10 +441,6 @@ void Editor::HandleKey(const Terminal::Event& e,
         return;
     }
 
-    // Match Done
-    if (!(handler->type & kNotCancellCmp)) {
-        CancellCompletion();
-    }
     handler->f();
 }
 
@@ -430,7 +454,7 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
         win->SetCursorHint(s_row, s_col);
     }
 
-    if (cursor_.state_ == CursorState::kReleased) {
+    if (mouse_.state == MouseState::kReleased) {
         if (!win) {
             return;
         }
@@ -440,16 +464,16 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
 
         auto now = std::chrono::steady_clock::now();
         if (std::chrono::duration_cast<std::chrono::milliseconds>(
-                now - cursor_.last_click_time_)
+                now - mouse_.last_click_time)
                 .count() <
             global_opts_->GetOpt<int64_t>(kOptCursorStartHoldingInterval)) {
-            cursor_.state_ = CursorState::kLeftHolding;
+            mouse_.state = MouseState::kLeftHolding;
         } else {
-            cursor_.last_click_time_ = now;
-            cursor_.state_ = CursorState::kLeftNotReleased;
+            mouse_.last_click_time = now;
+            mouse_.state = MouseState::kLeftNotReleased;
         }
-    } else if (cursor_.state_ == CursorState::kLeftNotReleased) {
-        cursor_.state_ = CursorState::kLeftHolding;
+    } else if (mouse_.state == MouseState::kLeftNotReleased) {
+        mouse_.state = MouseState::kLeftHolding;
         if (win) {
             if (win == prev_win &&
                 !(prev_pos == Pos{cursor_.line, cursor_.byte_offset})) {
@@ -459,7 +483,7 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
                     cursor_.line, cursor_.byte_offset};
             }
         }
-    } else if (cursor_.state_ == CursorState::kLeftHolding) {
+    } else if (mouse_.state == MouseState::kLeftHolding) {
         if (cursor_.in_window->frame_.selection_.active) {
             if (win) {
                 cursor_.in_window->frame_.selection_.head = {
@@ -483,16 +507,16 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
 void Editor::HandleRelease(int s_row, int s_col) {
     (void)s_row, (void)s_col;
     // MGO_LOG_DEBUG("release mouse row %d, col %d", s_row, s_col);
-    cursor_.state_ = CursorState::kReleased;
+    mouse_.state = MouseState::kReleased;
 }
 
-void Editor::HandleMouse(const Terminal::Event& e) {
+void Editor::HandleMouse() {
     // Only non peel
     if (IsPeel(mode_)) {
         return;
     }
 
-    Terminal::MouseInfo mouse_info = term_.EventMouseInfo(e);
+    Terminal::MouseInfo mouse_info = term_.EventMouseInfo();
     switch (mouse_info.t) {
         using mk = Terminal::MouseKey;
         case mk::kLeft: {
@@ -500,12 +524,12 @@ void Editor::HandleMouse(const Terminal::Event& e) {
             break;
         }
         case mk::kRight: {
-            cursor_.state_ = CursorState::kRightNotReleased;
+            mouse_.state = MouseState::kRightNotReleased;
             cursor_.in_window->frame_.selection_.active = false;
             break;
         }
         case mk::kMiddle: {
-            cursor_.state_ = CursorState::kMiddleNotReleased;
+            mouse_.state = MouseState::kMiddleNotReleased;
             cursor_.in_window->frame_.selection_.active = false;
             break;
         }
@@ -550,8 +574,8 @@ void Editor::Resize(int width, int height) {
     peel_->frame_.height_ = 1;
 }
 
-void Editor::HandleResize(const Terminal::Event& e) {
-    Terminal::ResizeInfo resize_info = term_.EventResizeInfo(e);
+void Editor::HandleResize() {
+    Terminal::ResizeInfo resize_info = term_.EventResizeInfo();
     Resize(resize_info.width, resize_info.height);
 }
 
@@ -620,7 +644,17 @@ void Editor::Help() {
     cursor_.in_window->AttachBuffer(b);
 }
 
-void Editor::Quit() { quit_ = true; }
+void Editor::Quit() {
+    MGO_ASSERT(buffer_manager_.Begin());
+    for (auto buffer = buffer_manager_.Begin(); buffer != buffer_manager_.End();
+         buffer = buffer->next_) {
+        if (buffer->state() == BufferState::kModified) {
+            peel_->SetContent("Some buffers have not saved, quit fail");
+            return;
+        }
+    }
+    quit_ = true;
+}
 
 void Editor::GotoPeel() {
     MGO_ASSERT(!IsPeel(mode_));
@@ -681,11 +715,19 @@ void Editor::SearchPrev() {
     peel_->SetContent(ss.str());
 }
 
-void Editor::TriggerCompletionAndSetContext(Completer* completer,
-                                            bool autocmp) {
-    MGO_ASSERT(!CompletionTriggered());
+void Editor::TriggerCompletion(bool autocmp) {
+    if (CompletionTriggered()) {
+        CancellCompletion();
+    }
 
-    if (completer == nullptr) {
+    if (!IsPeel(mode_)) {
+        tmp_completer_ = window_->frame_.buffer_->completer();
+    } else {
+        // Not support peel cmp now
+        return;
+    }
+
+    if (tmp_completer_ == nullptr) {
         if (autocmp) {
             return;
         }
@@ -693,21 +735,17 @@ void Editor::TriggerCompletionAndSetContext(Completer* completer,
         return;
     }
 
-    if (tmp_completer_) {
-        tmp_completer_->Cancel();
-    }
-
     std::vector<std::string> entries;
-    completer->Suggest(cursor_.ToPos(), entries);
+    tmp_completer_->Suggest(cursor_.ToPos(), entries);
     if (entries.empty()) {
-        completer->Cancel();
+        tmp_completer_->Cancel();
         if (!autocmp) {
             peel_->SetContent("No completion");
         }
+        tmp_completer_ = nullptr;
         return;
     }
 
-    tmp_completer_ = completer;
     cmp_menu_->SetEntries(std::move(entries));
     cmp_menu_->visible() = true;
 }

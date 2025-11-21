@@ -9,6 +9,7 @@
 #include "cursor.h"
 #include "keyseq_manager.h"
 #include "mango_peel.h"
+#include "mouse.h"
 #include "state.h"
 #include "status_line.h"
 #include "syntax.h"
@@ -40,7 +41,7 @@ class Editor {
 
     void GotoPeel();
     void ExitFromMode();
-    void TriggerCompletionAndSetContext(Completer* completer, bool autocmp);
+    void TriggerCompletion(bool autocmp);
     void CancellCompletion();
     bool CompletionTriggered();
     void SearchNext();
@@ -49,12 +50,11 @@ class Editor {
    private:
     void InitKeymaps();
     void InitCommands();
-    void HandleKey(const Terminal::Event& e,
-                   std::string* bracketed_paste_buffer);
+    void HandleKey(std::string* bracketed_paste_buffer);
     void HandleLeftClick(int s_row, int s_col);
     void HandleRelease(int s_row, int s_col);
-    void HandleMouse(const Terminal::Event& e);
-    void HandleResize(const Terminal::Event& e);
+    void HandleMouse();
+    void HandleResize();
 
     void Draw();
     void PreProcess();
@@ -90,6 +90,7 @@ class Editor {
 
     std::unique_ptr<ClipBoard> clipboard_;
 
+    Mouse mouse_;
     Cursor cursor_;
     // Now only support one window in the screen
     // TODO: mutiple window logic
@@ -99,13 +100,13 @@ class Editor {
     std::unique_ptr<CmpMenu> cmp_menu_;
 
     bool quit_ = false;
-    bool have_event_ = true;
 
     std::unique_ptr<GlobalOpts> global_opts_;
 
     // Cmp context
     Mode mode_trigger_cmp_;
-    Completer* tmp_completer_;
+    Completer* tmp_completer_ = nullptr;
+    bool show_cmp_menu_ = false;
 
     Terminal& term_ = Terminal::GetInstance();
 };

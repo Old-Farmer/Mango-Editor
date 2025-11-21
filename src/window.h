@@ -33,8 +33,8 @@ class Window {
     void CursorGoDown();
     void CursorGoHome();
     void CursorGoEnd();
-    void CursorGoNextWordEnd(bool one_more_character);
-    void CursorGoPrevWord();
+    void CursorGoWordEnd(bool one_more_character);
+    void CursorGoWordBegin();
 
     void SelectAll();
 
@@ -51,8 +51,6 @@ class Window {
     void Copy();
     void Paste();
     void Cut();
-
-    void TriggerCompletion(bool autocmp);
 
     void NextBuffer();
     void PrevBuffer();

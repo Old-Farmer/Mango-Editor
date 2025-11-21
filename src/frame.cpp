@@ -195,12 +195,7 @@ void Frame::Draw() {
                         Result ret = term_->SetCell(
                             screen_c, screen_r, character.Codepoints(),
                             character.CodePointCount(), attr);
-                        if (ret == kTermOutOfBounds) {
-                            // User resize the screen now, just skip the left
-                            // cols in this row
-                            MGO_LOG_DEBUG("Out of bound");
-                            break;
-                        }
+                        MGO_ASSERT(ret == kOk);
                     }
                 } else {
                     break;
@@ -450,7 +445,7 @@ void Frame::CursorGoEnd() {
     SelectionFollowCursor();
 }
 
-void Frame::CursorGoNextWordEnd(bool one_more_character) {
+void Frame::CursorGoWordEnd(bool one_more_character) {
     MGO_ASSERT(buffer_);
     const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == cur_line->size()) {
@@ -468,7 +463,7 @@ void Frame::CursorGoNextWordEnd(bool one_more_character) {
     SelectionFollowCursor();
 }
 
-void Frame::CursorGoPrevWord() {
+void Frame::CursorGoWordBegin() {
     MGO_ASSERT(buffer_);
     const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == 0) {
@@ -514,8 +509,11 @@ void Frame::DeleteWordBeforeCursor() {
             return;
         }
         deleted_until.line = cursor_->line - 1;
-        cur_line = &buffer_->GetLine(cursor_->line);
+        cur_line = &buffer_->GetLine(deleted_until.line);
         deleted_until.byte_offset = cur_line->size();
+        if (deleted_until.byte_offset == 0) {
+            return;
+        }
     } else {
         deleted_until = cursor_->ToPos();
     }
@@ -782,9 +780,7 @@ void Frame::DrawLineNumber() {
                 Result res = term_->Print(
                     col_, screen_r, scheme[kLineNumber],
                     (kSpace + ss.str() + std::string(2, kSpaceChar)).c_str());
-                if (res == kTermOutOfBounds) {
-                    break;
-                }
+                MGO_ASSERT(res == kOk);
             }
         }
     }
