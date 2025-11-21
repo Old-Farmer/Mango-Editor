@@ -22,8 +22,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
     Character character;
     int byte_len;
     while (byte_offset > 0) {
-        Result res =
-            PrevCharacterInUtf8(cur_line, byte_offset, character, byte_len);
+        Result res = PrevCharacter(cur_line, byte_offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
         if (character.Ascii(c) && IsWordCharacter(c)) {
@@ -98,7 +97,7 @@ BufferBasicWordCompleter::GetWords(std::string_view str) {
     bool found_word_character = false;
     size_t word_begin, word_end;
     while (byte_offset < byte_offset_end) {
-        Result res = ThisCharacterInUtf8(str, byte_offset, character, byte_len);
+        Result res = ThisCharacter(str, byte_offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
         if (character.Ascii(c) && IsWordCharacter(c)) {

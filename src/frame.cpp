@@ -119,7 +119,7 @@ void Frame::Draw() {
                 int character_width;
                 int byte_len;
                 Result res =
-                    ThisCharacterInUtf8(cur_line, offset, character, byte_len);
+                    ThisCharacter(cur_line, offset, character, byte_len);
                 MGO_ASSERT(res == kOk);
                 character_width = character.Width();
                 // character_width = 3;
@@ -235,7 +235,7 @@ void Frame::MakeCursorVisible() {
     cursor_->character_in_line = 0;
     while (offset < cursor_->byte_offset) {
         int byte_len;
-        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
+        Result res = ThisCharacter(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         offset += byte_len;
         int character_width = character.Width();
@@ -288,7 +288,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col) {
     size_t offset = 0;
     while (offset < cur_line.size()) {
         int byte_len;
-        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
+        Result res = ThisCharacter(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         int character_width = character.Width();
         if (character_width <= 0) {
@@ -377,8 +377,8 @@ void Frame::CursorGoRight() {
 
     Character charater;
     int len;
-    Result ret = ThisCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                     cursor_->byte_offset, charater, len);
+    Result ret = ThisCharacter(buffer_->GetLine(cursor_->line),
+                               cursor_->byte_offset, charater, len);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset += len;
     SelectionFollowCursor();
@@ -395,8 +395,8 @@ void Frame::CursorGoLeft() {
 
     Character charater;
     int len;
-    Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                     cursor_->byte_offset, charater, len);
+    Result ret = PrevCharacter(buffer_->GetLine(cursor_->line),
+                               cursor_->byte_offset, charater, len);
     MGO_ASSERT(ret == kOk);
     cursor_->byte_offset -= len;
 
@@ -511,15 +511,12 @@ void Frame::DeleteWordBeforeCursor() {
         deleted_until.line = cursor_->line - 1;
         cur_line = &buffer_->GetLine(deleted_until.line);
         deleted_until.byte_offset = cur_line->size();
-        if (deleted_until.byte_offset == 0) {
-            return;
-        }
     } else {
         deleted_until = cursor_->ToPos();
+        Result res = WordBegin(*cur_line, deleted_until.byte_offset,
+                               deleted_until.byte_offset);
+        MGO_ASSERT(res == kOk || res == kNotExist);
     }
-    Result res = WordBegin(*cur_line, deleted_until.byte_offset,
-                           deleted_until.byte_offset);
-    MGO_ASSERT(res == kOk || res == kNotExist);
     Pos pos;
     if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
                         nullptr, pos) != kOk) {
@@ -569,7 +566,7 @@ void Frame::TabAtCursor() {
     size_t offset = 0;
     while (offset < cursor_->byte_offset) {
         int byte_len;
-        Result res = ThisCharacterInUtf8(cur_line, offset, character, byte_len);
+        Result res = ThisCharacter(cur_line, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         int character_width = character.Width();
         if (character_width <= 0) {
@@ -690,8 +687,8 @@ void Frame::DeleteCharacterBeforeCursor() {
     } else {
         Character charater;
         int len;
-        Result ret = PrevCharacterInUtf8(buffer_->GetLine(cursor_->line),
-                                         cursor_->byte_offset, charater, len);
+        Result ret = PrevCharacter(buffer_->GetLine(cursor_->line),
+                                   cursor_->byte_offset, charater, len);
         MGO_ASSERT(ret == kOk);
         range = {{cursor_->line, cursor_->byte_offset - len},
                  {cursor_->line, cursor_->byte_offset}};

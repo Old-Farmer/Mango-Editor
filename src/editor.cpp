@@ -92,15 +92,19 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         if (!have_event) {
             // We have a timeout, no user input ready, Good time to trigger a
             // autocmp.
-            if (show_cmp_menu_) {
+            if (should_retrigger_auto_cmp) {
                 TriggerCompletion(true);
-            } else {
+                continue;
+            }
+
+            if (!show_cmp_menu_) {
                 CancellCompletion();
             }
             continue;
         }
 
         show_cmp_menu_ = false;
+        should_retrigger_auto_cmp = false;
 
         // Handle it and do sth
         if (term_.EventIsKey()) {
@@ -147,6 +151,20 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<tab>", {[this] { peel_->TabAtCursor(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<enter>", {[this] {
+                                  if (ask_quit_) {
+                                      std::string content = peel_->GetContent();
+                                      ask_quit_ = false;
+                                      if (content.empty()) {
+                                          ExitFromMode();
+                                          return;
+                                      }
+                                      if (content.back() == 'y') {
+                                          quit_ = true;
+                                      }
+                                      ExitFromMode();
+                                      return;
+                                  }
+
                                   CommandArgs args;
                                   Command* c;
                                   Result res = command_manager_.EvalCommand(
@@ -226,10 +244,14 @@ void Editor::InitKeymaps() {
                               }});
 
     // edit
-    keymap_manager_.AddKeyseq("<bs>", {[this] {
-                                  cursor_.in_window->DeleteAtCursor();
-                                  show_cmp_menu_ = true;
-                              }});
+    keymap_manager_.AddKeyseq(
+        "<bs>", {[this] {
+            cursor_.in_window->DeleteAtCursor();
+            if (!cursor_.in_window->frame_.selection_.active) {
+                should_retrigger_auto_cmp = true;
+                show_cmp_menu_ = true;
+            }
+        }});
     keymap_manager_.AddKeyseq(
         "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
     keymap_manager_.AddKeyseq("<tab>",
@@ -407,11 +429,8 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
     }
 
     // We treat one codepoint as a key event instead of one grapheme.
-    //
-    // The main reason is that we don't know how users press keys and do input
-    // due to terminial limitaion, so it will not be that necessary to parse
-    // codepoints as graphemes.
-
+    // our keymaps only use special keys,
+    // or just ascii characters, which users will be aware of.
     Result res = kKeyseqError;
     Keyseq* handler;
     if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
@@ -420,7 +439,10 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
     if (res == kKeyseqError) {
         // Pure codepoints not handled by the keymap manager.
         // Use single codepoint to edit buffers is quite safe here.
-        // There are only some very rare edge cases when autopair are triggered.
+
+        // We may use a codepoint as grapheme when we meet some ascii
+        // characters, like '(', '[' '{', because they're very very rare as a
+        // part of multi-codepoint graphemes.
         if (!key_info.IsSpecialKey()) {
             Codepoint codepoint = key_info.codepoint;
 
@@ -433,6 +455,7 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
                 cursor_.in_window->AddStringAtCursor(c);
             }
             // After insert, we can have an opportunity to trigger auto cmp.
+            should_retrigger_auto_cmp = true;
             show_cmp_menu_ = true;
         }
         return;
@@ -646,14 +669,27 @@ void Editor::Help() {
 
 void Editor::Quit() {
     MGO_ASSERT(buffer_manager_.Begin());
+    bool have_not_saved = false;
     for (auto buffer = buffer_manager_.Begin(); buffer != buffer_manager_.End();
          buffer = buffer->next_) {
         if (buffer->state() == BufferState::kModified) {
-            peel_->SetContent("Some buffers have not saved, quit fail");
-            return;
+            have_not_saved = true;
+            break;
         }
     }
-    quit_ = true;
+    if (!have_not_saved) {
+        quit_ = true;
+        return;
+    }
+
+    ask_quit_ = true;
+    if (IsPeel(mode_)) {
+        peel_->SetContent("");
+        cursor_.byte_offset = 0;
+    } else {
+        GotoPeel();
+    }
+    peel_->AddStringAtCursor(kAskQuitStr);
 }
 
 void Editor::GotoPeel() {

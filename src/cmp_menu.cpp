@@ -79,10 +79,19 @@ void CmpMenu::Draw() {
         size_t offset = 0;
         size_t menu_col = 0;
         Character character;
-        // TODO: render a space before an entry.
+        Codepoint space = kSpaceChar;
+        // leading space
+        if (width_ >= 1) {
+            Result res = term_->SetCell(col_, r + row_, &space, 1, attr);
+            if (res == kTermOutOfBounds) {
+                break;
+            }
+            menu_col++;
+        }
+        // content
         while (offset < str.size()) {
             int byte_len;
-            Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
+            Result res = ThisCharacter(str, offset, character, byte_len);
             int character_width = character.Width();
             MGO_ASSERT(res == kOk);
             if (character_width <= 0) {
@@ -107,7 +116,6 @@ void CmpMenu::Draw() {
         }
         // make paddings because menu have different bg color
         while (menu_col < width_) {
-            Codepoint space = kSpaceChar;
             Result res =
                 term_->SetCell(menu_col + col_, r + row_, &space, 1, attr);
             if (res == kTermOutOfBounds) {

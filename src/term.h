@@ -196,6 +196,8 @@ class Terminal {
     // throws TermException
     bool PollInner(int timeout_ms);
 
+    void HandleEsc();
+
    public:
     // throws TermException
     // timeout == -1 means infinite blocking
@@ -353,12 +355,16 @@ class Terminal {
                 static_cast<Mod>(event_.mod)};
     }
 
+    void PendCurrentEvent() {
+        pendding_events_.insert(pendding_events_.begin(), event_);
+    }
+
    private:
     tb_event event_;
 
     // When parsing escape key seq, some events occurs and interrupt it, we
     // should kept it in left_events and report them later.
-    std::vector<tb_event> left_events_;
+    std::vector<tb_event> pendding_events_;
     KeyseqManager* esc_keyseq_manager_ = nullptr;
     Mode mode_ = Mode::kNone;  // const
 

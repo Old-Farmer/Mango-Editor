@@ -1,7 +1,7 @@
 (identifier) @variable
 
 ((identifier) @constant
- (#match? @constant "^[A-Z_][A-Z\\d_]*$"))
+ (#match? @constant "^[A-Z_][A-Z0-9_]*$"))
 
 "break" @keyword
 "case" @keyword
@@ -77,6 +77,7 @@
 
 (string_literal) @string
 (system_lib_string) @string
+; TODO: string in #define
 
 (null) @constant
 

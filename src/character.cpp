@@ -83,8 +83,8 @@ bool CheckUtf8Valid(std::string_view str) {
     return true;
 }
 
-Result ThisCharacterInUtf8(std::string_view str, int64_t offset,
-                           Character& character, int& byte_len) {
+Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
+                     int& byte_len) {
     MGO_ASSERT(static_cast<size_t>(offset) < str.size());
 
     character.Clear();
@@ -114,8 +114,8 @@ Result ThisCharacterInUtf8(std::string_view str, int64_t offset,
     return kOk;
 }
 
-Result PrevCharacterInUtf8(std::string_view str, int64_t offset,
-                           Character& character, int& byte_len) {
+Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
+                     int& byte_len) {
     MGO_ASSERT(offset > 0);
 
     character.Clear();
@@ -193,7 +193,7 @@ Result NextWordBegin(const std::string& str, size_t offset,
     int byte_len;
     bool found_non_word_character = false;
     while (offset < str.size()) {
-        Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
+        Result res = ThisCharacter(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
         if (character.Ascii(c) && IsWordCharacter(c)) {
@@ -219,11 +219,11 @@ Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
     Character character;
     int byte_len;
     bool found_word_character = false;
-    Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
+    Result res = ThisCharacter(str, offset, character, byte_len);
     MGO_ASSERT(res == kOk);
     offset += byte_len;
     while (offset < str.size()) {
-        Result res = ThisCharacterInUtf8(str, offset, character, byte_len);
+        Result res = ThisCharacter(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
         if (character.Ascii(c) && IsWordCharacter(c)) {
@@ -264,8 +264,7 @@ Result WordBegin(const std::string& str, size_t offset,
     int byte_len;
     bool found_word_character = false;
     while (inner_offset > 0) {
-        Result res =
-            PrevCharacterInUtf8(str, inner_offset, character, byte_len);
+        Result res = PrevCharacter(str, inner_offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
         if (character.Ascii(c) && IsWordCharacter(c)) {
@@ -294,7 +293,7 @@ size_t StringWidth(const std::string& str) {
     size_t width = 0;
     while (offset < str.size()) {
         int len;
-        Result res = ThisCharacterInUtf8(str, offset, character, len);
+        Result res = ThisCharacter(str, offset, character, len);
         MGO_ASSERT(res == kOk);
         int character_width = character.Width();
         if (character_width <= 0) {

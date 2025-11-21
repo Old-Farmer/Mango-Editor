@@ -100,13 +100,19 @@ class Editor {
     std::unique_ptr<CmpMenu> cmp_menu_;
 
     bool quit_ = false;
+    bool ask_quit_ = false;
+    static constexpr const char* kAskQuitStr =
+        "Some buffers have not saved, force quit(y/[n])? ";
+
+    Character g_;
 
     std::unique_ptr<GlobalOpts> global_opts_;
 
     // Cmp context
     Mode mode_trigger_cmp_;
     Completer* tmp_completer_ = nullptr;
-    bool show_cmp_menu_ = false;
+    bool should_retrigger_auto_cmp = false;  // if true, trigger a auto cmp.
+    bool show_cmp_menu_ = false;             // if false, hide cmp menu.
 
     Terminal& term_ = Terminal::GetInstance();
 };

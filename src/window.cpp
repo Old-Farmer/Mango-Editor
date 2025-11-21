@@ -93,7 +93,7 @@ void Window::DeleteAtCursor() {
         Character character;
         int len;
         Result ret =
-            PrevCharacterInUtf8(cur_line, cursor_->byte_offset, character, len);
+            PrevCharacter(cur_line, cursor_->byte_offset, character, len);
         MGO_ASSERT(ret == kOk);
 
         char c = -1;
@@ -110,8 +110,7 @@ void Window::DeleteAtCursor() {
             // may delete pairs
             int this_len;
             char this_char;
-            ThisCharacterInUtf8(cur_line, cursor_->byte_offset, character,
-                                this_len);
+            ThisCharacter(cur_line, cursor_->byte_offset, character, this_len);
             bool need_delete_pairs =
                 c != -1 && character.Ascii(this_char) && IsPair(c, this_char);
             range = {{cursor_->line, cursor_->byte_offset - len},
@@ -172,8 +171,9 @@ void Window::TryAutoPair(std::string str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
     // Use char is ok here, we only test some ascii characters and utf8
-    // compatible with ascii. For convinence, we will not test whether char is
-    // valid ascii.
+    // compatible with ascii, we ignore grapheme concept here, because these
+    // ascii is rare to be multi-codepoint grapheme. For convinence, we will not
+    // test whether char is valid ascii.
     bool end_of_line =
         frame_.buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset;
     char cur_c =
@@ -200,9 +200,14 @@ void Window::TryAutoPair(std::string str) {
 
     // Can't just move cursor next.
     // try auto pair
+    auto [is_open, c_close] = IsPairOpen(str[0]);
+    if (!is_open) {
+        frame_.AddStringAtCursor(std::move(str));
+        return;
+    }
+
     if (end_of_line || !IsPair(str[0], cur_c)) {
         Pos pos = {cursor_->line, cursor_->byte_offset + 1};
-        auto [_, c_close] = IsPairOpen(str[0]);
         str += c_close;
         frame_.AddStringAtCursor(std::move(str), &pos);
         return;

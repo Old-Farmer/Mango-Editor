@@ -91,10 +91,10 @@ bool Terminal::PollInner(int timeout_ms) {
 }
 
 bool Terminal::Poll(int timeout_ms) {
-    // Try left events.
-    if (!left_events_.empty()) {
-        event_ = left_events_[0];
-        left_events_.erase(left_events_.begin());
+    // Try pendding events.
+    while (!pendding_events_.empty()) {
+        event_ = pendding_events_[0];
+        pendding_events_.erase(pendding_events_.begin());
         return true;
     }
 
@@ -106,19 +106,26 @@ bool Terminal::Poll(int timeout_ms) {
         return true;
     }
 
-    // We implement a mechenism for custom escape seq detection on termbox2.
     if (event_.key != TB_KEY_ESC) {
         return true;
     }
 
-    left_events_.push_back(event_);
+    HandleEsc();
+    return true;
+}
+
+// We implement a mechenism for custom escape seq detection on termbox2.
+void Terminal::HandleEsc() {
+    // We have poll a esc event into event_
+    // Now we start detetect if any escape sequence
+    pendding_events_.push_back(event_);
 
     // Try the first following event
-    res = PollInner(0);
+    bool res = PollInner(0);
     if (!res) {
         // pop up esc
-        left_events_.erase(left_events_.begin());
-        return true;
+        pendding_events_.erase(pendding_events_.begin());
+        return;
     }
 
     // Interrupt by mouse event and resize event.
@@ -127,11 +134,11 @@ bool Terminal::Poll(int timeout_ms) {
     // will have chars in buffer if we encounter escape sequence.
     if (event_.type != TB_EVENT_KEY) {
         // pop up esc
-        event_ = left_events_[0];
-        left_events_.erase(left_events_.begin());
-        return true;
+        event_ = pendding_events_[0];
+        pendding_events_.erase(pendding_events_.begin());
+        return;
     }
-    left_events_.push_back(event_);
+    pendding_events_.push_back(event_);
 
     // We have esc event and a key event in left_events
     // and event_ is the key event.
@@ -139,44 +146,43 @@ bool Terminal::Poll(int timeout_ms) {
         Keyseq* handler;
         if (event_.ch > CHAR_MAX) {
             // pop up esc
-            event_ = left_events_[0];
-            left_events_.erase(left_events_.begin());
-            return true;
+            event_ = pendding_events_[0];
+            pendding_events_.erase(pendding_events_.begin());
+            return;
         }
         Result res = esc_keyseq_manager_->FeedKey(EventKeyInfo(), handler);
         if (res == kKeyseqError) {
             // pop up esc
-            event_ = left_events_[0];
-            left_events_.erase(left_events_.begin());
-            return true;
+            event_ = pendding_events_[0];
+            pendding_events_.erase(pendding_events_.begin());
+            return;
         } else if (res == kKeyseqDone) {
             handler->f();
-            for (auto iter = left_events_.begin();
-                 iter != left_events_.end();) {
-                iter = left_events_.erase(iter);
+            for (auto iter = pendding_events_.begin();
+                 iter != pendding_events_.end();) {
+                iter = pendding_events_.erase(iter);
             }
-            return true;
+            return;
         }
 
         // escape seq should be ready in the user space termbox2 buffer
         bool poll_res = PollInner(0);
         if (!poll_res) {
             // pop up esc
-            event_ = left_events_[0];
-            left_events_.erase(left_events_.begin());
-            return true;
+            event_ = pendding_events_[0];
+            pendding_events_.erase(pendding_events_.begin());
+            return;
         }
 
-        left_events_.push_back(event_);
+        pendding_events_.push_back(event_);
 
         if (event_.type != TB_EVENT_KEY) {
             // pop up esc
-            event_ = left_events_[0];
-            left_events_.erase(left_events_.begin());
-            return true;
+            event_ = pendding_events_[0];
+            pendding_events_.erase(pendding_events_.begin());
+            return;
         }
     }
-    return true;
 }
 
 }  // namespace mango

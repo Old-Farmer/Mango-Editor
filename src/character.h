@@ -18,11 +18,15 @@ constexpr int kReplacementCharWidth = 1;
 constexpr const char* kSpace = " ";
 constexpr const char* kReplacement = "�";
 
-// A character is actually a unicode grapheme. Any op on a user-perceived
-// character should use this if you can avoid grapheme concept.
+// A unicode grapheme. Any op on a user-perceived character should use this if
+// you can avoid grapheme concept.
 
 // It is only safe to determine a codepoint as a grapheme if it is a ascii
 // control code, otherwise it is always safer to use this facility.
+
+// In this codebase, we may sometimes use ascii to detect strings content if
+// they are not number or alpha, like ' ' '(' '[', '{', '\"', '\''. It's quite
+// ok.
 
 // TODO: single codepoint optimization.
 class Character {
@@ -92,14 +96,14 @@ bool CheckUtf8Valid(std::string_view str);
 // undefined.
 // offset shouldn't >= str.size().
 // Current only return kOk.
-Result ThisCharacterInUtf8(std::string_view str, int64_t offset,
-                           Character& character, int& byte_len);
+Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
+                     int& byte_len);
 
 // Make sure that str[offset] must be a character beginnig byte.
 // offset shouldn't <= 0.
 // Current only return kOk
-Result PrevCharacterInUtf8(std::string_view str, int64_t offset,
-                           Character& character, int& byte_len);
+Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
+                     int& byte_len);
 
 // A word contains isalnum + _: just ascii character.
 // TODO: support configuration.
