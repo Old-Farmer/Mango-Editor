@@ -75,7 +75,7 @@ class SyntaxParser {
 
     std::unordered_map<std::string_view, TSQueryContext> filetype_to_query_;
     std::unordered_map<zstring_view, const TSLanguage*> filetype_to_language_;
-    const std::unordered_map<std::string_view, CharacterType>*
+    const std::unordered_map<std::string_view, ColorSchemeType>*
         ts_query_capture_name_to_character_type_;
 
     static constexpr int kTSCaptureNamePropertyLowest = INT_MAX;

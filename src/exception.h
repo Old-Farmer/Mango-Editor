@@ -120,4 +120,11 @@ class TypeMismatchException : public Exception {
         : Exception(format, args...) {}
 };
 
+class OptionLoadException : public Exception {
+   public:
+    template <typename... Args>
+    OptionLoadException(const char* format, Args... args)
+        : Exception(format, args...) {}
+};
+
 }  // namespace mango

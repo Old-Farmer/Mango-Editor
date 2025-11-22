@@ -62,6 +62,8 @@ class Editor {
 
     void CursorShow();
 
+    void OnNoEvent();
+
     // helper methods
     Window* LocateWindow(int s_col, int s_row);
 
@@ -104,7 +106,7 @@ class Editor {
     static constexpr const char* kAskQuitStr =
         "Some buffers have not saved, force quit(y/[n])? ";
 
-    Character g_;
+    Codepoint last_insert_codepoint_ = -1;
 
     std::unique_ptr<GlobalOpts> global_opts_;
 

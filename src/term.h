@@ -74,7 +74,8 @@ class Terminal {
         kBlue = TB_BLUE,
         kMagenta = TB_MAGENTA,
         kCyan = TB_CYAN,
-        kWhite = TB_WHITE
+        kWhite = TB_WHITE,
+        kHiBlack = TB_HI_BLACK  // for truecolor
     };
 
     enum Effect : Attr {
@@ -83,10 +84,16 @@ class Terminal {
         kReverse = TB_REVERSE,
         kItalic = TB_ITALIC,
         kBlink = TB_BLINK,
-        kHiBlack = TB_HI_BLACK,
         kBright = TB_BRIGHT,
         kDim = TB_DIM,
+        kStrikeOut = TB_STRIKEOUT,
+        kUnderline2 = TB_UNDERLINE_2,
+        kOverline = TB_OVERLINE,
+        kInvisible = TB_INVISIBLE,
     };
+
+    // throws TermException
+    void SetClearAttr(const AttrPair& attr);
 
     // throws TermException
     // or

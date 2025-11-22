@@ -1,0 +1,44 @@
+{
+    "default8" : {
+        "normal": {"fg": ["default"], "bg": ["default"]},
+        "selection": {"fg": ["default", "reverse"], "bg": ["default", "reverse"]},
+        "menu": {"fg": ["default"], "bg": ["black", "bright"]},
+        "linenumber": {"fg": ["yellow"], "bg": ["default"]},
+        "statusline": {"fg": ["default", "reverse"], "bg": ["default", "reverse"]},
+
+        "keyword":{"fg":["blue"], "bg": ["default"]},
+        "typebuiltin":{"fg":["blue"], "bg": ["default"]},
+        "operator":{"fg":["blue"], "bg": ["default"]},
+        "string":{"fg":["green"], "bg": ["default"]},
+        "comment":{"fg":["cyan", "italic"], "bg": ["default"]},
+        "number":{"fg":["yellow"], "bg": ["default"]},
+        "constant":{"fg":["yellow"], "bg": ["default"]},
+        "function":{"fg":["default"], "bg": ["default"]},
+        "type":{"fg":["magenta"], "bg": ["default"]},
+        "variable":{"fg":["default"], "bg": ["default"]},
+        "delimiter":{"fg":["default"], "bg": ["default"]},
+        "property":{"fg":["default"], "bg": ["default"]},
+        "label":{"fg":["default"], "bg": ["default"]}
+    },
+    "default_truecolor" : {
+        "normal":      { "fg": ["#cdd6f4"], "bg": ["#1e1e2e"] },
+        "selection":   { "fg": ["#1e1e2e"], "bg": ["#cba6f7"] },
+        "menu":        { "fg": ["#bac2de"], "bg": ["#45475a"] },
+        "linenumber":  { "fg": ["#7f849c"], "bg": ["#1e1e2e"] },
+        "statusline":  { "fg": ["#cdd6f4"], "bg": ["#313244"] },
+
+        "keyword":     { "fg": ["#b4befe"], "bg": ["#1e1e2e"] },
+        "typebuiltin": { "fg": ["#f9e2af"], "bg": ["#1e1e2e"] },
+        "operator":    { "fg": ["#94e2d5"], "bg": ["#1e1e2e"] },
+        "string":      { "fg": ["#a6e3a1"], "bg": ["#1e1e2e"] },
+        "comment":     { "fg": ["#6c7086", "italic"], "bg": ["#1e1e2e"] },
+        "number":      { "fg": ["#fab387"], "bg": ["#1e1e2e"] },
+        "constant":    { "fg": ["#f2cdcd"], "bg": ["#1e1e2e"] },
+        "function":    { "fg": ["#89b4fa"], "bg": ["#1e1e2e"] },
+        "type":        { "fg": ["#89b4fa"], "bg": ["#1e1e2e"] },
+        "variable":    { "fg": ["#cdd6f4"], "bg": ["#1e1e2e"] },
+        "delimiter":   { "fg": ["#f5c2e7"], "bg": ["#1e1e2e"] },
+        "property":    { "fg": ["#eba0ac"], "bg": ["#1e1e2e"] },
+        "label":       { "fg": ["#89dceb"], "bg": ["#1e1e2e"] }
+    }
+}

@@ -54,17 +54,17 @@ const char* my_ts_read(void* payload, uint32_t byte_offset, TSPoint position,
 }
 
 struct CharacterTypeCaptureNameMappingItem {
-    CharacterType t;
+    ColorSchemeType t;
     std::vector<std::string_view> capture_names;
 };
 
 static void SyntaxParserStaticInit(
-    const std::unordered_map<std::string_view, CharacterType>*&
+    const std::unordered_map<std::string_view, ColorSchemeType>*&
         ts_query_capture_name_to_character_type) {
-    static std::unordered_map<std::string_view, CharacterType>*
+    static std::unordered_map<std::string_view, ColorSchemeType>*
         static_ts_query_capture_name_to_character_type = [] {
             auto ret =
-                new std::unordered_map<std::string_view, CharacterType>();
+                new std::unordered_map<std::string_view, ColorSchemeType>();
             const std::vector<CharacterTypeCaptureNameMappingItem>
                 kCharacterTypeToTSQueryCaptureName = {
                     {kFunction, {"function", "funtion.special"}},

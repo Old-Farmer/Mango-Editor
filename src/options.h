@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cursor.h"
+#include "json.h"
 #include "term.h"
 
 namespace mango {
@@ -18,12 +19,12 @@ enum class Type {
     kPtr,      // void*
 };
 
-enum CharacterType : int {
+enum ColorSchemeType : int {
     kNormal = 0,
-    kReverse,
     kSelection,
     kMenu,
     kLineNumber,
+    kStatusLine,
 
     kKeyword,
     kTypeBuiltin,
@@ -39,7 +40,7 @@ enum CharacterType : int {
     kProperty,
     kLabel,
 
-    __kCharacterTypeCount,
+    __kColorSchemeTypeCount,
 };
 
 enum class LineNumberType {
@@ -63,6 +64,8 @@ enum OptKey {
     kOptCmpMenuMaxWidth,
     kOptEditHistoryMaxItem,
     kOptBasicWordCompletion,
+    kOptTrueColor,
+    kOptLogVerbose,
 
     kOptColorScheme,
 
@@ -98,13 +101,21 @@ class GlobalOpts {
     friend Opts;
 
    public:
-    // throw Json::exception, IOException, TypeMismatchException
-    // Do not handle them, which always means a bug and should fix
-    // default config.
+    // Throw same as LoadConfig.
+    // We loadconfig when init.
     GlobalOpts();
     ~GlobalOpts();
 
+    // throw Json::exception, IOException, OptionLoadException
+    // Do not handle them, which always means a bug and should fix
+    // default config.
+    // TODO: support reload.
+    void LoadConfig();
+
     bool IsUserConfigValid() { return user_config_valid_; }
+    std::string GetUserConfigErrorReportStrAndReleaseIt() {
+        return std::move(user_config_error_reason_);
+    }
 
     template <typename T>
     T GetOpt(OptKey key) const {
@@ -145,10 +156,16 @@ class GlobalOpts {
     }
 
    private:
+    // throw OptionLoadException
+    void TryApply(const Json& config, const Json& colorscheme_config);
+
+   private:
     void* opts_[__kOptKeyCount];
     std::unordered_map<zstring_view, std::unordered_map<OptKey, void*>>
         filetype_opts_;
+
     bool user_config_valid_ = false;
+    std::string user_config_error_reason_;
 
    public:
     const OptInfo* opt_info_;

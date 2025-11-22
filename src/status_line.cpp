@@ -15,7 +15,7 @@ StatusLine::StatusLine(Cursor* cursor, GlobalOpts* global_opts, Mode* mode)
     : cursor_(cursor), global_opts_(global_opts), mode_(mode) {}
 
 void StatusLine::Draw() {
-    CharacterType t = kReverse;
+    ColorSchemeType t = kStatusLine;
 
     auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
 

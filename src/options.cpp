@@ -4,13 +4,16 @@
 #include "file.h"
 #include "filetype.h"
 #include "fs.h"
-#include "json.h"
 
 namespace mango {
 
-static constexpr const char* kDefaultConfigPath = "resource/config.json";
+static constexpr const char* kDefaultConfigPath = "resource/config/config.json";
+static constexpr const char* kDefaultColorschemePath =
+    "resource/config/colorscheme.json";
 static const std::string kUserConfigPath =
-    std::string(Path::GetConfig()) + "mango.json";
+    std::string(Path::GetConfig()) + "mango-editor/config.json";
+static const std::string kUserColorschemePath =
+    std::string(Path::GetConfig()) + "mango-editor/colorscheme.json";
 
 static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"poll_event_timeout", kOptPollEventTimeout},
@@ -26,6 +29,8 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"cmp_menu_max_width", kOptCmpMenuMaxWidth},
     {"edit_history_max_item", kOptEditHistoryMaxItem},
     {"basic_word_completion", kOptBasicWordCompletion},
+    {"truecolor", kOptTrueColor},
+    {"logverbose", kOptLogVerbose},
 };
 
 static void OptStaticInit(const OptInfo*& opt_info) {
@@ -44,8 +49,11 @@ static void OptStaticInit(const OptInfo*& opt_info) {
                                                  Type::kInteger};
         static_opt_info[kOptEditHistoryMaxItem] = {OptScope::kGlobal,
                                                    Type::kInteger};
+
         static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,
                                                     Type::kBool};
+        static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
+        static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
 
         static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
 
@@ -61,88 +69,133 @@ static void OptStaticInit(const OptInfo*& opt_info) {
     opt_info = static_opt_info;
 }
 
-GlobalOpts::GlobalOpts() {
-    OptStaticInit(opt_info_);
+static std::unordered_map<std::string_view, ColorSchemeType>
+    kStrToColorSchemeType{
+        {"normal", kNormal},
+        {"selection", kSelection},
+        {"menu", kMenu},
+        {"linenumber", kLineNumber},
+        {"statusline", kStatusLine},
 
-    std::string default_config_str =
-        File(std::string(Path::GetAppRoot() + kDefaultConfigPath), "r", false)
-            .ReadAll();
+        {"keyword", kKeyword},
+        {"typebuiltin", kTypeBuiltin},
+        {"operator", kOperator},
+        {"string", kString},
+        {"comment", kComment},
+        {"number", kNumber},
+        {"constant", kConstant},
+        {"function", kFunction},
+        {"type", kType},
+        {"variable", kVariable},
+        {"delimiter", kDelimiter},
+        {"property", kProperty},
+        {"label", kLabel},
+    };
 
-    bool user_config_now_valid = true;
-    std::string user_config_str;
-    if (File::FileReadable(kUserConfigPath)) {
-        try {
-            user_config_str = File(kUserConfigPath, "r", false).ReadAll();
-        } catch (IOException& e) {
-            MGO_LOG_ERROR("Can't read user config file: %s", e.what());
-            user_config_now_valid = false;
+static const std::unordered_map<std::string_view, Terminal::Color>
+    kBasedColors = {
+        {"default", Terminal::kDefault}, {"black", Terminal::kBlack},
+        {"red", Terminal::kRed},         {"green", Terminal::kGreen},
+        {"yellow", Terminal::kYellow},   {"blue", Terminal::kBlue},
+        {"magenta", Terminal::kMagenta}, {"cyan", Terminal::kCyan},
+        {"white", Terminal::kWhite},
+};
+static const std::unordered_map<std::string_view, Terminal::Effect> kEffects = {
+    {"bold", Terminal::kBold},
+    {"underline", Terminal::kUnderline},
+    {"reverse", Terminal::kReverse},
+    {"italic", Terminal::kItalic},
+    {"blink", Terminal::kBlink},
+    {"brighter", Terminal::kBright},
+    {"dim", Terminal::kDim},
+    {"strikeout", Terminal::kStrikeOut},
+    {"underline2", Terminal::kUnderline2},
+    {"overline", Terminal::kOverline},
+    {"invisible", Terminal::kInvisible},
+};
+
+const Terminal::Attr kTruecolorBegin = 0x000000;
+const Terminal::Attr kTruecolorEnd = 0xFFFFFF;
+
+static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
+                           ColorSchemeElement* colorscheme) {
+    // Every colorscheme type should have fg and bg.
+    // Fg and bg should have a color and >=0 effects.
+    // We ignore unknown keys and values.
+    int colorscheme_type_cnt = 0;
+    for (const auto& [k, v] : colorscheme_json.items()) {
+        const auto iter = kStrToColorSchemeType.find(k);
+        if (iter == kStrToColorSchemeType.end()) {
+            continue;
         }
-    }
+        colorscheme_type_cnt++;
 
-    Json config = Json::parse(default_config_str);
-    if (!user_config_str.empty()) {
-        try {
-            Json user_config = Json::parse(user_config_str);
+        ColorSchemeType type = iter->second;
 
-            // Validate the user config
-            for (const auto& [k, v] : user_config.items()) {
-                if (IsFiletype(k)) {
-                    for (const auto& [inner_k, inner_v] : v.items()) {
-                        auto iter = kStrRepToOptKey.find(inner_k);
-                        if (iter == kStrRepToOptKey.end()) {
-                            continue;
+        std::string_view attr_locs[2] = {"fg", "bg"};
+        for (std::string_view attr_loc : attr_locs) {
+            auto iter_attr = v.find(attr_loc);
+            if (iter_attr == v.end()) {
+                throw OptionLoadException(
+                    "Option colorscheme%s/%s/%s not "
+                    "exist",
+                    truecolor ? "_truecolor" : "", k.c_str(), attr_loc.data());
+            }
+
+            if (!iter_attr->is_array()) {
+                throw OptionLoadException(
+                    "Option colorscheme%s/%s/%s is not "
+                    "array",
+                    truecolor ? "_truecolor" : "", k.c_str(), attr_loc.data());
+            }
+
+            int colors_cnt = 0;
+            for (const auto& attr : iter_attr.value()) {
+                const std::string& str = attr.get_ref<const std::string&>();
+                if (kEffects.find(str) != kEffects.end()) {
+                    if (attr_loc == "fg") {
+                        colorscheme[type].fg |= kEffects.find(str)->second;
+                    } else {
+                        colorscheme[type].bg |= kEffects.find(str)->second;
+                    }
+                } else if (kBasedColors.find(str) != kBasedColors.end() &&
+                           !truecolor) {
+                    if (attr_loc == "fg") {
+                        colorscheme[type].fg |= kBasedColors.find(str)->second;
+                    } else {
+                        colorscheme[type].bg |= kBasedColors.find(str)->second;
+                    }
+                    colors_cnt++;
+                } else if (truecolor) {
+                    // skip #
+                    Terminal::Attr color =
+                        strtoll(str.c_str() + 1, nullptr, 16);
+                    if (color >= kTruecolorBegin && color <= kTruecolorEnd) {
+                        colors_cnt++;
+                        if (color ==
+                            kTruecolorBegin) {  // See Termbox2 tb_set_output
+                            color = Terminal::kHiBlack;
                         }
-                        OptKey opt_key = iter->second;
-                        const OptInfo& opt_info = opt_info_[opt_key];
-                        if (opt_info.scope != OptScope::kBuffer) {
-                            continue;
-                        }
-                        if (opt_info.type == Type::kBool &&
-                            inner_v.is_boolean()) {
-                            ;
-                        } else if (opt_info.type == Type::kInteger &&
-                                   inner_v.is_number_integer()) {
-                            ;
+                        if (attr_loc == "fg") {
+                            colorscheme[type].fg |= color;
                         } else {
-                            user_config_now_valid = false;
-                            break;
+                            colorscheme[type].bg |= color;
                         }
                     }
-                    if (!user_config_now_valid) {
-                        break;
-                    }
-                    continue;
-                }
-
-                auto iter = kStrRepToOptKey.find(k);
-                if (iter == kStrRepToOptKey.end()) {
-                    continue;
-                }
-                OptKey opt_key = iter->second;
-                const OptInfo& opt_info = opt_info_[opt_key];
-                if (opt_info.type == Type::kBool && v.is_boolean()) {
-                    ;
-                } else if (opt_info.type == Type::kInteger &&
-                           v.is_number_integer()) {
-                    ;
-                } else {
-                    user_config_now_valid = false;
-                    break;
                 }
             }
-
-            if (user_config_now_valid) {
-                config.update(Json::parse(user_config_str), true);
+            if (colors_cnt != 1) {
+                throw OptionLoadException(
+                    "%s", "In colorscheme, Color cnt wrong, expect one");
             }
-        } catch (Json::exception& e) {
-            MGO_LOG_ERROR(
-                "Json error when parse user config and merge with default "
-                "config: %s",
-                e.what());
-            user_config_now_valid = false;
         }
     }
+    if (colorscheme_type_cnt != __kColorSchemeTypeCount) {
+        throw OptionLoadException("%s", "Colorscheme type cnt wrong");
+    }
+}
 
+void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
     for (const auto& [k, v] : config.items()) {
         if (IsFiletype(k)) {
             filetype_opts_.insert({k, {}});
@@ -165,7 +218,7 @@ GlobalOpts::GlobalOpts() {
                     filetype_opts_[k][opt_key] =
                         reinterpret_cast<void*>(inner_v.get<int64_t>());
                 } else {
-                    throw TypeMismatchException(
+                    throw OptionLoadException(
                         "value type wrong: key: %s, v type: %d %d",
                         ("/" + k + "/" + inner_k).c_str(), opt_info.type,
                         inner_v.type());  // flatten rep of key
@@ -185,41 +238,81 @@ GlobalOpts::GlobalOpts() {
         } else if (opt_info.type == Type::kInteger && v.is_number_integer()) {
             opts_[opt_key] = reinterpret_cast<void*>(v.get<int64_t>());
         } else {
-            throw TypeMismatchException("value type wrong: key %s", k.c_str());
+            throw OptionLoadException("value type wrong: key %s", k.c_str());
         }
     }
 
-    // TODO: read from config.
-    // NOTE: Change carefully
-    // See Terminall::Init
-    // TODO: better color control
-    auto colorscheme = new ColorSchemeElement[__kCharacterTypeCount];
+    // Colorscheme
+    const Json* colorscheme_json = nullptr;
+    bool truecolor = GetOpt<bool>(kOptTrueColor);
+    std::string colorscheme_str = config.at("colorscheme");
+    if (colorscheme_str != "default") {
+        colorscheme_json = &colorscheme_config.at(colorscheme_str);
+    } else {
+        colorscheme_json = &colorscheme_config.at(
+            std::string("default") + (truecolor ? "_truecolor" : "8"));
+    }
+
+    auto colorscheme = new ColorSchemeElement[__kColorSchemeTypeCount];
+    bzero(colorscheme, sizeof(ColorSchemeElement) * __kColorSchemeTypeCount);
+    GetColorScheme(truecolor, *colorscheme_json, colorscheme);
     opts_[kOptColorScheme] = colorscheme;
-    colorscheme[kNormal] = {Terminal::kDefault, Terminal::kDefault};
-    colorscheme[kReverse] = {Terminal::kDefault | Terminal::kReverse,
-                             Terminal::kDefault | Terminal::kReverse};
-    colorscheme[kSelection] = {Terminal::kDefault | Terminal::kReverse,
-                               Terminal::kDefault | Terminal::kReverse};
-    colorscheme[kMenu] = {Terminal::kDefault,
-                          Terminal::kBlack | Terminal::kBright};
-    colorscheme[kLineNumber] = {Terminal::kYellow, Terminal::kDefault};
+}
 
-    colorscheme[kKeyword] = {Terminal::kBlue, Terminal::kDefault};
-    colorscheme[kTypeBuiltin] = {Terminal::kBlue, Terminal::kDefault};
-    colorscheme[kOperator] = {Terminal::kBlue, Terminal::kDefault};
-    colorscheme[kString] = {Terminal::kGreen, Terminal::kDefault};
-    colorscheme[kComment] = {Terminal::kCyan | Terminal::kItalic,
-                             Terminal::kDefault};
-    colorscheme[kNumber] = {Terminal::kYellow, Terminal::kDefault};
-    colorscheme[kConstant] = {Terminal::kYellow, Terminal::kDefault};
-    colorscheme[kFunction] = {Terminal::kDefault, Terminal::kDefault};
-    colorscheme[kType] = {Terminal::kMagenta, Terminal::kDefault};
-    colorscheme[kVariable] = {Terminal::kDefault, Terminal::kDefault};
-    colorscheme[kDelimiter] = {Terminal::kDefault, Terminal::kDefault};
-    colorscheme[kProperty] = {Terminal::kDefault, Terminal::kDefault};
-    colorscheme[kLabel] = {Terminal::kDefault, Terminal::kDefault};
+// We try to first load users config and merge with default.
+// If any exception is throwed, then we just use our default config.
+// We don't wrap our default config loading in catch.
+// If errs occur on out default config, just let it crash.
+void GlobalOpts::LoadConfig() {
+    std::string default_config_str =
+        File(std::string(Path::GetAppRoot() + kDefaultConfigPath), "r", false)
+            .ReadAll();
+    std::string default_colorscheme_str =
+        File(std::string(Path::GetAppRoot() + kDefaultColorschemePath), "r",
+             false)
+            .ReadAll();
 
-    user_config_valid_ = user_config_now_valid;
+    try {
+        std::string user_config_str;
+        if (File::FileReadable(kUserConfigPath)) {
+            user_config_str = File(kUserConfigPath, "r", false).ReadAll();
+        }
+        std::string user_colorscheme_str;
+        if (File::FileReadable(kUserColorschemePath)) {
+            user_colorscheme_str =
+                File(kUserColorschemePath, "r", false).ReadAll();
+        }
+
+        // We merge with user config
+        Json config = Json::parse(default_config_str);
+        Json colorscheme = Json::parse(default_colorscheme_str);
+        if (!user_config_str.empty()) {
+            Json user_config = Json::parse(user_config_str);
+            config.update(user_config, true);
+        }
+        if (!user_colorscheme_str.empty()) {
+            Json user_colorscheme = Json::parse(user_colorscheme_str);
+            colorscheme.update(user_colorscheme, true);
+        }
+        TryApply(config, colorscheme);
+        user_config_valid_ = true;
+        return;
+    } catch (Exception& e) {
+        user_config_valid_ = false;
+        user_config_error_reason_ = e.what();
+    } catch (Json::exception& e) {
+        user_config_valid_ = false;
+        user_config_error_reason_ = e.what();
+    }
+
+    Json config = Json::parse(default_config_str);
+    Json colorscheme = Json::parse(default_colorscheme_str);
+    TryApply(config, colorscheme);
+}
+
+GlobalOpts::GlobalOpts() {
+    OptStaticInit(opt_info_);
+    LoadConfig();
 }
 
 GlobalOpts::~GlobalOpts() {

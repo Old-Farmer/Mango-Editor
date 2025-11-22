@@ -1,6 +1,6 @@
 #include "editor.h"
 
-// #include <inttypes.h>
+#include <inttypes.h>
 
 #include "character.h"
 #include "clipboard.h"
@@ -59,20 +59,19 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     // init options end of life
     init_options.reset();
 
-    bool in_bracketed_paste = false;
-    std::string bracketed_paste_buffer;
-
     if (!global_opts_->IsUserConfigValid()) {
         peel_->SetContent(
             "User config file error! Please check your configuration.");
     }
 
+    bool in_bracketed_paste = false;
+    std::string bracketed_paste_buffer;
     // Event Loop
     // TODO: support custom cursor blinking
     while (!quit_) {
         // When the screen is too small, rendering is hard to cope with,
-        // so we just not do anything, swallow all events otherthan resize until
-        // the screen is bigger again.
+        // so we just don't do anything, swallow all events except resize
+        // until the screen is bigger again.
         while (term_.Height() < kScreenMinHeight ||
                term_.Width() < kScreenMinWidth) {
             if (term_.Poll(
@@ -90,16 +89,11 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         bool have_event =
             term_.Poll(global_opts_->GetOpt<int64_t>(kOptPollEventTimeout));
         if (!have_event) {
-            // We have a timeout, no user input ready, Good time to trigger a
-            // autocmp.
-            if (should_retrigger_auto_cmp) {
-                TriggerCompletion(true);
-                continue;
-            }
-
-            if (!show_cmp_menu_) {
-                CancellCompletion();
-            }
+            // We have a timeout, no user input ready.
+            // User input seems over, but we shouldn't rely on that and think
+            // the current cursor pos is a real grapheme end(user-percieved).
+            // Good time to trigger autocmp or do other high-cost stuffs.
+            OnNoEvent();
             continue;
         }
 
@@ -395,20 +389,22 @@ void Editor::InitCommands() {
 void Editor::HandleKey(std::string* bracketed_paste_buffer) {
     Terminal::KeyInfo key_info = term_.EventKeyInfo();
 
-    // #ifndef NDEBUG
-    //     bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
-    //     bool shift = key_info.mod & Terminal::Mod::kShift;
-    //     bool alt = key_info.mod & Terminal::Mod::kAlt;
-    //     bool motion = key_info.mod & Terminal::Mod::kMotion;
-    //     char c[7];
-    //     int len = UnicodeToUtf8(key_info.codepoint, c);
-    //     c[len] = '\0';
-    //     MGO_LOG_DEBUG(
-    //         "ctrl %d shift %d alt %d motion %d special key %d codepoint "
-    //         "\\U%08" PRIx32 " char %s",
-    //         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
-    //         key_info.codepoint, c);
-    // #endif  // !NDEBUG
+#ifndef NDEBUG
+    if (global_opts_->GetOpt<bool>(kOptLogVerbose)) {
+        bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
+        bool shift = key_info.mod & Terminal::Mod::kShift;
+        bool alt = key_info.mod & Terminal::Mod::kAlt;
+        bool motion = key_info.mod & Terminal::Mod::kMotion;
+        char c[5];
+        int len = UnicodeToUtf8(key_info.codepoint, c);
+        c[len] = '\0';
+        MGO_LOG_DEBUG(
+            "ctrl %d shift %d alt %d motion %d special key %d codepoint "
+            "\\U%08" PRIx32 " char %s",
+            ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
+            key_info.codepoint, c);
+    }
+#endif  // !NDEBUG
 
     if (bracketed_paste_buffer) {
         if (key_info.IsSpecialKey() && key_info.mod == Terminal::kCtrl &&
@@ -420,8 +416,9 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
             bracketed_paste_buffer->append(kReplacement);
             MGO_LOG_INFO("Unknown Special key in bracketed paste");
         } else {
-            char c[4];
+            char c[5];
             int len = UnicodeToUtf8(key_info.codepoint, c);
+            c[len] = '\0';
             MGO_ASSERT(len > 0);
             bracketed_paste_buffer->append(c);
         }
@@ -429,8 +426,10 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
     }
 
     // We treat one codepoint as a key event instead of one grapheme.
-    // our keymaps only use special keys,
-    // or just ascii characters, which users will be aware of.
+    // 1. Our keymaps only use special keys, or just ascii characters, which
+    // users will be aware of.
+    // 2. Detect graphemes on input event is buggy on ssh environment because of
+    // network latency.
     Result res = kKeyseqError;
     Keyseq* handler;
     if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
@@ -444,10 +443,11 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
         // characters, like '(', '[' '{', because they're very very rare as a
         // part of multi-codepoint graphemes.
         if (!key_info.IsSpecialKey()) {
-            Codepoint codepoint = key_info.codepoint;
+            last_insert_codepoint_ = key_info.codepoint;
 
-            char c[4];
-            int len = UnicodeToUtf8(codepoint, c);
+            char c[5];
+            int len = UnicodeToUtf8(last_insert_codepoint_, c);
+            c[len] = '\0';
             MGO_ASSERT(len > 0);
             if (IsPeel(mode_)) {
                 peel_->AddStringAtCursor(c);
@@ -803,5 +803,22 @@ void*& Editor::ContextManager::GetContext(ContextID id) {
     return contexts_[id];
 }
 void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
+
+void Editor::OnNoEvent() {
+    if (should_retrigger_auto_cmp) {
+        if (last_insert_codepoint_ <= CHAR_MAX &&
+            IsWordCharacter(last_insert_codepoint_)) {
+            TriggerCompletion(true);
+        } else {
+            show_cmp_menu_ = false;
+            CancellCompletion();
+        }
+        return;
+    }
+
+    if (!show_cmp_menu_) {
+        CancellCompletion();
+    }
+}
 
 }  // namespace mango

@@ -39,7 +39,11 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
 
     std::reverse(cur_word_prefix.begin(), cur_word_prefix.end());
 
-    // TODO: Performance: line cache
+    // TODO: Performance: line cache.
+    // TODO: If performance is really bad on big files, maybe we can use
+    // codepoints instead of graphemes to do search(or organize index).
+    // Then we expand to grapheme boundaries.
+    // TODO: Maybe we should lock text before accpet or cancel?
     std::unordered_set<std::string> s;
     size_t lines = buffer_->LineCnt();
     for (size_t i = 0; i < lines; i++) {

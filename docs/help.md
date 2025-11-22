@@ -130,46 +130,65 @@ Use `<c-k>` as a general leader key.
 
 ## Configuration
 
-Mango currently uses a single json file for user configuration: `$XDG_CONFIG_HOME/mango.json`.
+Mango currently uses json for user configuration: 
+    All config files are in `$XDG_CONFIG_HOME/mango-editor/`.
+    Current support files: `config.json`, `colorscheme.json`.
 
-Support options:
+
+In `config.json`, Support options:
 
 1. tab_stop  
     scope: buffer,
     type: int,
     default: 4,
-    desc: tab aligment.
+    desc: Tab aligment.
 
 2. tab_space  
     scope: buffer,
     type: bool,
     default: true,
-    desc: when hit tab, insert space or just tab.
+    desc: When hit tab, insert space or just tab.
 
 3. auto_indent  
     scope: buffer,
     type: bool,
     default: true,
-    desc: auto indentation.
+    desc: Auto indentation.
 
 4. auto_pair  
     scope: buffer,
     type: bool,
     default: true,
-    desc: auto pair for brackets, etc.
+    desc: Auto pair for brackets, etc.
 
 5. line_number  
     scope: window,
     type: int,
     available: 0 = none, 1 = absolute,
     default: 1,
-    desc: show line number.
+    desc: Show line number.
 
 6. basic_word_completion  
     scope: global,
     type: bool,
     default: true,
-    desc: a baisc ascii word completion.
+    desc: A baisc ascii word completion.
+
+7. truecolor  
+    scope: global,
+    type: bool,
+    default: true,
+    desc: Truecolor support. If enabled, all ui will use the terminal 
+    truecolor ability, otherwise all ui use the terminal 8 color.
+
+8. colorscheme:  
+    scope: global,
+    type: string,
+    default: "default",
+    desc: A colorscheme. When truecolor not enabled, 
+    default is a clean 8 color colorscheme; 
+    Otherwise, Default is a Catpuccin-like colorscheme(See colorscheme.md for more info).
+
 
 Note that you can set per filetype buffer options like:
 
@@ -189,7 +208,11 @@ The path of logging file is `%XDG_CACHE_HOME/mango.log`.
 
 ### Unicode && UTF-8
 
-Unicode is a complex topic, and I support it carefully, but bugs may be occured due to **lack of knowledgement, poor support of low-level library or terminal issues**. Please feel free to report any issue that you have encountered.
+Unicode is a complex topic, and I support it carefully.
+However, bugs may be occured due to **lack of knowledgement, poor support**
+**of low-level library or terminal issues/limitaions**.
+Also, sometimes I loose the constraint of unicode to gain some performance benifit. 
+Please feel free to report any issue that you have encountered.
 
 References:
 

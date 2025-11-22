@@ -4,7 +4,7 @@ Mango is an modern terminal editor that focuses on simplicity and OOTB.
 
 It's my hobby project. I really don't know how far I could go. Any advice is welcome.
 
-![Current ScreenShot](./img/Screenshot1.png)
+![Current ScreenShot](./img/Screenshot2.png)
 
 ## Target
 
@@ -23,6 +23,7 @@ This project is far from mature. Do not use it in the production environment.
 - simple edit
 - syntax highlighting with tree-sitter(only a few languages now)
 - basic word-based auto completion
+- colorscheme
 
 See docs/help.md for more infomation
 

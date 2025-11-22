@@ -170,10 +170,6 @@ Result Window::Replace(const Range& range, std::string str) {
 void Window::TryAutoPair(std::string str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
-    // Use char is ok here, we only test some ascii characters and utf8
-    // compatible with ascii, we ignore grapheme concept here, because these
-    // ascii is rare to be multi-codepoint grapheme. For convinence, we will not
-    // test whether char is valid ascii.
     bool end_of_line =
         frame_.buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset;
     char cur_c =

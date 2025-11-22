@@ -24,9 +24,9 @@ constexpr const char* kReplacement = "�";
 // It is only safe to determine a codepoint as a grapheme if it is a ascii
 // control code, otherwise it is always safer to use this facility.
 
-// In this codebase, we may sometimes use ascii to detect strings content if
-// they are not number or alpha, like ' ' '(' '[', '{', '\"', '\''. It's quite
-// ok.
+// In this codebase, we may sometimes use ascii(on single char or on single
+// codepoint) to detect strings content if they are not number or english alpha,
+// like ' ', '(', '[', '{', '\"', '\'', '/', '\\'. It's quite ok.
 
 // TODO: single codepoint optimization.
 class Character {

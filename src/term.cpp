@@ -38,6 +38,7 @@ void Terminal::Init(GlobalOpts* global_opts) {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
+
     // NOTE: We use esc mode, so pure codepoint will not have any mod.
     // And enable mouse.
     ret = tb_set_input_mode(TB_INPUT_ESC | TB_INPUT_MOUSE);
@@ -47,6 +48,17 @@ void Terminal::Init(GlobalOpts* global_opts) {
     }
 
     tb_set_wcswidth_fn(my_tb_wcswidth_fn);
+
+    if (global_opts->GetOpt<bool>(kOptTrueColor)) {
+        ret = tb_set_output_mode(TB_OUTPUT_TRUECOLOR);
+    } else {
+        ret = tb_set_output_mode(TB_OUTPUT_NORMAL);
+    }
+    if (ret != TB_OK) {
+        MGO_LOG_ERROR("%s", tb_strerror(ret));
+        throw TermException("%s", tb_strerror(ret));
+    }
+    SetClearAttr(global_opts->GetOpt<ColorScheme>(kOptColorScheme)[kNormal]);
 
     // Enable Bracketed Paste
     tb_sendf("\e[?2004h");
@@ -71,6 +83,14 @@ void Terminal::Shutdown() {
 
         init_ = false;
         esc_keyseq_manager_ = nullptr;
+    }
+}
+
+void Terminal::SetClearAttr(const AttrPair& attr) {
+    int ret;
+    if ((ret = tb_set_clear_attrs(attr.fg, attr.bg) != TB_OK)) {
+        throw TermException("Terminal::SetDefaultAttr error: %s",
+                            tb_strerror(ret));
     }
 }
 
