@@ -398,6 +398,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     if (edit_history_->size() ==
         static_cast<size_t>(GetOpt<int64_t>(kOptEditHistoryMaxItem))) {
         edit_history_->pop_front();
+        never_wrap_history = false;
     }
     edit_history_->push_back(std::move(item));
 }
@@ -493,6 +494,9 @@ Result Buffer::Undo(Pos& cursor_pos_hint) {
         return kNoHistoryAvailable;
     }
     if (edit_history_cursor_ == edit_history_->begin()) {
+        if (never_wrap_history && state_ == BufferState::kModified) {
+            state_ = BufferState::kNotModified;
+        }
         return kNoHistoryAvailable;
     }
 

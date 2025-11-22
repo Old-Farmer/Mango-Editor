@@ -1,5 +1,5 @@
 {
-    "poll_event_timeout": 50,
+    "poll_event_timeout": 100,
     "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,

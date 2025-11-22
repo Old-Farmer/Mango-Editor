@@ -218,6 +218,7 @@ class Buffer {
     std::unique_ptr<HistoryList> edit_history_ =
         std::make_unique<HistoryList>();
     HistoryListIter edit_history_cursor_ = edit_history_->end();
+    bool never_wrap_history = true;
 
     // Just for tree-sitter
     TSInputEdit ts_edit_;
