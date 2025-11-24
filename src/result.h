@@ -20,6 +20,7 @@ enum Result {
     kKeyseqDone,
     kKeyseqMatched,
     kCommandInvalidArgs,
+    kCommandEmpty,
     kNoHistoryAvailable,
     kOuterCommandExecuteFail,  // outer command fail before or when execvp.
 };

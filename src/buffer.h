@@ -173,6 +173,7 @@ class Buffer {
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
     const Opts& opts() { return opts_; }
     Completer* completer() { return basic_word_completer_.get(); }
+    bool lsp_attached() { return lsp_attached_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -228,6 +229,9 @@ class Buffer {
     std::vector<size_t> offset_per_line_ = {0};
 
     std::unique_ptr<BufferBasicWordCompleter> basic_word_completer_;
+
+    // lsp
+    bool lsp_attached_ = false;
 
     Opts opts_;
 

@@ -1,5 +1,5 @@
 {
-    "poll_event_timeout": 100,
+    "poll_event_timeout": 50,
     "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
@@ -9,9 +9,9 @@
 
     "basic_word_completion": true,
     "truecolor": true,
+    "colorscheme": "default",
     "logverbose": false,
 
-    "colorscheme": "default",
     "line_number": 1,
 
     "tab_stop": 4,

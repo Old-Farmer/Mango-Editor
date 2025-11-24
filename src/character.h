@@ -18,45 +18,67 @@ constexpr int kReplacementCharWidth = 1;
 constexpr const char* kSpace = " ";
 constexpr const char* kReplacement = "�";
 
-// A unicode grapheme. Any op on a user-perceived character should use this if
-// you can avoid grapheme concept.
+// A unicode grapheme. Any op on a user-perceived character should use this,
+// e.g. Parsing users' buffers.
 
 // It is only safe to determine a codepoint as a grapheme if it is a ascii
 // control code, otherwise it is always safer to use this facility.
 
-// In this codebase, we may sometimes use ascii(on single char or on single
+// In this codebase, we sometimes use ascii(single char or single
 // codepoint) to detect strings content if they are not number or english alpha,
-// like ' ', '(', '[', '{', '\"', '\'', '/', '\\'. It's quite ok.
+// like ' ', '(', '[', '{', '\"', '\'', '/', '\\', and treat them as graphemes.
 
-// TODO: single codepoint optimization.
 class Character {
    public:
     bool Ascii(char& c) const {
-        if (codepoints_.size() == 1 && codepoints_[0] <= CHAR_MAX) {
-            c = static_cast<char>(codepoints_[0]);
+        if (codepoints_cnt_ == 1 && codepoint_ <= CHAR_MAX) {
+            c = static_cast<char>(codepoint_);
             return true;
         }
         return false;
     }
 
-    void Push(Codepoint codepoint) { codepoints_.push_back(codepoint); }
+    void Push(Codepoint codepoint) {
+        if (codepoints_cnt_++ == 0) {
+            codepoint_ = codepoint;
+        } else if (codepoints_cnt_++ == 1) {
+            codepoints_.resize(2);
+            codepoints_[0] = codepoint_;
+            codepoints_[1] = codepoint;
+        } else {
+            codepoints_.push_back(codepoint);
+        }
+    }
 
-    void Clear() { codepoints_.clear(); }
+    // Explicitly set codepoint
+    void Set(Codepoint codepoint) {
+        codepoint_ = codepoint;
+        codepoints_cnt_ = 1;
+    }
+
+    void Clear() {
+        if (codepoints_cnt_ > 1) {
+            codepoints_.clear();
+        }
+        codepoints_cnt_ = 0;
+    }
 
     const Codepoint* Codepoints() const {
-        MGO_ASSERT(!codepoints_.empty());
+        MGO_ASSERT(codepoints_cnt_ != 0);
+        if (codepoints_cnt_ == 1) {
+            return &codepoint_;
+        }
         return codepoints_.data();
     }
 
-    // Codepoint count
-    size_t CodePointCount() const { return codepoints_.size(); }
+    size_t CodePointCount() const { return codepoints_cnt_; }
 
     int Width();
 
-    std::string ToString();
-
    private:
     std::vector<Codepoint> codepoints_;
+    Codepoint codepoint_;
+    int codepoints_cnt_ = 0;
 };
 
 bool IsUtf8BeginByte(char b);
@@ -99,15 +121,56 @@ bool CheckUtf8Valid(std::string_view str);
 Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
                      int& byte_len);
 
+// Use this if you really want performance, e.g. in a big loop.
+__always_inline Result ThisCharacterInline(std::string_view str, int64_t offset,
+                                           Character& character,
+                                           int& byte_len) {
+    MGO_ASSERT(static_cast<size_t>(offset) < str.size());
+
+    int64_t cur_offset = offset;
+    int64_t end_offset = str.size();
+
+    // ascii happy path
+    if ((cur_offset <= end_offset - 2 && str[cur_offset] >= 0 &&
+         str[cur_offset + 1] >= 0) ||
+        cur_offset == end_offset - 1) {
+        character.Set(str[cur_offset]);
+        byte_len = 1;
+        return kOk;
+    }
+
+    character.Clear();
+    Codepoint codepoint;
+    Codepoint last_codepoint;
+    utf8proc_int32_t state = 0;
+    while (cur_offset < end_offset) {
+        int byte_eat;
+        Result res = Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
+        MGO_ASSERT(kOk == res);
+        if (character.CodePointCount() == 0) {
+            character.Push(codepoint);
+        } else {
+            utf8proc_bool is_break = utf8proc_grapheme_break_stateful(
+                last_codepoint, codepoint, &state);
+            if (is_break) {
+                break;
+            }
+            character.Push(codepoint);
+        }
+        last_codepoint = codepoint;
+        cur_offset += byte_eat;
+    }
+    byte_len = cur_offset - offset;
+    return kOk;
+}
+
 // Make sure that str[offset] must be a character beginnig byte.
 // offset shouldn't <= 0.
 // Current only return kOk
 Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
                      int& byte_len);
 
-// A word contains isalnum + _: just ascii character.
-// TODO: support configuration.
-bool IsWordCharacter(char c);
+bool IsWordSeperator(char c);
 
 // next word offset will set to the next word begin
 // Current only return kOk

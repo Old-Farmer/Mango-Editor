@@ -22,7 +22,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, global_opts_.get(), &mode_);
     peel_ = std::make_unique<MangoPeel>(&cursor_, global_opts_.get(),
-                                        clipboard_.get());
+                                        clipboard_.get(), &buffer_manager_);
     cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, global_opts_.get());
 
     syntax_parser_ = std::make_unique<SyntaxParser>(global_opts_.get());
@@ -61,7 +61,8 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
 
     if (!global_opts_->IsUserConfigValid()) {
         peel_->SetContent(
-            "User config file error! Please check your configuration.");
+            "User config file error! Please check your configuration." +
+            global_opts_->GetUserConfigErrorReportStrAndReleaseIt());
     }
 
     bool in_bracketed_paste = false;
@@ -134,43 +135,23 @@ void Editor::InitKeymaps() {
 
     // peel
     keymap_manager_.AddKeyseq("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
-    keymap_manager_.AddKeyseq("<esc>", {[this] { ExitFromMode(); }},
+    keymap_manager_.AddKeyseq("<esc>", {[this] {
+                                  if (!CompletionTriggered()) {
+                                      ExitFromMode();
+                                  }
+                              }},
                               {Mode::kPeelCommand, Mode::kPeelShow});
-    keymap_manager_.AddKeyseq(
-        "<bs>", {[this] { peel_->DeleteCharacterBeforeCursor(); }},
-        {Mode::kPeelCommand});
+    keymap_manager_.AddKeyseq("<bs>", {[this] {
+                                  peel_->DeleteCharacterBeforeCursor();
+                                  should_retrigger_auto_cmp = true;
+                                  show_cmp_menu_ = true;
+                              }},
+                              {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<c-w>",
                               {[this] { peel_->DeleteWordBeforeCursor(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<tab>", {[this] { peel_->TabAtCursor(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<enter>", {[this] {
-                                  if (ask_quit_) {
-                                      std::string content = peel_->GetContent();
-                                      ask_quit_ = false;
-                                      if (content.empty()) {
-                                          ExitFromMode();
-                                          return;
-                                      }
-                                      if (content.back() == 'y') {
-                                          quit_ = true;
-                                      }
-                                      ExitFromMode();
-                                      return;
-                                  }
-
-                                  CommandArgs args;
-                                  Command* c;
-                                  Result res = command_manager_.EvalCommand(
-                                      peel_->GetContent(), args, c);
-                                  if (res != kOk) {
-                                      peel_->SetContent("Wrong Command");
-                                      ExitFromMode();
-                                      return;
-                                  }
-                                  ExitFromMode();
-                                  c->f(args);
-                              }},
+    keymap_manager_.AddKeyseq("<enter>",
+                              {[this] { ParseAndExcecuteCommand(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<enter>", {[this] {
                                   // TODO
@@ -197,6 +178,7 @@ void Editor::InitKeymaps() {
                               {Mode::kPeelCommand});
 
     // Buffer manangement
+    keymap_manager_.AddKeyseq("<c-b><c-b>", {[this] { PickBuffers(); }});
     keymap_manager_.AddKeyseq("<c-b><c-n>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeyseq("<c-b><c-p>",
@@ -215,7 +197,6 @@ void Editor::InitKeymaps() {
             syntax_parser_->OnBufferDelete(cur_buffer);
             buffer_manager_.RemoveBuffer(cur_buffer);
         }});
-
     keymap_manager_.AddKeyseq("<c-pgdn>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeyseq("<c-pgup>",
@@ -235,7 +216,8 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<c-k><c-c>", {[this] {
                                   TriggerCompletion(false);
                                   show_cmp_menu_ = true;
-                              }});
+                              }},
+                              kAllModes);
 
     // edit
     keymap_manager_.AddKeyseq(
@@ -301,34 +283,38 @@ void Editor::InitKeymaps() {
                                   if (CompletionTriggered()) {
                                       cmp_menu_->SelectPrev();
                                       show_cmp_menu_ = true;
-                                  } else {
+                                  } else if (!IsPeel(mode_)) {
                                       cursor_.in_window->CursorGoUp();
                                   }
-                              }});
+                              }},
+                              kAllModes);
     keymap_manager_.AddKeyseq("<down>", {[this] {
                                   if (CompletionTriggered()) {
                                       cmp_menu_->SelectNext();
                                       show_cmp_menu_ = true;
-                                  } else {
+                                  } else if (!IsPeel(mode_)) {
                                       cursor_.in_window->CursorGoDown();
                                   }
-                              }});
+                              }},
+                              kAllModes);
     keymap_manager_.AddKeyseq("<c-p>", {[this] {
                                   if (CompletionTriggered()) {
                                       cmp_menu_->SelectPrev();
                                       show_cmp_menu_ = true;
-                                  } else {
+                                  } else if (!IsPeel(mode_)) {
                                       cursor_.in_window->CursorGoUp();
                                   }
-                              }});
+                              }},
+                              kAllModes);
     keymap_manager_.AddKeyseq("<c-n>", {[this] {
                                   if (CompletionTriggered()) {
                                       cmp_menu_->SelectNext();
                                       show_cmp_menu_ = true;
-                                  } else {
+                                  } else if (!IsPeel(mode_)) {
                                       cursor_.in_window->CursorGoDown();
                                   }
-                              }});
+                              }},
+                              kAllModes);
     keymap_manager_.AddKeyseq("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
     keymap_manager_.AddKeyseq("<end>",
@@ -341,11 +327,7 @@ void Editor::InitKeymaps() {
                                   cursor_.in_window->ScrollRows(
                                       -cursor_.in_window->frame_.height_ - 1);
                               }});
-    keymap_manager_.AddKeyseq("<esc>", {[this] {
-                                  if (CompletionTriggered()) {
-                                      CancellCompletion();
-                                  }
-                              }});
+    keymap_manager_.AddKeyseq("<esc>", {[this] { (void)this; }});
 }
 
 void Editor::InitCommands() {
@@ -373,6 +355,20 @@ void Editor::InitCommands() {
                  buffer_manager_.AddBuffer(Buffer(global_opts_.get(), path)));
          },
          1});
+    command_manager_.AddCommand({"b",
+                                 "",
+                                 {Type::kString},
+                                 [this](CommandArgs args) {
+                                     const std::string& path_str =
+                                         std::get<std::string>(args[0]);
+                                     Path path(path_str);
+                                     Buffer* b =
+                                         buffer_manager_.FindBuffer(path);
+                                     if (b) {
+                                         cursor_.in_window->AttachBuffer(b);
+                                     }
+                                 },
+                                 1});
     command_manager_.AddCommand(
         {"s",
          "",
@@ -426,10 +422,11 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
     }
 
     // We treat one codepoint as a key event instead of one grapheme.
-    // 1. Our keymaps only use special keys, or just ascii characters, which
+    // 1. It's a limitation on terminals now. We can't detect graphemes on
+    // input event reliably, especially on ssh.
+    // 2. Users can input single codepoints.
+    // 3. Our keymaps only use special keys, or just ascii characters, which
     // users will be aware of.
-    // 2. Detect graphemes on input event is buggy on ssh environment because of
-    // network latency.
     Result res = kKeyseqError;
     Keyseq* handler;
     if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
@@ -443,10 +440,8 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
         // characters, like '(', '[' '{', because they're very very rare as a
         // part of multi-codepoint graphemes.
         if (!key_info.IsSpecialKey()) {
-            last_insert_codepoint_ = key_info.codepoint;
-
             char c[5];
-            int len = UnicodeToUtf8(last_insert_codepoint_, c);
+            int len = UnicodeToUtf8(key_info.codepoint, c);
             c[len] = '\0';
             MGO_ASSERT(len > 0);
             if (IsPeel(mode_)) {
@@ -627,6 +622,7 @@ void Editor::PreProcess() {
     if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
         try {
             window_->frame_.buffer_->Load();
+            // TODO: Not init if file is too big.
             syntax_parser_->SyntaxInit(window_->frame_.buffer_);
         } catch (Exception& e) {
             MGO_LOG_ERROR(
@@ -705,6 +701,7 @@ void Editor::GotoPeel() {
 }
 
 void Editor::ExitFromMode() {
+    MGO_LOG_DEBUG("Get here");
     if (IsPeel(mode_)) {
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
@@ -756,18 +753,20 @@ void Editor::TriggerCompletion(bool autocmp) {
         CancellCompletion();
     }
 
-    if (!IsPeel(mode_)) {
+    bool in_peel = IsPeel(mode_);
+    if (!in_peel) {
         tmp_completer_ = window_->frame_.buffer_->completer();
     } else {
-        // Not support peel cmp now
-        return;
+        tmp_completer_ = &peel_->completer_;
     }
 
     if (tmp_completer_ == nullptr) {
         if (autocmp) {
             return;
         }
-        peel_->SetContent("No completion source");
+        if (!in_peel) {
+            peel_->SetContent("No completion source");
+        }
         return;
     }
 
@@ -775,7 +774,7 @@ void Editor::TriggerCompletion(bool autocmp) {
     tmp_completer_->Suggest(cursor_.ToPos(), entries);
     if (entries.empty()) {
         tmp_completer_->Cancel();
-        if (!autocmp) {
+        if (!autocmp && !in_peel) {
             peel_->SetContent("No completion");
         }
         tmp_completer_ = nullptr;
@@ -806,19 +805,59 @@ void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
 
 void Editor::OnNoEvent() {
     if (should_retrigger_auto_cmp) {
-        if (last_insert_codepoint_ <= CHAR_MAX &&
-            IsWordCharacter(last_insert_codepoint_)) {
-            TriggerCompletion(true);
-        } else {
-            show_cmp_menu_ = false;
-            CancellCompletion();
-        }
+        TriggerCompletion(true);
         return;
     }
 
     if (!show_cmp_menu_) {
         CancellCompletion();
     }
+}
+
+void Editor::PickBuffers() {
+    GotoPeel();
+    peel_->AddStringAtCursor("b ");
+    TriggerCompletion(false);
+    show_cmp_menu_ = true;
+}
+
+void Editor::ParseAndExcecuteCommand() {
+    if (ask_quit_) {
+        std::string content = peel_->GetContent();
+        ask_quit_ = false;
+        if (content.empty()) {
+            ExitFromMode();
+            return;
+        }
+        if (content.back() == 'y') {
+            quit_ = true;
+        }
+        ExitFromMode();
+        return;
+    }
+
+    if (CompletionTriggered()) {
+        tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_);
+        tmp_completer_ = nullptr;
+        return;
+    }
+
+    CommandArgs args;
+    Command* c;
+    Result res = command_manager_.EvalCommand(peel_->GetContent(), args, c);
+    if (res == kCommandEmpty) {
+        ExitFromMode();
+        return;
+    }
+
+    if (res != kOk) {
+        peel_->SetContent("Wrong Command");
+        ExitFromMode();
+        return;
+    }
+
+    ExitFromMode();
+    c->f(args);
 }
 
 }  // namespace mango

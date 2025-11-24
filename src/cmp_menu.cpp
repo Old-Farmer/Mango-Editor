@@ -68,7 +68,6 @@ void CmpMenu::Draw() {
 
     DecideLocAndSize();
 
-    MGO_LOG_DEBUG("cmp height %zu", height_);
     auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
     for (size_t r = 0; r < height_; r++) {
         const Terminal::AttrPair& attr = r + menu_view_line_ == menu_cursor_
@@ -126,7 +125,6 @@ void CmpMenu::Draw() {
             menu_col++;
         }
     }
-    MGO_LOG_DEBUG("cmp draw finish");
 }
 
 void CmpMenu::SelectNext() {

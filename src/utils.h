@@ -40,12 +40,11 @@ struct List {
     T tail;
 };
 
-void AssertFail(const char* __assertion, const char* __file,
-                unsigned int __line, const char* __function);
-
 #ifdef NDEBUG
 #define MGO_ASSERT(expr) (static_cast<void>(0))
 #else
+void AssertFail(const char* __assertion, const char* __file,
+                unsigned int __line, const char* __function);
 #define MGO_ASSERT(expr)     \
     (static_cast<bool>(expr) \
          ? void(0)           \

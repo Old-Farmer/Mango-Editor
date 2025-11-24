@@ -200,6 +200,8 @@ target_sources(
   "${SRC_DIR}/selection.cpp"
   "${SRC_DIR}/signal_handler.h"
   "${SRC_DIR}/signal_handler.cpp"
+  "${SRC_DIR}/str.h"
+  "${SRC_DIR}/str.cpp"
   "${SRC_DIR}/syntax.h"
   "${SRC_DIR}/syntax.cpp"
   "${SRC_DIR}/os.h"

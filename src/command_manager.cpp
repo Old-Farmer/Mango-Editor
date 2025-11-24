@@ -1,6 +1,6 @@
 #include "command_manager.h"
 
-#include "character.h"
+#include "str.h"
 
 namespace mango {
 
@@ -16,26 +16,9 @@ void CommandManager::RemoveCommand(const std::string& name) {
 }
 Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
                                    Command*& command) {
-    std::string_view splitted_str[kMaxCommandCnt + 1];
-    int pos = 0;
-    size_t begin = 0;
-    for (size_t i = 0; i < str.size(); i++) {
-        if (str[i] == kSpaceChar) {
-            if (i != begin) {
-                splitted_str[pos++] =
-                    std::string_view(str.c_str() + begin, i - begin);
-            }
-            begin = i + 1;
-        } else {
-            if (i == str.size() - 1) {
-                splitted_str[pos++] =
-                    std::string_view(str.c_str() + begin, i - begin + 1);
-            }
-        }
-    }
-    // a blank string is fine
-    if (pos == 0) {
-        return kOk;
+    auto splitted_str = StrSplit(str);
+    if (splitted_str.empty()) {
+        return kCommandEmpty;
     }
     // TODO: maybe use cpp-20 heterogeneous lookups for better performance
     auto iter = commands_.find(std::string(splitted_str[0]));
@@ -44,7 +27,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
     }
 
     Command& c = iter->second;
-    if (c.argc != pos - 1) {
+    if (c.argc != static_cast<int8_t>(splitted_str.size() - 1)) {
         return kCommandInvalidArgs;
     }
 

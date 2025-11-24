@@ -4,9 +4,9 @@
 #include <string>
 #include <variant>
 
+#include "options.h"
 #include "result.h"
 #include "utils.h"
-#include "options.h"
 
 namespace mango {
 
@@ -32,10 +32,11 @@ class CommandManager {
 
     void AddCommand(Command command);
     void RemoveCommand(const std::string& name);
-    // return 
+    // return
     // kOk
     // kNotExist,
     // kCommandInvalidArgs,
+    // kCommandEmpty
     Result EvalCommand(const std::string& str, CommandArgs args,
                        Command*& command);
 

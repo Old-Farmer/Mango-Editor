@@ -26,10 +26,11 @@ class Completer {
 };
 
 class MangoPeel;
+class BufferManager;
 
-class PeelFilePathCompleter : Completer {
+class PeelCompleter : public Completer {
    public:
-    PeelFilePathCompleter(std::string_view path_hint_, MangoPeel* peel);
+    PeelCompleter(MangoPeel* peel, BufferManager* buffer_manager);
 
     virtual void Suggest(const Pos& cursor_pos,
                          std::vector<std::string>& menu_entries);
@@ -37,8 +38,10 @@ class PeelFilePathCompleter : Completer {
     virtual void Cancel();
 
    private:
+    MangoPeel* peel_;
+    BufferManager* buffer_manager_;
     std::vector<std::string> suggestions_;
-    std::string path_hint_;
+    size_t this_arg_offset_;
 };
 
 class Buffer;
@@ -60,12 +63,7 @@ class BufferBasicWordCompleter : public Completer {
     void Disable();
 
    private:
-    struct WordRange {
-        size_t begin;
-        size_t end;
-    };
-
-    std::vector<WordRange> GetWords(std::string_view str);
+    std::vector<std::string_view> GetWords(std::string_view str);
 
     const Buffer* buffer_;
     bool enabled_;

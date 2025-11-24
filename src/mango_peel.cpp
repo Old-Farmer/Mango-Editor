@@ -7,9 +7,10 @@
 namespace mango {
 
 MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
-                     ClipBoard* clipboard)
+                     ClipBoard* clipboard, BufferManager* buffer_manager)
     : buffer_(global_opts),
       opts_(global_opts),
+      completer_(this, buffer_manager),
       frame_(&buffer_, cursor, &opts_, nullptr, clipboard) {
     buffer_.Load();
 
@@ -60,8 +61,6 @@ void MangoPeel::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
 void MangoPeel::AddStringAtCursor(std::string str) {
     frame_.AddStringAtCursor(std::move(str));
 }
-
-void MangoPeel::TabAtCursor() { frame_.TabAtCursor(); }
 
 void MangoPeel::Copy() { frame_.Copy(); }
 void MangoPeel::Paste() {

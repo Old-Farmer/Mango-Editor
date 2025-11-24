@@ -144,6 +144,7 @@ void Terminal::HandleEsc() {
     bool res = PollInner(0);
     if (!res) {
         // pop up esc
+        event_ = pendding_events_[0];
         pendding_events_.erase(pendding_events_.begin());
         return;
     }

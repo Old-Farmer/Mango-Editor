@@ -11,7 +11,8 @@ namespace mango {
 // extend it row numbers.
 class MangoPeel {
    public:
-    MangoPeel(Cursor* cursor, GlobalOpts* global_opts, ClipBoard* clipboard);
+    MangoPeel(Cursor* cursor, GlobalOpts* global_opts, ClipBoard* clipboard,
+              BufferManager* buffer_manager);
     ~MangoPeel() = default;
     MGO_DELETE_COPY(MangoPeel);
     MGO_DEFAULT_MOVE(MangoPeel);
@@ -40,7 +41,6 @@ class MangoPeel {
     void DeleteCharacterBeforeCursor();
     void DeleteWordBeforeCursor();
     void AddStringAtCursor(std::string str);
-    void TabAtCursor();
 
     void Copy();
     void Paste();
@@ -54,6 +54,7 @@ class MangoPeel {
 
    public:
     Frame frame_;
+    PeelCompleter completer_;
 };
 
 }  // namespace mango

@@ -3,22 +3,8 @@
 namespace mango {
 
 int Character::Width() {
-    MGO_ASSERT(!codepoints_.empty());
-    return CharacterWidth(codepoints_.data(), codepoints_.size());
-}
-
-std::string Character::ToString() {
-    std::string str;
-    char buf[4];
-    for (Codepoint codepoint : codepoints_) {
-        int len = UnicodeToUtf8(codepoint, buf);
-        if (len == 0) {
-            return "";
-        } else {
-            str.append(buf, len);
-        }
-    }
-    return str;
+    MGO_ASSERT(codepoints_cnt_ != 0);
+    return CharacterWidth(Codepoints(), CodePointCount());
 }
 
 // TODO: I haven't decide a totally right way to calc character width,
@@ -83,35 +69,155 @@ bool CheckUtf8Valid(std::string_view str) {
     return true;
 }
 
+static constexpr bool kIsWordSeparator[128] = {
+    // 0x00-0x1F: 控制字符
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // 0x00-0x07
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // 0x08-0x0F
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // 0x10-0x17
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // 0x18-0x1F
+
+    // 0x20-0x2F
+    true,   // 0x20 ' ' (space)
+    true,   // 0x21 '!'
+    true,   // 0x22 '"'
+    true,   // 0x23 '#'
+    false,  // 0x24 '$'
+    true,   // 0x25 '%'
+    true,   // 0x26 '&'
+    true,   // 0x27 '\''
+    true,   // 0x28 '('
+    true,   // 0x29 ')'
+    true,   // 0x2A '*'
+    true,   // 0x2B '+'
+    true,   // 0x2C ','
+    true,   // 0x2D '-'
+    true,   // 0x2E '.'
+    true,   // 0x2F '/'
+
+    // 0x30-0x3F: 数字 0-9 和更多符号
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // 0-7
+    false,
+    false,  // 8-9
+    true,   // 0x3A ':'
+    true,   // 0x3B ';'
+    true,   // 0x3C '<'
+    true,   // 0x3D '='
+    true,   // 0x3E '>'
+    true,   // 0x3F '?'
+
+    // 0x40-0x4F: @, A-O
+    true,  // 0x40 '@'
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // A-H
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // I-O
+
+    // 0x50-0x5F: P-Z, [, \, ], ^, _
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // P-W
+    false,
+    false,
+    false,  // X-Z
+    true,   // 0x5B '['
+    true,   // 0x5C '\\'
+    true,   // 0x5D ']'
+    true,   // 0x5E '^'
+    false,  // 0x5F '_' (单词字符)
+
+    // 0x60-0x6F: `, a-o
+    true,  // 0x60 '`'
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // a-h
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // i-o
+
+    // 0x70-0x7F: p-z, {, |, }, ~, DEL
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,  // p-w
+    false,
+    false,
+    false,  // x-z
+    true,   // 0x7B '{'
+    true,   // 0x7C '|'
+    true,   // 0x7D '}'
+    true,   // 0x7E '~'
+    false,  // 0x7F DEL
+};
+
+bool IsWordSeperator(char c) { return kIsWordSeparator[static_cast<int>(c)]; }
+
 Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
                      int& byte_len) {
-    MGO_ASSERT(static_cast<size_t>(offset) < str.size());
-
-    character.Clear();
-    Codepoint codepoint;
-    Codepoint last_codepoint;
-    utf8proc_int32_t state = 0;
-    int64_t cur_offset = offset;
-    int64_t end_offset = str.size();
-    while (cur_offset < end_offset) {
-        int byte_eat;
-        Result res = Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
-        MGO_ASSERT(kOk == res);
-        if (character.CodePointCount() == 0) {
-            character.Push(codepoint);
-        } else {
-            utf8proc_bool is_break = utf8proc_grapheme_break_stateful(
-                last_codepoint, codepoint, &state);
-            if (is_break) {
-                break;
-            }
-            character.Push(codepoint);
-        }
-        last_codepoint = codepoint;
-        cur_offset += byte_eat;
-    }
-    byte_len = cur_offset - offset;
-    return kOk;
+    return ThisCharacterInline(str, offset, character, byte_len);
 }
 
 Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
@@ -185,8 +291,6 @@ Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
     return kOk;
 }
 
-bool IsWordCharacter(char c) { return c == '_' || isalnum(c); }
-
 Result NextWordBegin(const std::string& str, size_t offset,
                      size_t& next_word_offset) {
     Character character;
@@ -196,13 +300,13 @@ Result NextWordBegin(const std::string& str, size_t offset,
         Result res = ThisCharacter(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
-        if (character.Ascii(c) && IsWordCharacter(c)) {
+        if (character.Ascii(c) && IsWordSeperator(c)) {
+            found_non_word_character = true;
+        } else {
             if (found_non_word_character) {
                 next_word_offset = offset;
                 return kOk;
             }
-        } else {
-            found_non_word_character = true;
         }
         offset += byte_len;
     }
@@ -221,30 +325,32 @@ Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
     bool found_word_character = false;
     Result res = ThisCharacter(str, offset, character, byte_len);
     MGO_ASSERT(res == kOk);
+    size_t prev_offset = offset;
     offset += byte_len;
     while (offset < str.size()) {
         Result res = ThisCharacter(str, offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
-        if (character.Ascii(c) && IsWordCharacter(c)) {
-            found_word_character = true;
-        } else {
+        if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
                 if (one_more_character) {
                     next_word_end_offset = offset;
                 } else {
-                    next_word_end_offset = offset - 1;  // 1 is safe for ascii
+                    next_word_end_offset = prev_offset;
                 }
                 return kOk;
             }
+        } else {
+            found_word_character = true;
         }
+        prev_offset = offset;
         offset += byte_len;
     }
     if (found_word_character) {
         if (one_more_character) {
             next_word_end_offset = str.size();
         } else {
-            next_word_end_offset = str.size() - 1;
+            next_word_end_offset = str.size() - prev_offset;
         }
     } else {
         next_word_end_offset = str.size();
@@ -267,13 +373,13 @@ Result WordBegin(const std::string& str, size_t offset,
         Result res = PrevCharacter(str, inner_offset, character, byte_len);
         MGO_ASSERT(res == kOk);
         char c;
-        if (character.Ascii(c) && IsWordCharacter(c)) {
-            found_word_character = true;
-        } else {
+        if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
                 prev_word_offset = inner_offset;
                 return kOk;
             }
+        } else {
+            found_word_character = true;
         }
         inner_offset -= byte_len;
     }

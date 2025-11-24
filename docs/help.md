@@ -94,7 +94,7 @@ Use `<c-k>` as a general leader key.
 - `<c-a>` or `<c-k><c-l>`
     select all
 
-### Code Completion(demo)
+### Code Completion
 
 - `<c-k><c-c>`
     trigger code completion
@@ -172,7 +172,7 @@ In `config.json`, Support options:
     scope: global,
     type: bool,
     default: true,
-    desc: A baisc ascii word completion.
+    desc: A baisc word completion.
 
 7. truecolor  
     scope: global,
@@ -211,11 +211,16 @@ The path of logging file is `%XDG_CACHE_HOME/mango.log`.
 Unicode is a complex topic, and I support it carefully.
 However, bugs may be occured due to **lack of knowledgement, poor support**
 **of low-level library or terminal issues/limitaions**.
-Also, sometimes I loose the constraint of unicode to gain some performance benifit. 
+Also, sometimes I loose the constraint of unicode **which will not effect the normal** **circumstance** to just simplify the implementaion or to gain some performance benifit.
 Please feel free to report any issue that you have encountered.
 
 References:
 
 - [UAX#11](http://www.unicode.org/reports/tr11/)
+- [UAX#15](https://unicode.org/reports/tr15/)
 - [UAX#29](http://www.unicode.org/reports/tr29/)
 - [UTX#51](https://unicode.org/reports/tr51/)
+
+- <https://www.unicode.org/L2/L2023/23140-graphemes-expectations.pdf>
+
+- <https://sw.kovidgoyal.net/kitty/text-sizing-protocol>

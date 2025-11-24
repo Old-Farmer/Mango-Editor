@@ -46,6 +46,8 @@ class Editor {
     bool CompletionTriggered();
     void SearchNext();
     void SearchPrev();
+    void PickBuffers();
+    void ParseAndExcecuteCommand();
 
    private:
     void InitKeymaps();
@@ -105,8 +107,6 @@ class Editor {
     bool ask_quit_ = false;
     static constexpr const char* kAskQuitStr =
         "Some buffers have not saved, force quit(y/[n])? ";
-
-    Codepoint last_insert_codepoint_ = -1;
 
     std::unique_ptr<GlobalOpts> global_opts_;
 

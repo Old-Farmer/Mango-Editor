@@ -10,11 +10,13 @@
 
 namespace mango {
 
+#ifndef NDEBUG
 void AssertFail(const char* __assertion, const char* __file,
                 unsigned int __line, const char* __function) {
     mango::Terminal::GetInstance().Shutdown();
     __assert_fail(__assertion, __file, __line, __function);
 }
+#endif // !NDEBUG
 
 Result Exec(const char* file, char* const argv[], const std::string* stdin_data,
             std::string* stdout_data, std::string* stderr_data, int& exit_code,

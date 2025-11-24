@@ -97,22 +97,16 @@ void Window::DeleteAtCursor() {
         MGO_ASSERT(ret == kOk);
 
         char c = -1;
-        if (character.Ascii(c) && IsWordCharacter(c)) {
-            ;
-        } else {
-            c = -1;
-        }
+        character.Ascii(c);
 
         if (cur_line.size() == cursor_->byte_offset) {
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line, cursor_->byte_offset}};
         } else {
             // may delete pairs
-            int this_len;
-            char this_char;
-            ThisCharacter(cur_line, cursor_->byte_offset, character, this_len);
+            char this_char = cur_line[cursor_->byte_offset];
             bool need_delete_pairs =
-                c != -1 && character.Ascii(this_char) && IsPair(c, this_char);
+                c != -1 && IsPair(c, this_char);
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line,
                       cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
