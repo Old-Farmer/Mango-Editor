@@ -41,6 +41,7 @@ class Editor {
 
     void GotoPeel();
     void ExitFromMode();
+    void ExitFromModeVi();
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
     bool CompletionTriggered();
@@ -50,10 +51,18 @@ class Editor {
     void EditFile();
     void PeelHitEnter();
 
+    void CursorUp();
+    void CursorDown();
+
    private:
     void InitKeymaps();
+    void InitKeymapsVi();
     void InitCommands();
-    void HandleKey(std::string* bracketed_paste_buffer);
+    void InitCommandsVi();
+    void PrintKey(const Terminal::KeyInfo& key_info);
+    void HandleBracketedPaste(std::string& bracketed_paste_buffer);
+    void HandleKey();
+    void HandleKeyVi();
     void HandleLeftClick(int s_row, int s_col);
     void HandleRelease(int s_row, int s_col);
     void HandleMouse();
@@ -72,7 +81,7 @@ class Editor {
 
    private:
     MouseState moust_state_ = MouseState::kReleased;
-    Mode mode_ = Mode::kEdit;
+    Mode mode_;
 
     BufferManager buffer_manager_;
     KeyseqManager keymap_manager_{mode_};
@@ -116,6 +125,8 @@ class Editor {
     Completer* tmp_completer_ = nullptr;
     bool should_retrigger_auto_cmp = false;  // if true, trigger a auto cmp.
     bool show_cmp_menu_ = false;             // if false, hide cmp menu.
+
+    size_t count_ = 1;
 
     Terminal& term_ = Terminal::GetInstance();
 };

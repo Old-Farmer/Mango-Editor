@@ -66,6 +66,7 @@ enum OptKey {
     kOptBasicWordCompletion,
     kOptTrueColor,
     kOptLogVerbose,
+    kOptVi,
 
     kOptColorScheme,
 

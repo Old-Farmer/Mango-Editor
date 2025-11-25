@@ -9,7 +9,6 @@
 
 #include "exception.h"
 #include "linux/limits.h"
-#include "logging.h"
 #include "utils.h"
 
 namespace mango {

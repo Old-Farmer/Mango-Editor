@@ -11,6 +11,7 @@
     "truecolor": true,
     "colorscheme": "default",
     "logverbose": false,
+    "vi": false,
 
     "line_number": 1,
 

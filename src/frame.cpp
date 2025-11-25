@@ -122,7 +122,6 @@ void Frame::Draw() {
                     ThisCharacter(cur_line, offset, character, byte_len);
                 MGO_ASSERT(res == kOk);
                 character_width = character.Width();
-                // character_width = 3;
                 if (cur_b_view_c < b_view_col_) {
                     ;
                 } else if (cur_b_view_c >= b_view_col_ &&

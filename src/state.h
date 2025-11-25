@@ -34,6 +34,12 @@ enum class Mode : int {
     kPeelCommand,  // user is inputting sth
     kPeelShow,     // peel shows some multirow output
 
+    kViNormal,
+    kViVisual,
+    kViVisualLine,
+    kViVisualBlock,
+    kOperatorPending,
+
     kNone,
     _kCount,  // not mode, just for count
 };

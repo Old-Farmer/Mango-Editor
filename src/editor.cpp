@@ -53,8 +53,15 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
 
-    InitKeymaps();
-    InitCommands();
+    mode_ = global_opts_->GetOpt<bool>(kOptVi) ? Mode::kViNormal : Mode::kEdit;
+
+    if (!global_opts_->GetOpt<bool>(kOptVi)) {
+        InitKeymaps();
+        InitCommands();
+    } else {
+        InitKeymapsVi();
+        InitKeymapsVi();
+    }
 
     // init options end of life
     init_options.reset();
@@ -102,20 +109,30 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         should_retrigger_auto_cmp = false;
 
         // Handle it and do sth
-        if (term_.EventIsKey()) {
-            HandleKey(in_bracketed_paste ? &bracketed_paste_buffer : nullptr);
-        } else if (term_.EventIsMouse()) {
-            // CancellCompletion();
-            HandleMouse();
-        } else if (term_.EventIsResize()) {
-            // CancellCompletion();
-            HandleResize();
-        } else {
-            // CancellCompletion();
-            Terminal::EventType t = term_.WhatEvent();
-            if (t == Terminal::EventType::kBracketedPasteOpen) {
+        switch (term_.WhatEvent()) {
+            case Terminal::EventType::kKey: {
+                if (in_bracketed_paste) {
+                    HandleBracketedPaste(bracketed_paste_buffer);
+                } else if (!global_opts_->GetOpt<bool>(kOptVi)) {
+                    HandleKey();
+                } else {
+                    HandleKeyVi();
+                }
+                break;
+            }
+            case Terminal::EventType::kMouse: {
+                HandleMouse();
+                break;
+            }
+            case Terminal::EventType::kResize: {
+                HandleResize();
+                break;
+            }
+            case Terminal::EventType::kBracketedPasteOpen: {
                 in_bracketed_paste = true;
-            } else if (t == Terminal::EventType::kBracketedPasteClose) {
+                break;
+            }
+            case Terminal::EventType::kBracketedPasteClose: {
                 in_bracketed_paste = false;
                 if (IsPeel(mode_)) {
                     peel_->AddStringAtCursor(std::move(bracketed_paste_buffer));
@@ -124,6 +141,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                         std::move(bracketed_paste_buffer));
                 }
                 bracketed_paste_buffer = "";
+                break;
             }
         }
     }
@@ -282,42 +300,10 @@ void Editor::InitKeymaps() {
         "<c-left>", {[this] { cursor_.in_window->CursorGoWordBegin(); }});
     keymap_manager_.AddKeyseq(
         "<c-right>", {[this] { cursor_.in_window->CursorGoWordEnd(true); }});
-    keymap_manager_.AddKeyseq("<up>", {[this] {
-                                  if (CompletionTriggered()) {
-                                      cmp_menu_->SelectPrev();
-                                      show_cmp_menu_ = true;
-                                  } else if (!IsPeel(mode_)) {
-                                      cursor_.in_window->CursorGoUp();
-                                  }
-                              }},
-                              kAllModes);
-    keymap_manager_.AddKeyseq("<down>", {[this] {
-                                  if (CompletionTriggered()) {
-                                      cmp_menu_->SelectNext();
-                                      show_cmp_menu_ = true;
-                                  } else if (!IsPeel(mode_)) {
-                                      cursor_.in_window->CursorGoDown();
-                                  }
-                              }},
-                              kAllModes);
-    keymap_manager_.AddKeyseq("<c-p>", {[this] {
-                                  if (CompletionTriggered()) {
-                                      cmp_menu_->SelectPrev();
-                                      show_cmp_menu_ = true;
-                                  } else if (!IsPeel(mode_)) {
-                                      cursor_.in_window->CursorGoUp();
-                                  }
-                              }},
-                              kAllModes);
-    keymap_manager_.AddKeyseq("<c-n>", {[this] {
-                                  if (CompletionTriggered()) {
-                                      cmp_menu_->SelectNext();
-                                      show_cmp_menu_ = true;
-                                  } else if (!IsPeel(mode_)) {
-                                      cursor_.in_window->CursorGoDown();
-                                  }
-                              }},
-                              kAllModes);
+    keymap_manager_.AddKeyseq("<up>", {[this] { CursorUp(); }}, kAllModes);
+    keymap_manager_.AddKeyseq("<down>", {[this] { CursorDown(); }}, kAllModes);
+    keymap_manager_.AddKeyseq("<c-p>", {[this] { CursorUp(); }}, kAllModes);
+    keymap_manager_.AddKeyseq("<c-n>", {[this] { CursorDown(); }}, kAllModes);
     keymap_manager_.AddKeyseq("<home>",
                               {[this] { cursor_.in_window->CursorGoHome(); }});
     keymap_manager_.AddKeyseq("<end>",
@@ -332,6 +318,8 @@ void Editor::InitKeymaps() {
                               }});
     keymap_manager_.AddKeyseq("<esc>", {[this] { (void)this; }});
 }
+
+void Editor::InitKeymapsVi() {}
 
 void Editor::InitCommands() {
     command_manager_.AddCommand({"h",
@@ -383,44 +371,55 @@ void Editor::InitCommands() {
          1});
 }
 
-void Editor::HandleKey(std::string* bracketed_paste_buffer) {
+void PrintKey(const Terminal::KeyInfo& key_info) {
+    bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
+    bool shift = key_info.mod & Terminal::Mod::kShift;
+    bool alt = key_info.mod & Terminal::Mod::kAlt;
+    bool motion = key_info.mod & Terminal::Mod::kMotion;
+    char c[5];
+    int len = UnicodeToUtf8(key_info.codepoint, c);
+    c[len] = '\0';
+    MGO_LOG_DEBUG(
+        "ctrl %d shift %d alt %d motion %d special key %d codepoint "
+        "\\U%08" PRIx32 " char %s",
+        ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
+        key_info.codepoint, c);
+}
+
+void Editor::HandleBracketedPaste(std::string& bracketed_paste_buffer) {
     Terminal::KeyInfo key_info = term_.EventKeyInfo();
 
 #ifndef NDEBUG
     if (global_opts_->GetOpt<bool>(kOptLogVerbose)) {
-        bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
-        bool shift = key_info.mod & Terminal::Mod::kShift;
-        bool alt = key_info.mod & Terminal::Mod::kAlt;
-        bool motion = key_info.mod & Terminal::Mod::kMotion;
-        char c[5];
-        int len = UnicodeToUtf8(key_info.codepoint, c);
-        c[len] = '\0';
-        MGO_LOG_DEBUG(
-            "ctrl %d shift %d alt %d motion %d special key %d codepoint "
-            "\\U%08" PRIx32 " char %s",
-            ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
-            key_info.codepoint, c);
+        PrintKey(key_info);
     }
 #endif  // !NDEBUG
 
-    if (bracketed_paste_buffer) {
-        if (key_info.IsSpecialKey() && key_info.mod == Terminal::kCtrl &&
-            key_info.special_key == Terminal::SpecialKey::kEnter) {
-            if (!IsPeel(mode_)) {
-                bracketed_paste_buffer->push_back('\n');
-            }
-        } else if (key_info.IsSpecialKey()) {
-            bracketed_paste_buffer->append(kReplacement);
-            MGO_LOG_INFO("Unknown Special key in bracketed paste");
-        } else {
-            char c[5];
-            int len = UnicodeToUtf8(key_info.codepoint, c);
-            c[len] = '\0';
-            MGO_ASSERT(len > 0);
-            bracketed_paste_buffer->append(c);
+    if (key_info.IsSpecialKey() && key_info.mod == Terminal::kCtrl &&
+        key_info.special_key == Terminal::SpecialKey::kEnter) {
+        if (!IsPeel(mode_)) {
+            bracketed_paste_buffer.push_back('\n');
         }
-        return;
+    } else if (key_info.IsSpecialKey()) {
+        bracketed_paste_buffer.append(kReplacement);
+        MGO_LOG_INFO("Unknown Special key in bracketed paste");
+    } else {
+        char c[5];
+        int len = UnicodeToUtf8(key_info.codepoint, c);
+        c[len] = '\0';
+        MGO_ASSERT(len > 0);
+        bracketed_paste_buffer.append(c);
     }
+}
+
+void Editor::HandleKey() {
+    Terminal::KeyInfo key_info = term_.EventKeyInfo();
+
+#ifndef NDEBUG
+    if (global_opts_->GetOpt<bool>(kOptLogVerbose)) {
+        PrintKey(key_info);
+    }
+#endif  // !NDEBUG
 
     // We treat one codepoint as a key event instead of one grapheme.
     // 1. It's a limitation on terminals now. We can't detect graphemes on
@@ -440,6 +439,43 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
         // We may use a codepoint as grapheme when we meet some ascii
         // characters, like '(', '[' '{', because they're very very rare as a
         // part of multi-codepoint graphemes.
+        if (!key_info.IsSpecialKey()) {
+            char c[5];
+            int len = UnicodeToUtf8(key_info.codepoint, c);
+            c[len] = '\0';
+            MGO_ASSERT(len > 0);
+            if (IsPeel(mode_)) {
+                peel_->AddStringAtCursor(c);
+            } else {
+                cursor_.in_window->AddStringAtCursor(c);
+            }
+            // After insert, we can have an opportunity to trigger auto cmp.
+            should_retrigger_auto_cmp = true;
+        }
+        return;
+    } else if (res == kKeyseqMatched) {
+        MGO_LOG_DEBUG("keymap matched");
+        return;
+    }
+
+    handler->f();
+}
+
+void Editor::HandleKeyVi() {
+    Terminal::KeyInfo key_info = term_.EventKeyInfo();
+
+#ifndef NDEBUG
+    if (global_opts_->GetOpt<bool>(kOptLogVerbose)) {
+        PrintKey(key_info);
+    }
+#endif  // !NDEBUG
+
+    Result res = kKeyseqError;
+    Keyseq* handler;
+    if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
+        res = keymap_manager_.FeedKey(key_info, handler);
+    }
+    if (res == kKeyseqError) {
         if (!key_info.IsSpecialKey()) {
             char c[5];
             int len = UnicodeToUtf8(key_info.codepoint, c);
@@ -700,13 +736,21 @@ void Editor::GotoPeel() {
 }
 
 void Editor::ExitFromMode() {
-    MGO_LOG_DEBUG("Get here");
     if (IsPeel(mode_)) {
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
         cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
     }
     mode_ = Mode::kEdit;
+}
+
+void Editor::ExitFromModeVi() {
+    if (IsPeel(mode_)) {
+        MGO_ASSERT(cursor_.restore_from_peel);
+        cursor_.in_window = cursor_.restore_from_peel;
+        cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
+    }
+    mode_ = Mode::kViNormal;
 }
 
 void Editor::SearchNext() {
@@ -868,6 +912,24 @@ void Editor::PeelHitEnter() {
 
     ExitFromMode();
     c->f(args);
+}
+
+void Editor::CursorUp() {
+    if (CompletionTriggered()) {
+        cmp_menu_->SelectPrev();
+        show_cmp_menu_ = true;
+    } else if (!IsPeel(mode_)) {
+        cursor_.in_window->CursorGoUp();
+    }
+}
+
+void Editor::CursorDown() {
+    if (CompletionTriggered()) {
+        cmp_menu_->SelectNext();
+        show_cmp_menu_ = true;
+    } else if (!IsPeel(mode_)) {
+        cursor_.in_window->CursorGoDown();
+    }
 }
 
 }  // namespace mango
