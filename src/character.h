@@ -25,8 +25,9 @@ constexpr const char* kReplacement = "�";
 // control code, otherwise it is always safer to use this facility.
 
 // In this codebase, we sometimes use ascii(single char or single
-// codepoint) to detect strings content if they are not number or english alpha,
-// like ' ', '(', '[', '{', '\"', '\'', '/', '\\', and treat them as graphemes.
+// codepoint) to detect strings content if they are not number, english alpha,
+// '#', '*', like ' ', '(', '[', '{', '\"', '\'', '/', '\\', and treat them as
+// graphemes.
 
 class Character {
    public:

@@ -1,3 +1,8 @@
+// TODO: refactor this part.
+// Target:
+// 1. completer should be focus only on data, not ui and data.
+// 2. peelcompleter should be more general, instead of a lot of if else.
+
 #include "completer.h"
 
 #include <unordered_set>
@@ -15,8 +20,35 @@ namespace mango {
 PeelCompleter::PeelCompleter(MangoPeel* peel, BufferManager* buffer_manager)
     : peel_(peel), buffer_manager_(buffer_manager) {}
 
+// throw FSException
 static std::vector<std::string> SuggestFilePath(std::string_view hint) {
-    return {};
+    int64_t sep_index = Path::LastPathSeperator(hint);
+    std::vector<std::string> paths;
+    if (sep_index == -1) {
+        paths = Path::ListUnderPath(".");
+    } else {
+        paths = Path::ListUnderPath(std::string(hint.substr(0, sep_index)));
+    }
+    if (paths.empty()) {
+        return paths;
+    }
+
+    std::string_view filter_str;
+    filter_str = sep_index == -1
+                     ? hint
+                     : hint.substr(sep_index + 1, hint.size() - sep_index - 1);
+    if (filter_str.size() == 0) {
+        return paths;
+    }
+
+    for (auto iter = paths.begin(); iter != paths.end();) {
+        if (!StrFuzzyMatchInBytes(filter_str, *iter, true)) {
+            iter = paths.erase(iter);
+        } else {
+            iter++;
+        }
+    }
+    return paths;
 }
 
 static std::vector<std::string> SuggestBuffers(std::string_view hint,
@@ -25,8 +57,8 @@ static std::vector<std::string> SuggestBuffers(std::string_view hint,
     for (Buffer* buffer = buffer_manager->Begin();
          buffer != buffer_manager->End(); buffer = buffer->next_) {
         if (hint.empty() ||
-            StrFuzzyMatchInBytes(hint, buffer->path().ThisPath(), true)) {
-            ret.emplace_back(buffer->path().ThisPath());
+            StrFuzzyMatchInBytes(hint, buffer->Name(), true)) {
+            ret.emplace_back(buffer->Name());
         }
     }
     return ret;
@@ -48,33 +80,58 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
     } else {
         arg_index = args.size() - 1;
         arg_hint = args.back();
-        this_arg_offset_ = args.back().data() - content_before_cursor.data() -
-                           args.back().size();
+        this_arg_offset_ = args.back().data() - content_before_cursor.data();
     }
 
     if (arg_index == 0) {
         // TODO: suggest commands
     } else {
         if (args[0] == "e") {
-            suggestions_ = SuggestFilePath(arg_hint);
+            if (arg_index == 1) {
+                try {
+                    suggestions_ = SuggestFilePath(arg_hint);
+                } catch (FSException& e) {
+                    // TODO: maybe we can throw catch the outer?
+                    MGO_LOG_ERROR("%s", e.what());
+                }
+                type_ = SuggestType::kPath;
+            }
         } else if (args[0] == "b") {
-            suggestions_ = SuggestBuffers(arg_hint, buffer_manager_);
+            if (arg_index == 1) {
+                suggestions_ = SuggestBuffers(arg_hint, buffer_manager_);
+                type_ = SuggestType::kBuffer;
+            }
         }
     }
     menu_entries = suggestions_;
 }
-void PeelCompleter::Accept(size_t index, Cursor* cursor) {
+Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     Pos pos;
     if (this_arg_offset_ == cursor->byte_offset) {
         peel_->frame_.buffer_->Add({0, cursor->byte_offset},
                                    suggestions_[index], nullptr, false, pos);
-    } else {
+    } else if (type_ == SuggestType::kBuffer) {
         peel_->frame_.buffer_->Replace(
             {{0, this_arg_offset_}, {0, cursor->byte_offset}},
             suggestions_[index], nullptr, false, pos);
+    } else {
+        std::string_view hint = {peel_->GetContent().c_str() + this_arg_offset_,
+                                 cursor->byte_offset - this_arg_offset_};
+        int64_t sep_index = Path::LastPathSeperator(hint);
+        if (sep_index == static_cast<int64_t>(hint.size() - 1)) {
+            peel_->frame_.buffer_->Add({0, cursor->byte_offset},
+                                       suggestions_[index], nullptr, false,
+                                       pos);
+        } else {
+            peel_->frame_.buffer_->Replace(
+                {{0, sep_index + 1 + this_arg_offset_},
+                 {0, cursor->byte_offset}},
+                suggestions_[index], nullptr, false, pos);
+        }
     }
     cursor->SetPos(pos);
     suggestions_.clear();
+    return type_ == SuggestType::kPath ? kRetriggerCmp : kOk;
 }
 
 void PeelCompleter::Cancel() { suggestions_.clear(); }
@@ -138,7 +195,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
     bytes_of_word_before_cursor_ = cur_word_prefix.size();
 }
 
-void BufferBasicWordCompleter::Accept(size_t index, Cursor* cursor) {
+Result BufferBasicWordCompleter::Accept(size_t index, Cursor* cursor) {
     MGO_ASSERT(cursor->in_window);
     MGO_ASSERT(index < suggestions_.size());
     Pos cursor_pos = cursor->ToPos();
@@ -148,6 +205,7 @@ void BufferBasicWordCompleter::Accept(size_t index, Cursor* cursor) {
          cursor_pos},
         std::move(suggestions_[index]));  // Ignore ret
     suggestions_.clear();
+    return kOk;
 }
 
 void BufferBasicWordCompleter::Cancel() { suggestions_.clear(); }

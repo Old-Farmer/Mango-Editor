@@ -47,7 +47,8 @@ class Editor {
     void SearchNext();
     void SearchPrev();
     void PickBuffers();
-    void ParseAndExcecuteCommand();
+    void EditFile();
+    void PeelHitEnter();
 
    private:
     void InitKeymaps();

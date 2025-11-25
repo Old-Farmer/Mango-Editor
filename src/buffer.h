@@ -63,11 +63,14 @@ class Buffer {
     };
 
    public:
-    Buffer(GlobalOpts* options);
+    // if new_file == true, will alloc a new_file_id to this buffer, else just a
+    // no file-backup buffer.
+    Buffer(GlobalOpts* options, bool new_file = true);
     Buffer(GlobalOpts* options, std::string path, bool read_only = false);
     Buffer(GlobalOpts* options, Path path, bool read_only = false);
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
+    ~Buffer();
 
     // throws IOException, FileCreateException, CodingException
     // if it is a no file backup buffer, any of above exceptions won't throw.
@@ -156,7 +159,6 @@ class Buffer {
 
     int64_t id() const noexcept { return id_; }
     size_t LineCnt() const noexcept { return lines_.size(); }
-    Path& path() { return path_; }
     BufferState& state() { return state_; };
     bool IsLoad() const noexcept {
         return state_ == BufferState::kModified ||
@@ -174,6 +176,10 @@ class Buffer {
     const Opts& opts() { return opts_; }
     Completer* completer() { return basic_word_completer_.get(); }
     bool lsp_attached() { return lsp_attached_; }
+
+    zstring_view Name() noexcept {
+        return path_.Empty() ? new_file_name_ : path_.ThisPath();
+    }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
@@ -199,6 +205,8 @@ class Buffer {
     std::vector<Line> lines_;
 
     Path path_;
+    std::string new_file_name_;
+    int64_t new_file_id_;
     zstring_view filetype_;
     EOLSeq eol_seq_ = EOLSeq::kLF;  // Default LF
     BufferState state_ = BufferState::kHaveNotRead;
@@ -238,6 +246,8 @@ class Buffer {
     int64_t id_ = AllocId();
 
     static int64_t cur_buffer_id_;
+
+    static std::vector<bool> new_file_alloced_ids_;
 };
 
 }  // namespace mango

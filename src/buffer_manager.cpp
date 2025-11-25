@@ -2,7 +2,8 @@
 
 namespace mango {
 
-BufferManager::BufferManager() : list_head_(nullptr), list_tail_(nullptr) {
+BufferManager::BufferManager()
+    : list_head_(nullptr, false), list_tail_(nullptr, false) {
     list_head_.prev_ = nullptr;
     list_tail_.next_ = nullptr;
     list_head_.next_ = &list_tail_;
@@ -30,13 +31,11 @@ Buffer* BufferManager::Begin() {
     return list_head_.next_;
 }
 
-Buffer* BufferManager::End() {
-    return &list_tail_;
-}
+Buffer* BufferManager::End() { return &list_tail_; }
 
-Buffer* BufferManager::FindBuffer(Path& path) {
+Buffer* BufferManager::FindBuffer(const std::string& name) {
     for (auto b = Begin(); b != End(); b = b->next_) {
-        if (b->path().ThisPath() == path.ThisPath()) {
+        if (b->Name() == name) {
             return b;
         }
     }

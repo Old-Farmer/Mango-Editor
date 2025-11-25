@@ -35,6 +35,12 @@ class Path {
     static const std::string& GetCwdSys();
     static const std::string& GetAppRootSys();
 
+    static int64_t LastPathSeperator(std::string_view path);
+
+    // throws FSException
+    // if path is not a dir, return empty vector
+    static std::vector<std::string> ListUnderPath(const std::string& path);
+
    private:
     std::string absolute_path_;
     size_t file_name_len_;

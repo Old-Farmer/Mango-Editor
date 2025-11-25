@@ -21,7 +21,8 @@ class Completer {
 
     virtual void Suggest(const Pos& cursor_pos,
                          std::vector<std::string>& menu_entries) = 0;
-    virtual void Accept(size_t index, Cursor* cursor) = 0;
+    // return kOk, or kRetriggerCmp to hint the outside world to trigger again.
+    virtual Result Accept(size_t index, Cursor* cursor) = 0;
     virtual void Cancel() = 0;
 };
 
@@ -34,7 +35,7 @@ class PeelCompleter : public Completer {
 
     virtual void Suggest(const Pos& cursor_pos,
                          std::vector<std::string>& menu_entries);
-    virtual void Accept(size_t index, Cursor* cursor);
+    virtual Result Accept(size_t index, Cursor* cursor);
     virtual void Cancel();
 
    private:
@@ -42,6 +43,12 @@ class PeelCompleter : public Completer {
     BufferManager* buffer_manager_;
     std::vector<std::string> suggestions_;
     size_t this_arg_offset_;
+
+    enum class SuggestType {
+        kBuffer,
+        kPath
+    };
+    SuggestType type_;
 };
 
 class Buffer;
@@ -56,7 +63,7 @@ class BufferBasicWordCompleter : public Completer {
 
     virtual void Suggest(const Pos& cursor_pos,
                          std::vector<std::string>& menu_entries) override;
-    virtual void Accept(size_t index, Cursor* cursor) override;
+    virtual Result Accept(size_t index, Cursor* cursor) override;
     virtual void Cancel() override;
 
     void Enable();

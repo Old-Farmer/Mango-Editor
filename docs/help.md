@@ -55,6 +55,12 @@ Use `<c-k>` as a general leader key.
 - `<c-b><c-d>`
     delete buffer
 
+- `<c-b><c-b>`
+    search buffer
+
+- `<c-b><c-e>`
+    open file
+
 - `<c-f>`
     search. `<c-k><c-n>` or `<c-k><c-p>` to jump to search result when in search mode
 
@@ -99,6 +105,9 @@ Use `<c-k>` as a general leader key.
 - `<c-k><c-c>`
     trigger code completion
 
+- `<tab>`
+    trigger completion in peel.
+
 - `<c-n>` or `<down>`
     select next cmp entry
 
@@ -127,6 +136,9 @@ Use `<c-k>` as a general leader key.
 
 - "e `<path>`"
     goto and edit the file
+
+- "b `<path>`"
+    goto and edit the buffer
 
 ## Configuration
 
@@ -208,7 +220,7 @@ The path of logging file is `%XDG_CACHE_HOME/mango.log`.
 
 ### Unicode && UTF-8
 
-Unicode is a complex topic, and I support it carefully.
+Unicode is a complex and 💩, but I support it as much as I can.
 However, bugs may be occured due to **lack of knowledgement, poor support**
 **of low-level library or terminal issues/limitaions**.
 Also, sometimes I loose the constraint of unicode **which will not effect the normal** **circumstance** to just simplify the implementaion or to gain some performance benifit.

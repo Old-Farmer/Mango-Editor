@@ -13,14 +13,39 @@
 namespace mango {
 
 int64_t Buffer::cur_buffer_id_ = 0;
+std::vector<bool> Buffer::new_file_alloced_ids_ = {};
 
-Buffer::Buffer(GlobalOpts* global_opts) : opts_(global_opts) {}
+Buffer::Buffer(GlobalOpts* global_opts, bool new_file) : opts_(global_opts) {
+    if (new_file) {
+        for (size_t i = 0; i < new_file_alloced_ids_.size(); i++) {
+            if (!new_file_alloced_ids_[i]) {
+                new_file_alloced_ids_[i] = true;
+                new_file_id_ = i + 1;
+                new_file_name_ =
+                    "[new-file-" + std::to_string(new_file_id_) + "]";
+                break;
+            }
+        }
+        if (new_file_name_.empty()) {
+            new_file_alloced_ids_.resize(new_file_alloced_ids_.size() + 1);
+        }
+        new_file_alloced_ids_.back() = true;
+        new_file_id_ = new_file_alloced_ids_.size();
+        new_file_name_ = "[new-file-" + std::to_string(new_file_id_) + "]";
+    }
+}
 
 Buffer::Buffer(GlobalOpts* global_opts, std::string path, bool read_only)
     : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
 
 Buffer::Buffer(GlobalOpts* global_opts, Path path, bool read_only)
     : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
+
+Buffer::~Buffer() {
+    if (!new_file_name_.empty()) {
+        new_file_alloced_ids_[new_file_id_ - 1] = false;
+    }
+}
 
 void Buffer::Load() {
     auto _ = gsl::finally([this] {

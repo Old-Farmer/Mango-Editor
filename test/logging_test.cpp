@@ -16,5 +16,6 @@ TEST_CASE("logging test") {
     REQUIRE(fstat(fileno(logging_file), &my_stat) == 0);
     // printf("%ld\n", my_stat.st_size);
     REQUIRE(my_stat.st_size == 125);
+
     fclose(logging_file);
 }

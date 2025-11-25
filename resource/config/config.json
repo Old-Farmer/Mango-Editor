@@ -3,7 +3,7 @@
     "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
-    "cmp_menu_max_height": 10,
+    "cmp_menu_max_height": 15,
     "cmp_menu_max_width": 40,
     "edit_history_max_item": 1000,
 

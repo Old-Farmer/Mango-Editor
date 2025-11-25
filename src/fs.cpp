@@ -1,12 +1,15 @@
 #include "fs.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <cstring>
 
 #include "exception.h"
 #include "linux/limits.h"
+#include "logging.h"
 #include "utils.h"
 
 namespace mango {
@@ -125,6 +128,45 @@ const std::string& Path::GetAppRootSys() {
     }
     app_root_.resize(pos + 1);
     return app_root_;
+}
+
+int64_t Path::LastPathSeperator(std::string_view path) {
+    size_t loc = path.find_last_of(kPathSeperator);
+    return loc == std::string_view::npos ? -1 : loc;
+}
+
+std::vector<std::string> Path::ListUnderPath(const std::string& path) {
+    std::vector<std::string> ret;
+
+    DIR* dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        if (errno == ENOTDIR) {
+            return {};
+        }
+        throw FSException("opendir error: %s", strerror(errno));
+    }
+    struct dirent* ent;
+    errno = 0;
+    while ((ent = readdir(dir)) != NULL) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            continue;
+        }
+
+        if (ent->d_type == DT_DIR) {
+            auto child_path = std::string(ent->d_name) + kPathSeperator;
+            ret.push_back(std::move(child_path));
+        } else if (ent->d_type == DT_REG) {
+            auto child_path = std::string(ent->d_name);
+            ret.push_back(std::move(child_path));
+        }
+        // We ignore other type file.
+    }
+    closedir(dir);  // If dir is not bad, closedir will never fail, so it will
+                    // not effect errno.
+    if (errno != 0) {
+        throw FSException("readdir error: %s", strerror(errno));
+    }
+    return ret;
 }
 
 std::string Path::cwd_ = "";

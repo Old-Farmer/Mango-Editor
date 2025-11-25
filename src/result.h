@@ -23,6 +23,7 @@ enum Result {
     kCommandEmpty,
     kNoHistoryAvailable,
     kOuterCommandExecuteFail,  // outer command fail before or when execvp.
+    kRetriggerCmp,
 };
 
 constexpr const char* kResultString[] = {"Ok", "Error"};

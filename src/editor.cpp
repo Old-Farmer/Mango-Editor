@@ -42,7 +42,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     } else {
         buf = buffer_manager_.AddBuffer({global_opts_.get()});
     }
-    MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->path().ThisPath()));
+    MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->Name()));
     window_ = std::make_unique<Window>(buf, &cursor_, global_opts_.get(),
                                        syntax_parser_.get(), clipboard_.get());
 
@@ -141,6 +141,8 @@ void Editor::InitKeymaps() {
                                   }
                               }},
                               {Mode::kPeelCommand, Mode::kPeelShow});
+    keymap_manager_.AddKeyseq("<tab>", {[this] { TriggerCompletion(false); }},
+                              {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<bs>", {[this] {
                                   peel_->DeleteCharacterBeforeCursor();
                                   should_retrigger_auto_cmp = true;
@@ -150,8 +152,7 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<c-w>",
                               {[this] { peel_->DeleteWordBeforeCursor(); }},
                               {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<enter>",
-                              {[this] { ParseAndExcecuteCommand(); }},
+    keymap_manager_.AddKeyseq("<enter>", {[this] { PeelHitEnter(); }},
                               {Mode::kPeelCommand});
     keymap_manager_.AddKeyseq("<enter>", {[this] {
                                   // TODO
@@ -179,6 +180,7 @@ void Editor::InitKeymaps() {
 
     // Buffer manangement
     keymap_manager_.AddKeyseq("<c-b><c-b>", {[this] { PickBuffers(); }});
+    keymap_manager_.AddKeyseq("<c-b><c-e>", {[this] { EditFile(); }});
     keymap_manager_.AddKeyseq("<c-b><c-n>",
                               {[this] { cursor_.in_window->NextBuffer(); }});
     keymap_manager_.AddKeyseq("<c-b><c-p>",
@@ -213,11 +215,8 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq("<c-k><c-n>", {[this] { SearchNext(); }});
 
     // cmp
-    keymap_manager_.AddKeyseq("<c-k><c-c>", {[this] {
-                                  TriggerCompletion(false);
-                                  show_cmp_menu_ = true;
-                              }},
-                              kAllModes);
+    keymap_manager_.AddKeyseq(
+        "<c-k><c-c>", {[this] { TriggerCompletion(false); }}, kAllModes);
 
     // edit
     keymap_manager_.AddKeyseq(
@@ -225,7 +224,6 @@ void Editor::InitKeymaps() {
             cursor_.in_window->DeleteAtCursor();
             if (!cursor_.in_window->frame_.selection_.active) {
                 should_retrigger_auto_cmp = true;
-                show_cmp_menu_ = true;
             }
         }});
     keymap_manager_.AddKeyseq(
@@ -235,8 +233,13 @@ void Editor::InitKeymaps() {
     keymap_manager_.AddKeyseq(
         "<enter>", {[this] {
             if (CompletionTriggered()) {
-                tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_);
-                tmp_completer_ = nullptr;
+                if (tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
+                    kRetriggerCmp) {
+                    tmp_completer_ = nullptr;
+                    TriggerCompletion(true);
+                } else {
+                    tmp_completer_ = nullptr;
+                }
             } else {
                 cursor_.in_window->AddStringAtCursor("\n");
             }
@@ -344,26 +347,24 @@ void Editor::InitCommands() {
          "",
          {Type::kString},
          [this](CommandArgs args) {
-             const std::string& path_str = std::get<std::string>(args[0]);
-             Path path(path_str);
-             Buffer* b = buffer_manager_.FindBuffer(path);
+             const std::string& name_str = std::get<std::string>(args[0]);
+             Buffer* b = buffer_manager_.FindBuffer(name_str);
              if (b) {
                  cursor_.in_window->AttachBuffer(b);
                  return;
              }
-             cursor_.in_window->AttachBuffer(
-                 buffer_manager_.AddBuffer(Buffer(global_opts_.get(), path)));
+             cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer(
+                 Buffer(global_opts_.get(), Path(name_str))));
          },
          1});
     command_manager_.AddCommand({"b",
                                  "",
                                  {Type::kString},
                                  [this](CommandArgs args) {
-                                     const std::string& path_str =
+                                     const std::string& name_str =
                                          std::get<std::string>(args[0]);
-                                     Path path(path_str);
                                      Buffer* b =
-                                         buffer_manager_.FindBuffer(path);
+                                         buffer_manager_.FindBuffer(name_str);
                                      if (b) {
                                          cursor_.in_window->AttachBuffer(b);
                                      }
@@ -451,7 +452,6 @@ void Editor::HandleKey(std::string* bracketed_paste_buffer) {
             }
             // After insert, we can have an opportunity to trigger auto cmp.
             should_retrigger_auto_cmp = true;
-            show_cmp_menu_ = true;
         }
         return;
     } else if (res == kKeyseqMatched) {
@@ -625,10 +625,9 @@ void Editor::PreProcess() {
             // TODO: Not init if file is too big.
             syntax_parser_->SyntaxInit(window_->frame_.buffer_);
         } catch (Exception& e) {
-            MGO_LOG_ERROR(
-                "buffer %s : %s",
-                window_->frame_.buffer_->path().AbsolutePath().c_str(),
-                e.what());
+            MGO_LOG_ERROR("buffer %s : %s",
+                          zstring_view_c_str(window_->frame_.buffer_->Name()),
+                          e.what());
             // TODO: Maybe Notify the user
         }
     }
@@ -654,7 +653,7 @@ Editor& Editor::GetInstance() {
 
 void Editor::Help() {
     auto p = Path(Path::GetAppRoot() + kHelpPath);
-    Buffer* b = buffer_manager_.FindBuffer(p);
+    Buffer* b = buffer_manager_.FindBuffer(Path::GetAppRoot() + kHelpPath);
     if (b) {
         cursor_.in_window->AttachBuffer(b);
         return;
@@ -783,6 +782,7 @@ void Editor::TriggerCompletion(bool autocmp) {
 
     cmp_menu_->SetEntries(std::move(entries));
     cmp_menu_->visible() = true;
+    show_cmp_menu_ = true;
 }
 
 void Editor::CancellCompletion() {
@@ -818,10 +818,15 @@ void Editor::PickBuffers() {
     GotoPeel();
     peel_->AddStringAtCursor("b ");
     TriggerCompletion(false);
-    show_cmp_menu_ = true;
 }
 
-void Editor::ParseAndExcecuteCommand() {
+void Editor::EditFile() {
+    GotoPeel();
+    peel_->AddStringAtCursor("e ");
+    TriggerCompletion(false);
+}
+
+void Editor::PeelHitEnter() {
     if (ask_quit_) {
         std::string content = peel_->GetContent();
         ask_quit_ = false;
@@ -837,8 +842,13 @@ void Editor::ParseAndExcecuteCommand() {
     }
 
     if (CompletionTriggered()) {
-        tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_);
-        tmp_completer_ = nullptr;
+        if (tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
+            kRetriggerCmp) {
+            tmp_completer_ = nullptr;
+            TriggerCompletion(true);
+        } else {
+            tmp_completer_ = nullptr;
+        }
         return;
     }
 

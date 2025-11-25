@@ -21,7 +21,7 @@ class BufferManager {
     void RemoveBuffer(Buffer* buffer);
     Buffer* Begin();
     Buffer* End(); // exclusive
-    Buffer* FindBuffer(Path& path);
+    Buffer* FindBuffer(const std::string& name);
     Buffer* FindBuffer(int64_t id);
 
    private:

@@ -8,10 +8,10 @@ namespace mango {
 
 MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
                      ClipBoard* clipboard, BufferManager* buffer_manager)
-    : buffer_(global_opts),
+    : buffer_(global_opts, false),
       opts_(global_opts),
-      completer_(this, buffer_manager),
-      frame_(&buffer_, cursor, &opts_, nullptr, clipboard) {
+      frame_(&buffer_, cursor, &opts_, nullptr, clipboard),
+      completer_(this, buffer_manager) {
     buffer_.Load();
 
     opts_.SetOpt(kOptLineNumber, static_cast<int64_t>(LineNumberType::kNone));

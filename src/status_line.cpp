@@ -29,9 +29,7 @@ void StatusLine::Draw() {
         b = cursor_->in_window->frame_.buffer_;
     }
     std::string cursor_in_info =
-        (b->path().Empty() ? std::string("[new file]")
-                           : std::string(b->path().ThisPath().data(),
-                                         b->path().ThisPath().size())) +
+        std::string(b->Name()) +
         BufferStateString[static_cast<int>(b->state())];
 
     auto sep_width = global_opts_->GetOpt<int64_t>(kOptStatusLineSepWidth);

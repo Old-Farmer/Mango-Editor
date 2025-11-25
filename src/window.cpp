@@ -104,9 +104,12 @@ void Window::DeleteAtCursor() {
                      {cursor_->line, cursor_->byte_offset}};
         } else {
             // may delete pairs
-            char this_char = cur_line[cursor_->byte_offset];
+            int byte_len;
+            ThisCharacter(cur_line, cursor_->byte_offset, character, byte_len);
+            char this_char = -1;
+            character.Ascii(c);
             bool need_delete_pairs =
-                c != -1 && IsPair(c, this_char);
+                c != -1 && this_char != -1 && IsPair(c, this_char);
             range = {{cursor_->line, cursor_->byte_offset - len},
                      {cursor_->line,
                       cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
