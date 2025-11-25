@@ -13,6 +13,7 @@
 #include "state.h"
 #include "status_line.h"
 #include "syntax.h"
+#include "timer_manager.h"
 #include "utils.h"
 #include "window.h"
 
@@ -86,6 +87,7 @@ class Editor {
     BufferManager buffer_manager_;
     KeyseqManager keymap_manager_{mode_};
     CommandManager command_manager_;
+    TimerManager timer_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
 
     enum class ContextID : int {};

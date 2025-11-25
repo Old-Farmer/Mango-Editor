@@ -211,6 +211,8 @@ target_sources(
   "${SRC_DIR}/status_line.cpp"
   "${SRC_DIR}/term.h"
   "${SRC_DIR}/term.cpp"
+  "${SRC_DIR}/timer_manager.h"
+  "${SRC_DIR}/timer_manager.cpp"
   "${SRC_DIR}/trie.h"
   "${SRC_DIR}/trie.cpp"
   "${SRC_DIR}/utils.h"

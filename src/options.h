@@ -67,6 +67,9 @@ enum OptKey {
     kOptTrueColor,
     kOptLogVerbose,
     kOptVi,
+    kOptCursorBlinking,
+    kOptCursorBlinkingShowInterval,
+    kOptCursorBlinkingHideInterval,
 
     kOptColorScheme,
 

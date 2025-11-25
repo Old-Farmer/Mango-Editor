@@ -149,58 +149,27 @@ Mango currently uses json for user configuration:
 
 In `config.json`, Support options:
 
+Buffer Scope:
+
 1. tab_stop  
-    scope: buffer,
     type: int,
     default: 4,
     desc: Tab aligment.
 
 2. tab_space  
-    scope: buffer,
     type: bool,
     default: true,
     desc: When hit tab, insert space or just tab.
 
 3. auto_indent  
-    scope: buffer,
     type: bool,
     default: true,
     desc: Auto indentation.
 
 4. auto_pair  
-    scope: buffer,
     type: bool,
     default: true,
     desc: Auto pair for brackets, etc.
-
-5. line_number  
-    scope: window,
-    type: int,
-    available: 0 = none, 1 = absolute,
-    default: 1,
-    desc: Show line number.
-
-6. basic_word_completion  
-    scope: global,
-    type: bool,
-    default: true,
-    desc: A baisc word completion.
-
-7. truecolor  
-    scope: global,
-    type: bool,
-    default: true,
-    desc: Truecolor support. If enabled, all ui will use the terminal 
-    truecolor ability, otherwise all ui use the terminal 8 color.
-
-8. colorscheme:  
-    scope: global,
-    type: string,
-    default: "default",
-    desc: A colorscheme. When truecolor not enabled, 
-    default is a clean 8 color colorscheme; 
-    Otherwise, Default is a Catpuccin-like colorscheme(See colorscheme.md for more info).
-
 
 Note that you can set per filetype buffer options like:
 
@@ -211,6 +180,52 @@ Note that you can set per filetype buffer options like:
     }
 }
 ```
+
+Window Scope:
+
+1. line_number  
+    type: int,
+    available: 0 = none, 1 = absolute,
+    default: 1,
+    desc: Show line number.
+
+Global Scope:
+
+1. basic_word_completion  
+    type: bool,
+    default: true,
+    desc: A baisc word completion.
+
+2. truecolor  
+    type: bool,
+    default: true,
+    desc: Truecolor support. If enabled, all ui will use the terminal 
+    truecolor ability, otherwise all ui use the terminal 8 color.
+
+3. colorscheme:  
+    type: string,
+    default: "default",
+    desc: A colorscheme. When truecolor not enabled, 
+    default is a clean 8 color colorscheme; 
+    Otherwise, Default is a Catpuccin-like colorscheme(See colorscheme.md for more info).
+
+4. cursor_blinking:  
+    type: bool,
+    default: true,
+    desc: Is cursor blinking?
+
+5. cursor_blinking_show_interval: 
+    type: integer,
+    default: 600,
+    desc: When cursor_blinking is enabled, this option controls 
+    how long the cursor will show in a blinking loop(unit: ms).
+
+6. cursor_blinking_hide_interval: 
+    type: integer,
+    default: 600,
+    desc: When cursor_blinking is enabled, this option controls 
+    how long the cursor will hide in a blinking loop(unit: ms).
+
 
 ## Logging
 

@@ -13,6 +13,10 @@ class GlobalOpts;
 class Opts;
 class MangoPeel;
 
+// ms
+static constexpr size_t kCusorBlinkingShowInterval = 750;
+static constexpr size_t kCursorBlinkingHideInterval = 750;
+
 struct Cursor {
     // row and col in screen
     // this is synced with line & byte_offset after Preprocess
@@ -32,9 +36,9 @@ struct Cursor {
     std::optional<size_t> b_view_col_want;
 
     Window* in_window;  // nullptr means in MangoPeel
-    MangoPeel* peel;
     Window* restore_from_peel = nullptr;
 
+    bool show = true;
 
     // TODO: other info
 

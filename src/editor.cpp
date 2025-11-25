@@ -11,6 +11,8 @@
 
 namespace mango {
 
+using namespace std::chrono_literals;
+
 static constexpr int kScreenMinWidth = 10;
 static constexpr int kScreenMinHeight = 3;
 
@@ -48,19 +50,18 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
-    cursor_.peel = peel_.get();
 
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
 
-    mode_ = global_opts_->GetOpt<bool>(kOptVi) ? Mode::kViNormal : Mode::kEdit;
-
     if (!global_opts_->GetOpt<bool>(kOptVi)) {
+        mode_ = Mode::kEdit;
         InitKeymaps();
         InitCommands();
     } else {
+        mode_ = Mode::kViNormal;
         InitKeymapsVi();
-        InitKeymapsVi();
+        InitCommandsVi();
     }
 
     // init options end of life
@@ -74,8 +75,22 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
 
     bool in_bracketed_paste = false;
     std::string bracketed_paste_buffer;
+
+    if (global_opts_->GetOpt<bool>(kOptCursorBlinking)) {
+        timer_manager_.AddTimer(
+            {std::chrono::milliseconds(
+                 global_opts_->GetOpt<int64_t>(kOptCursorBlinkingShowInterval)),
+             std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
+                 kOptCursorBlinkingHideInterval))},
+            [this] {
+                cursor_.show = !cursor_.show;
+                if (!cursor_.show) {
+                    term_.HideCursor();
+                }
+            });
+    }
+
     // Event Loop
-    // TODO: support custom cursor blinking
     while (!quit_) {
         // When the screen is too small, rendering is hard to cope with,
         // so we just don't do anything, swallow all events except resize
@@ -89,6 +104,8 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                 }
             }
         }
+
+        timer_manager_.Tick();
 
         PreProcess();
         Draw();
@@ -371,7 +388,9 @@ void Editor::InitCommands() {
          1});
 }
 
-void PrintKey(const Terminal::KeyInfo& key_info) {
+void Editor::InitCommandsVi() {}
+
+void Editor::PrintKey(const Terminal::KeyInfo& key_info) {
     bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
     bool shift = key_info.mod & Terminal::Mod::kShift;
     bool alt = key_info.mod & Terminal::Mod::kAlt;
@@ -638,9 +657,8 @@ void Editor::Draw() {
     // screen parts
     // TODO: do not redraw not modified part
     term_.Clear();
-    Result ret = term_.SetCursor(cursor_.s_col, cursor_.s_row);
-    if (ret == kTermOutOfBounds) {
-        return;
+    if (cursor_.show) {
+        term_.SetCursor(cursor_.s_col, cursor_.s_row);
     }
 
     window_->Draw();

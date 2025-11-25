@@ -32,6 +32,9 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"truecolor", kOptTrueColor},
     {"logverbose", kOptLogVerbose},
     {"vi", kOptVi},
+    {"cursor_blinking", kOptCursorBlinking},
+    {"cursor_blinking_show_interval", kOptCursorBlinkingShowInterval},
+    {"cursor_blinking_hide_interval", kOptCursorBlinkingHideInterval},
 };
 
 static void OptStaticInit(const OptInfo*& opt_info) {
@@ -56,6 +59,10 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptVi] = {OptScope::kGlobal, Type::kBool};
+
+        static_opt_info[kOptCursorBlinking] = {OptScope::kGlobal, Type::kBool};
+        static_opt_info[kOptCursorBlinkingShowInterval] = {OptScope::kGlobal, Type::kInteger};
+        static_opt_info[kOptCursorBlinkingHideInterval] = {OptScope::kGlobal, Type::kInteger};
 
         static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
 
