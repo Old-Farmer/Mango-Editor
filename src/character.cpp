@@ -70,7 +70,7 @@ bool CheckUtf8Valid(std::string_view str) {
 }
 
 static constexpr bool kIsWordSeparator[128] = {
-    // 0x00-0x1F: 控制字符
+    // 0x00-0x1F: control codes
     false,
     false,
     false,
@@ -122,7 +122,7 @@ static constexpr bool kIsWordSeparator[128] = {
     true,   // 0x2E '.'
     true,   // 0x2F '/'
 
-    // 0x30-0x3F: 数字 0-9 和更多符号
+    // 0x30-0x3F: number 0-9 and more signs
     false,
     false,
     false,
@@ -174,7 +174,7 @@ static constexpr bool kIsWordSeparator[128] = {
     true,   // 0x5C '\\'
     true,   // 0x5D ']'
     true,   // 0x5E '^'
-    false,  // 0x5F '_' (单词字符)
+    false,  // 0x5F '_'
 
     // 0x60-0x6F: `, a-o
     true,  // 0x60 '`'

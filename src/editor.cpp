@@ -159,228 +159,178 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     }
 }
 
+#define MGO_KEYMAP keymap_manager_.AddKeyseq
+
 void Editor::InitKeymaps() {
     // quit
-    keymap_manager_.AddKeyseq("<c-q>", {[this] { Quit(); }}, kAllModes);
+    MGO_KEYMAP("<c-q>", {[this] { Quit(); }}, kAllModes);
 
     // peel
-    keymap_manager_.AddKeyseq("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
-    keymap_manager_.AddKeyseq("<esc>", {[this] {
-                                  if (!CompletionTriggered()) {
-                                      ExitFromMode();
-                                  }
-                              }},
-                              {Mode::kPeelCommand, Mode::kPeelShow});
-    keymap_manager_.AddKeyseq("<tab>", {[this] { TriggerCompletion(false); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<bs>", {[this] {
-                                  peel_->DeleteCharacterBeforeCursor();
-                                  should_retrigger_auto_cmp = true;
-                                  show_cmp_menu_ = true;
-                              }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<c-w>",
-                              {[this] { peel_->DeleteWordBeforeCursor(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<enter>", {[this] { PeelHitEnter(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<enter>", {[this] {
-                                  // TODO
-                                  void(this);
-                              }},
-                              {Mode::kPeelShow});
-    keymap_manager_.AddKeyseq("<left>", {[this] { peel_->CursorGoLeft(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<right>", {[this] { peel_->CursorGoRight(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<c-left>",
-                              {[this] { peel_->CursorGoPrevWord(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<c-right>",
-                              {[this] { peel_->CursorGoNextWordEnd(true); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<home>", {[this] { peel_->CursorGoHome(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<end>", {[this] { peel_->CursorGoEnd(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<c-c>", {[this] { peel_->Copy(); }},
-                              {Mode::kPeelCommand});
-    keymap_manager_.AddKeyseq("<c-v>", {[this] { peel_->Paste(); }},
-                              {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
+    MGO_KEYMAP("<esc>", {[this] {
+                   if (!CompletionTriggered()) {
+                       ExitFromMode();
+                   }
+               }},
+               {Mode::kPeelCommand, Mode::kPeelShow});
+    MGO_KEYMAP("<tab>", {[this] { TriggerCompletion(false); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<bs>", {[this] {
+                   peel_->DeleteCharacterBeforeCursor();
+                   should_retrigger_auto_cmp = true;
+                   show_cmp_menu_ = true;
+               }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<enter>", {[this] { PeelHitEnter(); }}, {Mode::kPeelCommand});
+    MGO_KEYMAP("<enter>", {[this] {
+                   // TODO
+                   void(this);
+               }},
+               {Mode::kPeelShow});
+    MGO_KEYMAP("<left>", {[this] { peel_->CursorGoLeft(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<right>", {[this] { peel_->CursorGoRight(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoPrevWord(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-right>", {[this] { peel_->CursorGoNextWordEnd(true); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<home>", {[this] { peel_->CursorGoHome(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<end>", {[this] { peel_->CursorGoEnd(); }},
+               {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-c>", {[this] { peel_->Copy(); }}, {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-v>", {[this] { peel_->Paste(); }}, {Mode::kPeelCommand});
 
     // Buffer manangement
-    keymap_manager_.AddKeyseq("<c-b><c-b>", {[this] { PickBuffers(); }});
-    keymap_manager_.AddKeyseq("<c-b><c-e>", {[this] { EditFile(); }});
-    keymap_manager_.AddKeyseq("<c-b><c-n>",
-                              {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeyseq("<c-b><c-p>",
-                              {[this] { cursor_.in_window->PrevBuffer(); }});
-    keymap_manager_.AddKeyseq(
-        "<c-b><c-d>", {[this] {
-            Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
-            if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
-                cursor_.in_window->AttachBuffer(
-                    buffer_manager_.AddBuffer({global_opts_.get()}));
-            } else if (cur_buffer->IsFirstBuffer()) {
-                cursor_.in_window->NextBuffer();
-            } else {
-                cursor_.in_window->PrevBuffer();
-            }
-            syntax_parser_->OnBufferDelete(cur_buffer);
-            buffer_manager_.RemoveBuffer(cur_buffer);
-        }});
-    keymap_manager_.AddKeyseq("<c-pgdn>",
-                              {[this] { cursor_.in_window->NextBuffer(); }});
-    keymap_manager_.AddKeyseq("<c-pgup>",
-                              {[this] { cursor_.in_window->PrevBuffer(); }});
+    MGO_KEYMAP("<c-b><c-b>", {[this] { PickBuffers(); }});
+    MGO_KEYMAP("<c-b><c-e>", {[this] { EditFile(); }});
+    MGO_KEYMAP("<c-b><c-n>", {[this] { cursor_.in_window->NextBuffer(); }});
+    MGO_KEYMAP("<c-b><c-p>", {[this] { cursor_.in_window->PrevBuffer(); }});
+    MGO_KEYMAP("<c-b><c-d>", {[this] { RemoveCurrentBuffer(); }});
+    MGO_KEYMAP("<c-pgdn>", {[this] { cursor_.in_window->NextBuffer(); }});
+    MGO_KEYMAP("<c-pgup>", {[this] { cursor_.in_window->PrevBuffer(); }});
 
     // search
-    keymap_manager_.AddKeyseq("<c-f>", {
-                                           [this] {
-                                               GotoPeel();
-                                               peel_->AddStringAtCursor("s ");
-                                           },
-                                       });
-    keymap_manager_.AddKeyseq("<c-k><c-p>", {[this] { SearchPrev(); }});
-    keymap_manager_.AddKeyseq("<c-k><c-n>", {[this] { SearchNext(); }});
+    MGO_KEYMAP("<c-f>", {
+                            [this] {
+                                GotoPeel();
+                                peel_->AddStringAtCursor("s ");
+                            },
+                        });
+    MGO_KEYMAP("<c-k><c-p>", {[this] { SearchPrev(); }});
+    MGO_KEYMAP("<c-k><c-n>", {[this] { SearchNext(); }});
 
     // cmp
-    keymap_manager_.AddKeyseq(
-        "<c-k><c-c>", {[this] { TriggerCompletion(false); }}, kAllModes);
+    MGO_KEYMAP("<c-k><c-c>", {[this] { TriggerCompletion(false); }}, kAllModes);
 
     // edit
-    keymap_manager_.AddKeyseq(
-        "<bs>", {[this] {
-            cursor_.in_window->DeleteAtCursor();
-            if (!cursor_.in_window->frame_.selection_.active) {
-                should_retrigger_auto_cmp = true;
-            }
-        }});
-    keymap_manager_.AddKeyseq(
-        "<c-w>", {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
-    keymap_manager_.AddKeyseq("<tab>",
-                              {[this] { cursor_.in_window->TabAtCursor(); }});
-    keymap_manager_.AddKeyseq(
-        "<enter>", {[this] {
-            if (CompletionTriggered()) {
-                if (tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
-                    kRetriggerCmp) {
-                    tmp_completer_ = nullptr;
-                    TriggerCompletion(true);
-                } else {
-                    tmp_completer_ = nullptr;
-                }
-            } else {
-                cursor_.in_window->AddStringAtCursor("\n");
-            }
-        }});
-    keymap_manager_.AddKeyseq(
-        "<c-s>", {[this] {
-            try {
-                Result res = cursor_.in_window->frame_.buffer_->Write();
-                if (res == kBufferNoBackupFile) {
-                    peel_->SetContent("Buffer no backup file");
-                } else if (res == kBufferCannotLoad) {
-                    peel_->SetContent("Buffer can't load");
-                } else if (res == kBufferReadOnly) {
-                    peel_->SetContent("Buffer read only");
-                }
-            } catch (IOException& e) {
-                MGO_LOG_ERROR("%s", e.what());
-                std::stringstream ss;
-                ss << "Buffer can't save: " << e.what();
-                peel_->SetContent(ss.str());
-            }
-        }});
-    keymap_manager_.AddKeyseq("<c-z>", {[this] { cursor_.in_window->Undo(); }});
-    keymap_manager_.AddKeyseq("<c-y>", {[this] { cursor_.in_window->Redo(); }});
-    keymap_manager_.AddKeyseq("<c-c>", {[this] { cursor_.in_window->Copy(); }});
-    keymap_manager_.AddKeyseq("<c-v>",
-                              {[this] { cursor_.in_window->Paste(); }});
-    keymap_manager_.AddKeyseq("<c-x>", {[this] { cursor_.in_window->Cut(); }});
-    keymap_manager_.AddKeyseq("<c-a>",
-                              {[this] { cursor_.in_window->SelectAll(); }});
-    keymap_manager_.AddKeyseq("<c-k><c-l>",
-                              {[this] { cursor_.in_window->SelectAll(); }});
+    MGO_KEYMAP("<bs>", {[this] {
+                   cursor_.in_window->DeleteAtCursor();
+                   if (!cursor_.in_window->frame_.selection_.active) {
+                       should_retrigger_auto_cmp = true;
+                   }
+               }});
+    MGO_KEYMAP("<c-w>",
+               {[this] { cursor_.in_window->DeleteWordBeforeCursor(); }});
+    MGO_KEYMAP("<tab>", {[this] { cursor_.in_window->TabAtCursor(); }});
+    MGO_KEYMAP("<enter>", {[this] {
+                   if (CompletionTriggered()) {
+                       if (tmp_completer_->Accept(cmp_menu_->Accept(),
+                                                  &cursor_) == kRetriggerCmp) {
+                           tmp_completer_ = nullptr;
+                           TriggerCompletion(true);
+                       } else {
+                           tmp_completer_ = nullptr;
+                       }
+                   } else {
+                       cursor_.in_window->AddStringAtCursor("\n");
+                   }
+               }});
+    MGO_KEYMAP("<c-s>", {[this] { SaveCurrentBuffer(); }});
+    MGO_KEYMAP("<c-z>", {[this] { cursor_.in_window->Undo(); }});
+    MGO_KEYMAP("<c-y>", {[this] { cursor_.in_window->Redo(); }});
+    MGO_KEYMAP("<c-c>", {[this] { cursor_.in_window->Copy(); }});
+    MGO_KEYMAP("<c-v>", {[this] { cursor_.in_window->Paste(); }});
+    MGO_KEYMAP("<c-x>", {[this] { cursor_.in_window->Cut(); }});
+    MGO_KEYMAP("<c-a>", {[this] { cursor_.in_window->SelectAll(); }});
+    MGO_KEYMAP("<c-k><c-l>", {[this] { cursor_.in_window->SelectAll(); }});
 
     // naviagtion
-    keymap_manager_.AddKeyseq("<left>",
-                              {[this] { cursor_.in_window->CursorGoLeft(); }});
-    keymap_manager_.AddKeyseq("<right>",
-                              {[this] { cursor_.in_window->CursorGoRight(); }});
-    keymap_manager_.AddKeyseq(
-        "<c-left>", {[this] { cursor_.in_window->CursorGoWordBegin(); }});
-    keymap_manager_.AddKeyseq(
-        "<c-right>", {[this] { cursor_.in_window->CursorGoWordEnd(true); }});
-    keymap_manager_.AddKeyseq("<up>", {[this] { CursorUp(); }}, kAllModes);
-    keymap_manager_.AddKeyseq("<down>", {[this] { CursorDown(); }}, kAllModes);
-    keymap_manager_.AddKeyseq("<c-p>", {[this] { CursorUp(); }}, kAllModes);
-    keymap_manager_.AddKeyseq("<c-n>", {[this] { CursorDown(); }}, kAllModes);
-    keymap_manager_.AddKeyseq("<home>",
-                              {[this] { cursor_.in_window->CursorGoHome(); }});
-    keymap_manager_.AddKeyseq("<end>",
-                              {[this] { cursor_.in_window->CursorGoEnd(); }});
-    keymap_manager_.AddKeyseq("<pgdn>", {[this] {
-                                  cursor_.in_window->ScrollRows(
-                                      cursor_.in_window->frame_.height_ - 1);
-                              }});
-    keymap_manager_.AddKeyseq("<pgup>", {[this] {
-                                  cursor_.in_window->ScrollRows(
-                                      -cursor_.in_window->frame_.height_ - 1);
-                              }});
-    keymap_manager_.AddKeyseq("<esc>", {[this] { (void)this; }});
+    MGO_KEYMAP("<left>", {[this] { cursor_.in_window->CursorGoLeft(); }});
+    MGO_KEYMAP("<right>", {[this] { cursor_.in_window->CursorGoRight(); }});
+    MGO_KEYMAP("<c-left>",
+               {[this] { cursor_.in_window->CursorGoWordBegin(); }});
+    MGO_KEYMAP("<c-right>",
+               {[this] { cursor_.in_window->CursorGoWordEnd(true); }});
+    MGO_KEYMAP("<up>", {[this] { CursorUp(); }}, kAllModes);
+    MGO_KEYMAP("<down>", {[this] { CursorDown(); }}, kAllModes);
+    MGO_KEYMAP("<c-p>", {[this] { CursorUp(); }}, kAllModes);
+    MGO_KEYMAP("<c-n>", {[this] { CursorDown(); }}, kAllModes);
+    MGO_KEYMAP("<home>", {[this] { cursor_.in_window->CursorGoHome(); }});
+    MGO_KEYMAP("<end>", {[this] { cursor_.in_window->CursorGoEnd(); }});
+    MGO_KEYMAP("<pgdn>", {[this] {
+                   cursor_.in_window->ScrollRows(
+                       cursor_.in_window->frame_.height_ - 1);
+               }});
+    MGO_KEYMAP("<pgup>", {[this] {
+                   cursor_.in_window->ScrollRows(
+                       -cursor_.in_window->frame_.height_ - 1);
+               }});
+    MGO_KEYMAP("<esc>", {[this] { (void)this; }});
 }
 
 void Editor::InitKeymapsVi() {}
 
+#define MGO_CMD command_manager_.AddCommand
+
 void Editor::InitCommands() {
-    command_manager_.AddCommand({"h",
-                                 "",
-                                 {},
-                                 [this](CommandArgs args) {
-                                     (void)args;
-                                     Help();
-                                 },
-                                 0});
-    command_manager_.AddCommand(
-        {"e",
-         "",
-         {Type::kString},
-         [this](CommandArgs args) {
-             const std::string& name_str = std::get<std::string>(args[0]);
-             Buffer* b = buffer_manager_.FindBuffer(name_str);
-             if (b) {
-                 cursor_.in_window->AttachBuffer(b);
-                 return;
-             }
-             cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer(
-                 Buffer(global_opts_.get(), Path(name_str))));
-         },
-         1});
-    command_manager_.AddCommand({"b",
-                                 "",
-                                 {Type::kString},
-                                 [this](CommandArgs args) {
-                                     const std::string& name_str =
-                                         std::get<std::string>(args[0]);
-                                     Buffer* b =
-                                         buffer_manager_.FindBuffer(name_str);
-                                     if (b) {
-                                         cursor_.in_window->AttachBuffer(b);
-                                     }
-                                 },
-                                 1});
-    command_manager_.AddCommand(
-        {"s",
-         "",
-         {Type::kString},
-         [this](CommandArgs args) {
-             MGO_LOG_DEBUG("search %s", std::get<std::string>(args[0]).c_str());
-             cursor_.in_window->BuildSearchContext(
-                 std::get<std::string>(args[0]));
-             SearchNext();
-         },
-         1});
+    MGO_CMD({"h",
+             "",
+             {},
+             [this](CommandArgs args) {
+                 (void)args;
+                 Help();
+             },
+             0});
+    MGO_CMD({"e",
+             "",
+             {Type::kString},
+             [this](CommandArgs args) {
+                 const std::string& name_str = std::get<std::string>(args[0]);
+                 Buffer* b = buffer_manager_.FindBuffer(name_str);
+                 if (b) {
+                     cursor_.in_window->AttachBuffer(b);
+                     return;
+                 }
+                 cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer(
+                     Buffer(global_opts_.get(), Path(name_str))));
+             },
+             1});
+    MGO_CMD({"b",
+             "",
+             {Type::kString},
+             [this](CommandArgs args) {
+                 const std::string& name_str = std::get<std::string>(args[0]);
+                 Buffer* b = buffer_manager_.FindBuffer(name_str);
+                 if (b) {
+                     cursor_.in_window->AttachBuffer(b);
+                 }
+             },
+             1});
+    MGO_CMD({"s",
+             "",
+             {Type::kString},
+             [this](CommandArgs args) {
+                 MGO_LOG_DEBUG("search %s",
+                               std::get<std::string>(args[0]).c_str());
+                 cursor_.in_window->BuildSearchContext(
+                     std::get<std::string>(args[0]));
+                 SearchNext();
+             },
+             1});
 }
 
 void Editor::InitCommandsVi() {}
@@ -951,6 +901,38 @@ void Editor::CursorDown() {
         show_cmp_menu_ = true;
     } else if (!IsPeel(mode_)) {
         cursor_.in_window->CursorGoDown();
+    }
+}
+
+void Editor::RemoveCurrentBuffer() {
+    Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
+    if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
+        cursor_.in_window->AttachBuffer(
+            buffer_manager_.AddBuffer({global_opts_.get()}));
+    } else if (cur_buffer->IsFirstBuffer()) {
+        cursor_.in_window->NextBuffer();
+    } else {
+        cursor_.in_window->PrevBuffer();
+    }
+    syntax_parser_->OnBufferDelete(cur_buffer);
+    buffer_manager_.RemoveBuffer(cur_buffer);
+}
+
+void Editor::SaveCurrentBuffer() {
+    try {
+        Result res = cursor_.in_window->frame_.buffer_->Write();
+        if (res == kBufferNoBackupFile) {
+            peel_->SetContent("Buffer no backup file");
+        } else if (res == kBufferCannotLoad) {
+            peel_->SetContent("Buffer can't load");
+        } else if (res == kBufferReadOnly) {
+            peel_->SetContent("Buffer read only");
+        }
+    } catch (IOException& e) {
+        MGO_LOG_ERROR("%s", e.what());
+        std::stringstream ss;
+        ss << "Buffer can't save: " << e.what();
+        peel_->SetContent(ss.str());
     }
 }
 

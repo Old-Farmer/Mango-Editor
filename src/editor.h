@@ -55,6 +55,9 @@ class Editor {
     void CursorUp();
     void CursorDown();
 
+    void RemoveCurrentBuffer();
+    void SaveCurrentBuffer();
+
    private:
     void InitKeymaps();
     void InitKeymapsVi();
