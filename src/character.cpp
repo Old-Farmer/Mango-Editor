@@ -225,7 +225,7 @@ Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
     MGO_ASSERT(offset > 0);
 
     // ascii happy path
-    if ((offset > 1 && str[offset - 2] >= 0 && str[offset + 1] >= 0) ||
+    if ((offset > 1 && IsAscii(str[offset - 2]) && IsAscii(str[offset + 1])) ||
         offset == 1) {
         character.Set(str[offset - 1]);
         byte_len = 1;

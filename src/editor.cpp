@@ -33,7 +33,8 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
 
     // Create all buffers
     for (const char* path : init_options->begin_files) {
-        buffer_manager_.AddBuffer(Buffer(global_opts_.get(), path));
+        buffer_manager_.AddBuffer(
+            Buffer(global_opts_.get(), std::string(path)));
     }
 
     // Create the first window.

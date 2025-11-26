@@ -40,9 +40,10 @@ class Character {
     }
 
     void Push(Codepoint codepoint) {
-        if (codepoints_cnt_++ == 0) {
+        codepoints_cnt_++;
+        if (codepoints_cnt_ == 1) {
             codepoint_ = codepoint;
-        } else if (codepoints_cnt_++ == 1) {
+        } else if (codepoints_cnt_ == 2) {
             codepoints_.resize(2);
             codepoints_[0] = codepoint_;
             codepoints_[1] = codepoint;
@@ -83,6 +84,8 @@ class Character {
 };
 
 bool IsUtf8BeginByte(char b);
+
+inline bool IsAscii(char c) { return (c & 0b10000000) == 0; }
 
 // decode str to a codepoint
 // if success, kOk return and len will be set to the byte consumed, out will be
@@ -132,9 +135,9 @@ __always_inline Result ThisCharacterInline(std::string_view str, int64_t offset,
     int64_t end_offset = str.size();
 
     // ascii happy path
-    if ((cur_offset <= end_offset - 2 && str[cur_offset] >= 0 &&
-         str[cur_offset + 1] >= 0) ||
-        cur_offset == end_offset - 1) {
+    if ((cur_offset <= end_offset - 2 && IsAscii(str[cur_offset]) &&
+         IsAscii(str[cur_offset + 1])) ||
+        (cur_offset == end_offset - 1)) {
         character.Set(str[cur_offset]);
         byte_len = 1;
         return kOk;
