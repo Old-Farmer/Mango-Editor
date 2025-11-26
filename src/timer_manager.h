@@ -26,8 +26,11 @@ class Timer {
     // false if it should be removed by the timer manager.
     virtual bool Next(std::chrono::steady_clock::time_point now) = 0;
 
+    void Cancel() { cancelled = true; }
+
     std::chrono::steady_clock::time_point timeout_time_;
     Task task_;
+    bool cancelled = false;
 };
 
 class SingleTimer : public Timer {
@@ -43,8 +46,8 @@ class SingleTimer : public Timer {
 
 class LoopTimer : public Timer {
    public:
-    // LoopTimer will do task at every intervals, when the timer reach intervals end,
-    // it loops back.
+    // LoopTimer will do task at every intervals, when the timer reach intervals
+    // end, it loops back.
     LoopTimer(std::vector<std::chrono::milliseconds> intervals, Task task)
         : Timer(std::chrono::steady_clock::now() + intervals[0],
                 std::move(task)),
@@ -79,14 +82,15 @@ class TimerManager {
     MGO_DELETE_COPY(TimerManager);
     MGO_DELETE_MOVE(TimerManager);
 
-    void AddSingleTimer(std::chrono::milliseconds timeout, Task task);
-    LoopTimer* AddLoopTimer(std::vector<std::chrono::milliseconds> intervals,
-                            Task task);
+    std::shared_ptr<SingleTimer> AddSingleTimer(
+        std::chrono::milliseconds timeout, Task task);
+    std::shared_ptr<LoopTimer> AddLoopTimer(
+        std::vector<std::chrono::milliseconds> intervals, Task task);
 
     void Tick();
 
    private:
-    std::vector<std::unique_ptr<Timer>> timers_;
+    std::vector<std::shared_ptr<Timer>> timers_;
 };
 
 }  // namespace mango

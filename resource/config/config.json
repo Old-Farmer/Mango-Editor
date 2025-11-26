@@ -15,6 +15,7 @@
     "cursor_blinking": true,
     "cursor_blinking_show_interval": 600,
     "cursor_blinking_hide_interval": 600,
+    "auto_cmp_timeout": 100,
 
     "line_number": 1,
 

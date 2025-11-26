@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <optional>
 
 #include "pos.h"
@@ -43,7 +44,7 @@ struct Cursor {
     Window* restore_from_peel = nullptr;
 
     bool show = true;
-    LoopTimer* blinking_timer_ = nullptr;
+    std::shared_ptr<LoopTimer> blinking_timer_ = nullptr;
 
     // TODO: other info
 

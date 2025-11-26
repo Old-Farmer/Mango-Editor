@@ -70,6 +70,7 @@ enum OptKey {
     kOptCursorBlinking,
     kOptCursorBlinkingShowInterval,
     kOptCursorBlinkingHideInterval,
+    kOptAutoCmpTimeout,
 
     kOptColorScheme,
 

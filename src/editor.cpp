@@ -20,6 +20,11 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                   std::unique_ptr<InitOpts> init_options) {
     MGO_LOG_DEBUG("Loop init");
     global_opts_ = std::move(global_opts);
+
+    loop_ = std::make_unique<EventLoop>(global_opts_.get());
+
+    term_.Init(global_opts_.get());
+
     clipboard_ = ClipBoard::CreateClipBoard(true);
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, global_opts_.get(), &mode_);
@@ -28,8 +33,6 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     cmp_menu_ = std::make_unique<CmpMenu>(&cursor_, global_opts_.get());
 
     syntax_parser_ = std::make_unique<SyntaxParser>(global_opts_.get());
-
-    term_.Init(global_opts_.get());
 
     // Create all buffers
     for (const char* path : init_options->begin_files) {
@@ -86,8 +89,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
             [this] { cursor_.show = !cursor_.show; });
     }
 
-    // Event Loop
-    while (!quit_) {
+    auto before_poll = [this] {
         // When the screen is too small, rendering is hard to cope with,
         // so we just don't do anything, swallow all events except resize
         // until the screen is bigger again.
@@ -105,31 +107,34 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
 
         PreProcess();
         Draw();
+    };
+
+    auto term_handler = [this, &in_bracketed_paste,
+                         &bracketed_paste_buffer](Event e) {
+        (void)e;
+        MGO_ASSERT(e & kEventRead);
 
         // Poll a new Event
-        bool have_event =
-            term_.Poll(global_opts_->GetOpt<int64_t>(kOptPollEventTimeout));
+        bool have_event = term_.Poll(0);
         if (!have_event) {
-            // We have a timeout, no user input ready.
-            // User input seems over, but we shouldn't rely on that and think
-            // the current cursor pos is a real grapheme end(user-percieved).
-            // Good time to trigger autocmp or do other high-cost stuffs.
-            OnNoEvent();
-            continue;
+            // OnNoEvent();
+            // continue;
+            return;
         }
 
         show_cmp_menu_ = false;
-        should_retrigger_auto_cmp = false;
+        if (autocmp_trigger_timer_) {
+            autocmp_trigger_timer_->Cancel();
+            autocmp_trigger_timer_.reset();
+        }
 
         // Handle it and do sth
         switch (term_.WhatEvent()) {
             case Terminal::EventType::kKey: {
                 if (in_bracketed_paste) {
                     HandleBracketedPaste(bracketed_paste_buffer);
-                } else if (!global_opts_->GetOpt<bool>(kOptVi)) {
-                    HandleKey();
                 } else {
-                    HandleKeyVi();
+                    HandleKey();
                 }
                 break;
             }
@@ -157,7 +162,27 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                 break;
             }
         }
-    }
+
+        // If autocmp trigger timer has started,
+        // don't cancel it to avoid flash of cmp menu.
+        if (!show_cmp_menu_ && autocmp_trigger_timer_ == nullptr) {
+            CancellCompletion();
+        }
+    };
+
+    EventInfo term_tty;
+    EventInfo term_resize;
+    term_.GetFDs(term_tty.fd, term_resize.fd);
+    term_tty.Interesting_events |= kEventRead;
+    term_resize.Interesting_events |= kEventRead;
+    term_tty.handler = term_handler;
+    term_resize.handler = std::move(term_handler);
+
+    loop_->BeforePoll(std::move(before_poll));
+    loop_->AddEventHandler(std::move(term_tty));
+    loop_->AddEventHandler(std::move(term_resize));
+
+    loop_->Loop();
 }
 
 #define MGO_KEYMAP keymap_manager_.AddKeyseq
@@ -178,8 +203,7 @@ void Editor::InitKeymaps() {
                {Mode::kPeelCommand});
     MGO_KEYMAP("<bs>", {[this] {
                    peel_->DeleteCharacterBeforeCursor();
-                   should_retrigger_auto_cmp = true;
-                   show_cmp_menu_ = true;
+                   StartAutoCompletionTimeout();
                }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
@@ -231,7 +255,7 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<bs>", {[this] {
                    cursor_.in_window->DeleteAtCursor();
                    if (!cursor_.in_window->frame_.selection_.active) {
-                       should_retrigger_auto_cmp = true;
+                       StartAutoCompletionTimeout();
                    }
                }});
     MGO_KEYMAP("<c-w>",
@@ -414,45 +438,7 @@ void Editor::HandleKey() {
             } else {
                 cursor_.in_window->AddStringAtCursor(c);
             }
-            // After insert, we can have an opportunity to trigger auto cmp.
-            should_retrigger_auto_cmp = true;
-        }
-        return;
-    } else if (res == kKeyseqMatched) {
-        MGO_LOG_DEBUG("keymap matched");
-        return;
-    }
-
-    handler->f();
-}
-
-void Editor::HandleKeyVi() {
-    Terminal::KeyInfo key_info = term_.EventKeyInfo();
-
-#ifndef NDEBUG
-    if (global_opts_->GetOpt<bool>(kOptLogVerbose)) {
-        PrintKey(key_info);
-    }
-#endif  // !NDEBUG
-
-    Result res = kKeyseqError;
-    Keyseq* handler;
-    if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
-        res = keymap_manager_.FeedKey(key_info, handler);
-    }
-    if (res == kKeyseqError) {
-        if (!key_info.IsSpecialKey()) {
-            char c[5];
-            int len = UnicodeToUtf8(key_info.codepoint, c);
-            c[len] = '\0';
-            MGO_ASSERT(len > 0);
-            if (IsPeel(mode_)) {
-                peel_->AddStringAtCursor(c);
-            } else {
-                cursor_.in_window->AddStringAtCursor(c);
-            }
-            // After insert, we can have an opportunity to trigger auto cmp.
-            should_retrigger_auto_cmp = true;
+            StartAutoCompletionTimeout();
         }
         return;
     } else if (res == kKeyseqMatched) {
@@ -682,7 +668,7 @@ void Editor::Quit() {
         }
     }
     if (!have_not_saved) {
-        quit_ = true;
+        loop_->EndLoop();
         return;
     }
 
@@ -820,17 +806,6 @@ void*& Editor::ContextManager::GetContext(ContextID id) {
 }
 void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
 
-void Editor::OnNoEvent() {
-    if (should_retrigger_auto_cmp) {
-        TriggerCompletion(true);
-        return;
-    }
-
-    if (!show_cmp_menu_) {
-        CancellCompletion();
-    }
-}
-
 void Editor::PickBuffers() {
     GotoPeel();
     peel_->AddStringAtCursor("b ");
@@ -852,7 +827,7 @@ void Editor::PeelHitEnter() {
             return;
         }
         if (content.back() == 'y') {
-            quit_ = true;
+            loop_->EndLoop();
         }
         ExitFromMode();
         return;
@@ -935,6 +910,20 @@ void Editor::SaveCurrentBuffer() {
         ss << "Buffer can't save: " << e.what();
         peel_->SetContent(ss.str());
     }
+}
+
+void Editor::StartAutoCompletionTimeout() {
+    // We start a timer, every terminal event will cancel it.
+    // So if the timer is timeout, user input seems over, but we shouldn't rely
+    // on that and think the current cursor pos is a real grapheme
+    // end(user-percieved). Good time to trigger a autocmp.
+    autocmp_trigger_timer_ = timer_manager_.AddSingleTimer(
+        std::chrono::milliseconds(
+            global_opts_->GetOpt<int64_t>(kOptAutoCmpTimeout)),
+        [this] {
+            TriggerCompletion(true);
+            autocmp_trigger_timer_.reset();
+        });
 }
 
 }  // namespace mango

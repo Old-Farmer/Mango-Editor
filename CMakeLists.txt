@@ -174,6 +174,8 @@ target_sources(
   "${SRC_DIR}/cursor.cpp"
   "${SRC_DIR}/editor.h"
   "${SRC_DIR}/editor.cpp"
+  "${SRC_DIR}/event_loop.h"
+  "${SRC_DIR}/event_loop.cpp"
   "${SRC_DIR}/exception.h"
   "${SRC_DIR}/exception.cpp"
   "${SRC_DIR}/file.h"

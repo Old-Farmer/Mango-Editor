@@ -7,6 +7,7 @@
 #include "cmp_menu.h"
 #include "command_manager.h"
 #include "cursor.h"
+#include "event_loop.h"
 #include "keyseq_manager.h"
 #include "mango_peel.h"
 #include "mouse.h"
@@ -45,6 +46,7 @@ class Editor {
     void ExitFromModeVi();
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
+    void StartAutoCompletionTimeout();
     bool CompletionTriggered();
     void SearchNext();
     void SearchPrev();
@@ -66,7 +68,6 @@ class Editor {
     void PrintKey(const Terminal::KeyInfo& key_info);
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
     void HandleKey();
-    void HandleKeyVi();
     void HandleLeftClick(int s_row, int s_col);
     void HandleRelease(int s_row, int s_col);
     void HandleMouse();
@@ -76,14 +77,12 @@ class Editor {
     void PreProcess();
     void Resize(int width, int height);
 
-    void CursorShow();
-
-    void OnNoEvent();
-
     // helper methods
     Window* LocateWindow(int s_col, int s_row);
 
    private:
+    std::unique_ptr<EventLoop> loop_;
+
     MouseState moust_state_ = MouseState::kReleased;
     Mode mode_;
 
@@ -128,8 +127,9 @@ class Editor {
     // Cmp context
     Mode mode_trigger_cmp_;
     Completer* tmp_completer_ = nullptr;
-    bool should_retrigger_auto_cmp = false;  // if true, trigger a auto cmp.
-    bool show_cmp_menu_ = false;             // if false, hide cmp menu.
+    bool show_cmp_menu_ = false; // if false, hide cmp menu.
+
+    std::shared_ptr<SingleTimer> autocmp_trigger_timer_;
 
     size_t count_ = 1;
 

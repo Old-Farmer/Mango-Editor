@@ -214,17 +214,22 @@ Global Scope:
     default: true,
     desc: Is cursor blinking?
 
-5. cursor_blinking_show_interval: 
+5. cursor_blinking_show_interval:  
     type: integer,
     default: 600,
     desc: When cursor_blinking is enabled, this option controls 
     how long the cursor will show in a blinking loop(unit: ms).
 
-6. cursor_blinking_hide_interval: 
+6. cursor_blinking_hide_interval:  
     type: integer,
     default: 600,
     desc: When cursor_blinking is enabled, this option controls 
     how long the cursor will hide in a blinking loop(unit: ms).
+
+7. auto_cmp_timeout:  
+    type: integer,
+    default: 100,
+    desc: Auto-completion is triggered after a timeout following the user’s input.
 
 
 ## Logging

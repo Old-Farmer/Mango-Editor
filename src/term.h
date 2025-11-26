@@ -199,6 +199,14 @@ class Terminal {
         }
     }
 
+    void GetFDs(int& tty_fd, int& resize_fd) {
+        int ret = tb_get_fds(&tty_fd, &resize_fd);
+        if (ret != TB_OK) {
+            MGO_LOG_ERROR("%s", tb_strerror(ret));
+            throw TermException("%s", tb_strerror(ret));
+        }
+    }
+
    private:
     // throws TermException
     bool PollInner(int timeout_ms);
