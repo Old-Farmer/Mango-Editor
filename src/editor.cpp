@@ -77,17 +77,12 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     std::string bracketed_paste_buffer;
 
     if (global_opts_->GetOpt<bool>(kOptCursorBlinking)) {
-        timer_manager_.AddTimer(
+        cursor_.blinking_timer_ = timer_manager_.AddLoopTimer(
             {std::chrono::milliseconds(
                  global_opts_->GetOpt<int64_t>(kOptCursorBlinkingShowInterval)),
              std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
                  kOptCursorBlinkingHideInterval))},
-            [this] {
-                cursor_.show = !cursor_.show;
-                if (!cursor_.show) {
-                    term_.HideCursor();
-                }
-            });
+            [this] { cursor_.show = !cursor_.show; });
     }
 
     // Event Loop
@@ -657,8 +652,17 @@ void Editor::Draw() {
     // screen parts
     // TODO: do not redraw not modified part
     term_.Clear();
-    if (cursor_.show) {
+    if (cursor_.s_row != cursor_.s_row_last ||
+        cursor_.s_col != cursor_.s_col_last) {
         term_.SetCursor(cursor_.s_col, cursor_.s_row);
+        if (cursor_.blinking_timer_) {
+            cursor_.blinking_timer_->Restart();
+            cursor_.show = true;
+        }
+    } else if (cursor_.show) {
+        term_.SetCursor(cursor_.s_col, cursor_.s_row);
+    } else {
+        term_.HideCursor();
     }
 
     window_->Draw();

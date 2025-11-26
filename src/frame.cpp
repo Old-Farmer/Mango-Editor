@@ -272,6 +272,8 @@ void Frame::MakeCursorVisible() {
         b_view_line_ = row + 1 - height_;
     }
 
+    cursor_->s_row_last = cursor_->s_row;
+    cursor_->s_col_last = cursor_->s_col;
     cursor_->s_row = row - b_view_line_ + row_;
     cursor_->s_col = cur_b_view_c - b_view_col_ + s_col_for_file_content;
 }

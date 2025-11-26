@@ -12,6 +12,7 @@ class Selection;
 class GlobalOpts;
 class Opts;
 class MangoPeel;
+class LoopTimer;
 
 // ms
 static constexpr size_t kCusorBlinkingShowInterval = 750;
@@ -22,6 +23,9 @@ struct Cursor {
     // this is synced with line & byte_offset after Preprocess
     int s_row = -1;
     int s_col = -1;
+    // last row and col in screen
+    int s_row_last = -1;
+    int s_col_last = -1;
 
     // this is synced with line & byte_offset after Preprocess
     size_t character_in_line = 0;
@@ -39,6 +43,7 @@ struct Cursor {
     Window* restore_from_peel = nullptr;
 
     bool show = true;
+    LoopTimer* blinking_timer_ = nullptr;
 
     // TODO: other info
 
