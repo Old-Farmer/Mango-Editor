@@ -58,7 +58,6 @@ void EventLoop::Loop() {
             continue;
         }
 
-        MGO_LOG_DEBUG("have event");
         int cnt = 0;
         for (const pollfd& poll_fd : poll_fds_) {
             if (cnt == rc) {
@@ -72,7 +71,6 @@ void EventLoop::Loop() {
             cnt++;
             auto iter = event_infos_.find(poll_fd.fd);
             if (iter == event_infos_.end()) {
-                MGO_LOG_DEBUG("havn't find");
                 // Just delete
                 continue;
             }

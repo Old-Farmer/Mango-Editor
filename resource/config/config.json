@@ -23,6 +23,7 @@
     "tab_space": true,
     "auto_indent": true,
     "auto_pair": true,
+    "wrap": false,
 
     "makefile": {
         "tab_space": false

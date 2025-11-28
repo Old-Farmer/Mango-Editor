@@ -1,5 +1,11 @@
 // A wrapper of termbox2
 
+// When Windows terminals direct2d enabled, scrolling will make the cursor
+// flash on random positions. So I guess current termbox2 two-buffer
+// implmentations will make slow machines laggy.
+// TODO: Maybe hand made my own rendering logic, use terminal scroll
+// ability.
+
 #pragma once
 
 #include <vector>
@@ -199,6 +205,7 @@ class Terminal {
         }
     }
 
+    // throws TermException
     void GetFDs(int& tty_fd, int& resize_fd) {
         int ret = tb_get_fds(&tty_fd, &resize_fd);
         if (ret != TB_OK) {
@@ -217,12 +224,6 @@ class Terminal {
     // throws TermException
     // timeout == -1 means infinite blocking
     bool Poll(int timeout_ms);
-
-    bool EventIsResize() { return event_.type == TB_EVENT_RESIZE; }
-
-    bool EventIsKey() { return event_.type == TB_EVENT_KEY; }
-
-    bool EventIsMouse() { return event_.type == TB_EVENT_MOUSE; }
 
     enum class EventType : uint8_t {
         kResize = TB_EVENT_RESIZE,

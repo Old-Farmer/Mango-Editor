@@ -7,7 +7,9 @@
 #include "buffer.h"
 #include "character.h"
 #include "clipboard.h"
+#include "constants.h"
 #include "cursor.h"
+#include "draw.h"
 #include "options.h"
 #include "syntax.h"
 
@@ -21,30 +23,39 @@ Frame::Frame(Buffer* buffer, Cursor* cursor, Opts* opts, SyntaxParser* parser,
       parser_(parser),
       opts_(opts) {}
 
-static int64_t LocateInPos(const std::vector<Highlight>& highlight,
-                           const Pos& pos) {
-    int64_t left = 0, right = highlight.size() - 1;
-    while (left <= right) {
-        int64_t mid = left + (right - left) / 2;
-        if (highlight[mid].range.PosInMe(pos)) {
-            return mid;
-        } else if (highlight[mid].range.PosBeforeMe(pos)) {
-            right = mid - 1;
-        } else {
-            left = mid + 1;
-        }
-    }
-    return left;
-}
-
 void Frame::Draw() {
     MGO_ASSERT(buffer_ != nullptr);
     if (!buffer_->IsLoad()) {
         return;
     }
 
-    int64_t highlight_i = -1;
-    const std::vector<Highlight>* syntax_highlight = nullptr;
+    size_t sidebar_width = SidebarWidth();
+    if (sidebar_width >= width_) {
+        return;
+    }
+
+    size_t s_col_for_file_content = col_ + sidebar_width;
+    size_t width_for_file_content = width_ - sidebar_width;
+
+    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+
+    // Prepare highlights
+    std::vector<const std::vector<Highlight>*> highlights;
+    std::vector<Highlight> selection_hl;
+    if (selection_.active) {
+        selection_hl.resize(1);
+        selection_hl[0].range = selection_.ToRange();
+        selection_hl[0].attr = scheme[kSelection];
+        if (cursor_->line == selection_hl[0].range.begin.line &&
+            cursor_->byte_offset == selection_hl[0].range.begin.byte_offset) {
+            // TODO: maybe all ready end of line, ++ will out of line, currently
+            // no problem
+            selection_hl[0].range.begin.byte_offset++;
+        }
+        selection_hl.push_back({selection_.ToRange(), scheme[kSelection]});
+        highlights.push_back(&selection_hl);
+    }
     if (parser_) {
         Range render_range;
         if (wrap_) {
@@ -59,35 +70,15 @@ void Frame::Draw() {
             buffer_, render_range);  // render range is larger than the real
                                      // render range, but it's ok.
         if (syntax_context) {
-            syntax_highlight = &syntax_context->syntax_highlight;
+            highlights.push_back(&syntax_context->syntax_highlight);
         }
     }
-
-    Range selection_rendering_range;
-    if (selection_.active) {
-        selection_rendering_range = selection_.ToRange();
-        if (cursor_->line == selection_rendering_range.begin.line &&
-            cursor_->byte_offset ==
-                selection_rendering_range.begin.byte_offset) {
-            // TODO: maybe all ready end of line, ++ will out of line, currently
-            // no problem
-            selection_rendering_range.begin.byte_offset++;
-        }
-    }
-
-    DrawLineNumber();
-    size_t s_col_for_file_content = col_ + CalcLineNumberWidth();
-    size_t width_for_file_content = width_ - (s_col_for_file_content - col_);
-
-    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
-    auto tabstop = GetOpt<int64_t>(kOptTabStop);
 
     if (wrap_) {
         // TODO: wrap the content
         MGO_ASSERT(false);
     } else {
         const size_t line_cnt = buffer_->LineCnt();
-        std::vector<uint32_t> codepoints;
         for (size_t win_r = 0; win_r < height_; win_r++) {
             int screen_r = win_r + row_;
             size_t b_view_r = win_r + b_view_line_;
@@ -98,120 +89,11 @@ void Frame::Draw() {
                                scheme[kNormal]);
                 continue;
             }
-
-            if (syntax_highlight) {
-                if (highlight_i == -1) {
-                    highlight_i = LocateInPos(*syntax_highlight, {b_view_r, 0});
-                } else {
-                    while (highlight_i <
-                               static_cast<int>(syntax_highlight->size()) &&
-                           (*syntax_highlight)[highlight_i].range.PosAfterMe(
-                               {b_view_r, 0})) {
-                        highlight_i++;
-                    }
-                }
-            }
-            const std::string& cur_line = buffer_->GetLine(b_view_r);
-            Character character;
-            size_t cur_b_view_c = 0;
-            size_t offset = 0;
-            while (offset < cur_line.size()) {
-                int character_width;
-                int byte_len;
-                Result res =
-                    ThisCharacter(cur_line, offset, character, byte_len);
-                MGO_ASSERT(res == kOk);
-                character_width = character.Width();
-                if (cur_b_view_c < b_view_col_) {
-                    ;
-                } else if (cur_b_view_c >= b_view_col_ &&
-                           cur_b_view_c + (character_width <= 0
-                                               ? 1
-                                               : character_width) <=
-                               width_for_file_content + b_view_col_) {
-                    // Decide attr
-                    Terminal::AttrPair attr;
-                    if (selection_.active &&
-                        selection_rendering_range.PosInMe({b_view_r, offset})) {
-                        attr = scheme[kSelection];
-                    } else if (syntax_highlight == nullptr ||
-                               static_cast<int64_t>(syntax_highlight->size()) ==
-                                   highlight_i) {
-                        attr = scheme[kNormal];
-                    } else {
-                        if ((*syntax_highlight)[highlight_i].range.PosInMe(
-                                {b_view_r, offset})) {
-                            attr = (*syntax_highlight)[highlight_i].attr;
-                        } else {
-                            attr = scheme[kNormal];
-                        }
-                    }
-
-                    if (character_width <= 0) {
-                        // we meet unprintable or zero-width character
-                        char c;
-                        if (character.Ascii(c) && c == '\t') {
-                            int space_count = tabstop - cur_b_view_c % tabstop;
-                            while (space_count > 0 &&
-                                   cur_b_view_c + 1 <=
-                                       width_for_file_content + b_view_col_) {
-                                int screen_c = cur_b_view_c - b_view_col_ +
-                                               s_col_for_file_content;
-                                Codepoint space = kSpaceChar;
-                                // Just in view, render the character
-                                int ret = term_->SetCell(screen_c, screen_r,
-                                                         &space, 1, attr);
-                                if (ret == kTermOutOfBounds) {
-                                    // User resize the screen now, just skip the
-                                    // left cols in this row
-                                    break;
-                                }
-                                space_count--;
-                                cur_b_view_c++;
-                            }
-                            character_width = 0;
-                        } else {
-                            MGO_LOG_INFO(
-                                "Meet non-printable or wcwidth == 0 character");
-                            character.Clear();
-                            character.Push(kReplacementChar);
-                            character_width = kReplacementCharWidth;
-                        }
-                    }
-                    if (character_width > 0) {
-                        int screen_c =
-                            cur_b_view_c - b_view_col_ + s_col_for_file_content;
-
-                        // std::stringstream ss;
-                        // ss << "render "
-                        //    << std::string_view(cur_line.c_str() + offset,
-                        //                        byte_len)
-                        //    << "in col: " << screen_c << ", row: " << screen_r
-                        //    << ", width: " << character_width;
-                        // MGO_LOG_DEBUG("%s", ss.str().c_str());
-
-                        // Just in view, render the character
-                        Result ret = term_->SetCell(
-                            screen_c, screen_r, character.Codepoints(),
-                            character.CodePointCount(), attr);
-                        MGO_ASSERT(ret == kOk);
-                    }
-                } else {
-                    break;
-                }
-                offset += byte_len;
-                cur_b_view_c += character_width;
-
-                // Try goto next syntax highlight range
-                if (syntax_highlight) {
-                    while (highlight_i <
-                               static_cast<int64_t>(syntax_highlight->size()) &&
-                           (*syntax_highlight)[highlight_i].range.PosAfterMe(
-                               {b_view_r, offset})) {
-                        highlight_i++;
-                    }
-                }
-            }
+            DrawSidebar(screen_r, b_view_r, sidebar_width);
+            DrawLine(*term_, buffer_->GetLine(b_view_r), {b_view_r, 0},
+                     b_view_col_, width_for_file_content, screen_r,
+                     s_col_for_file_content, &highlights, scheme[kNormal],
+                     tabstop);
         }
     }
 }
@@ -255,7 +137,7 @@ void Frame::MakeCursorVisible() {
         cursor_->b_view_col_want = cur_b_view_c;
     }
 
-    size_t s_col_for_file_content = col_ + CalcLineNumberWidth();
+    size_t s_col_for_file_content = col_ + SidebarWidth();
     size_t width_for_file_content = width_ - (s_col_for_file_content - col_);
 
     // adjust col of view
@@ -329,7 +211,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     cursor_->line = cur_b_view_row;
 
     // Click at line number columns.
-    size_t line_number_width = CalcLineNumberWidth();
+    size_t line_number_width = SidebarWidth();
     if (s_col - col_ < line_number_width) {
         return;
     }
@@ -732,56 +614,52 @@ void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
     SelectionCancell();
 }
 
-size_t Frame::CalcLineNumberWidth() {
+size_t Frame::SidebarWidth() {
     auto line_number = GetOpt<int64_t>(kOptLineNumber);
     if (line_number == static_cast<int64_t>(LineNumberType::kNone)) {
         return 0;
     }
 
-    if (wrap_) {
-        MGO_ASSERT(false);
-    } else {
-        if (line_number == static_cast<int64_t>(LineNumberType::kAboslute)) {
-            size_t max_line_number =
-                std::min(b_view_line_ + height_, buffer_->LineCnt());
-            std::stringstream ss;
-            ss << max_line_number;
-            return ss.str().size() + 3;  // 1 spaces left and 2 right
-        }
-    }
+    // Now we only have line number.
+    // We calc width according to the line cnt of the buffer to avoid ui
+    // debounce.
+    size_t max_line_number = buffer_->LineCnt() + 1;
+    return NumberWidth(max_line_number) + 3;  // two spaces left and 1 right.
     return 0;
 }
 
-void Frame::DrawLineNumber() {
-    auto line_number = GetOpt<int64_t>(kOptLineNumber);
-    if (line_number == static_cast<int64_t>(LineNumberType::kNone)) {
+void Frame::DrawSidebar(int screen_row, size_t absolute_line, size_t width) {
+    auto line_number_type =
+        static_cast<LineNumberType>(GetOpt<int64_t>(kOptLineNumber));
+    if (line_number_type == LineNumberType::kNone) {
         return;
     }
 
+    char sidebar_buf[kMaxSizeTWidth + 3 + 1];
+
     auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
-    if (wrap_) {
-        MGO_ASSERT(false);
+    size_t line_number;
+    if (line_number_type == LineNumberType::kAboslute) {
+        line_number = absolute_line + 1;
+    } else if (line_number_type == LineNumberType::kRelative) {
+        line_number = absolute_line == cursor_->line
+                               ? absolute_line + 1
+                               : (absolute_line > cursor_->line
+                                      ? absolute_line - cursor_->line
+                                      : cursor_->line - absolute_line);
     } else {
-        if (line_number == static_cast<int64_t>(LineNumberType::kAboslute)) {
-            const size_t line_cnt = buffer_->LineCnt();
-            std::vector<uint32_t> codepoints;
-            for (size_t win_r = 0; win_r < height_; win_r++) {
-                int screen_r = win_r + row_;
-                size_t b_view_r = win_r + b_view_line_;
-
-                if (line_cnt <= b_view_r) {
-                    break;
-                }
-
-                std::stringstream ss;
-                ss << b_view_r + 1;
-                Result res = term_->Print(
-                    col_, screen_r, scheme[kLineNumber],
-                    (kSpace + ss.str() + std::string(2, kSpaceChar)).c_str());
-                MGO_ASSERT(res == kOk);
-            }
-        }
+        // Make compiler happy
+        MGO_ASSERT(false);
+        line_number = 0;
     }
+    std::string line_number_str = std::to_string(line_number);
+    size_t left_space = width - 1 - line_number_str.size();
+    memset(sidebar_buf, kSpaceChar, left_space);
+    memcpy(sidebar_buf + left_space, line_number_str.data(),
+           line_number_str.size());
+    sidebar_buf[left_space + line_number_str.size()] = kSpaceChar;
+    sidebar_buf[left_space + line_number_str.size() + 1] = '\0';
+    term_->Print(col_, screen_row, scheme[kLineNumber], sidebar_buf);
 }
 
 void Frame::UpdateSyntax() {

@@ -46,7 +46,7 @@ class Editor {
     void ExitFromModeVi();
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
-    void StartAutoCompletionTimeout();
+    void StartAutoCompletionTimer();
     bool CompletionTriggered();
     void SearchNext();
     void SearchPrev();

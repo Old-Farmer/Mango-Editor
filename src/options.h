@@ -46,7 +46,7 @@ enum ColorSchemeType : int {
 enum class LineNumberType {
     kNone = 0,
     kAboslute,
-    // kRelative, // Not support now
+    kRelative,
 };
 
 // NOTE: The unit of time related opts is ms.
@@ -58,6 +58,7 @@ enum OptKey {
     kOptTabSpace,
     kOptAutoIndent,
     kOptAutoPair,
+    kOptWrap,
     kOptLineNumber,
     kOptStatusLineSepWidth,
     kOptCmpMenuMaxHeight,

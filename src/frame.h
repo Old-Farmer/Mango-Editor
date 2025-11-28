@@ -59,7 +59,7 @@ class Frame {
     void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
     // kOk for truely done
     Result Replace(const Range& range, std::string str,
-                 const Pos* cursor_pos = nullptr);
+                   const Pos* cursor_pos = nullptr);
     void TabAtCursor();
     void Redo();
     void Undo();
@@ -76,8 +76,8 @@ class Frame {
     void ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
    private:
-    size_t CalcLineNumberWidth();
-    void DrawLineNumber();
+    size_t SidebarWidth();
+    void DrawSidebar(int screen_row, size_t absolute_line, size_t width);
 
     void UpdateSyntax();
     void SelectionFollowCursor();

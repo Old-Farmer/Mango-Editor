@@ -29,7 +29,7 @@ FetchContent_Declare(
 set(TERMBOX2_LIB "${THIRD_PARTY_DIR}/termbox2/libtermbox2.a")
 set(TERMBOX2_INCLUDE_DIR "${THIRD_PARTY_DIR}/termbox2")
 add_custom_target(build_termbox2
-    COMMAND make libtermbox2.a CFLAGS=\"-DTB_OPT_ATTR_W=64 -DTB_OPT_EGC\" --always-make
+    COMMAND make libtermbox2.a CFLAGS=\"-DTB_OPT_ATTR_W=64 -DTB_OPT_EGC -O3\" --always-make
     WORKING_DIRECTORY "${THIRD_PARTY_DIR}/termbox2"
     COMMENT "Building termbox2 library"
     BYPRODUCTS "${TERMBOX2_LIB}"
@@ -172,6 +172,8 @@ target_sources(
   "${SRC_DIR}/completer.cpp"
   "${SRC_DIR}/cursor.h"
   "${SRC_DIR}/cursor.cpp"
+  "${SRC_DIR}/draw.h"
+  "${SRC_DIR}/draw.cpp"
   "${SRC_DIR}/editor.h"
   "${SRC_DIR}/editor.cpp"
   "${SRC_DIR}/event_loop.h"

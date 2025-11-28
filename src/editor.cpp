@@ -97,7 +97,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                term_.Width() < kScreenMinWidth) {
             if (term_.Poll(
                     global_opts_->GetOpt<int64_t>(kOptPollEventTimeout))) {
-                if (term_.EventIsResize()) {
+                if (term_.WhatEvent() == Terminal::EventType::kResize) {
                     HandleResize();
                 }
             }
@@ -117,8 +117,6 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         // Poll a new Event
         bool have_event = term_.Poll(0);
         if (!have_event) {
-            // OnNoEvent();
-            // continue;
             return;
         }
 
@@ -203,7 +201,7 @@ void Editor::InitKeymaps() {
                {Mode::kPeelCommand});
     MGO_KEYMAP("<bs>", {[this] {
                    peel_->DeleteCharacterBeforeCursor();
-                   StartAutoCompletionTimeout();
+                   StartAutoCompletionTimer();
                }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
@@ -255,7 +253,7 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<bs>", {[this] {
                    cursor_.in_window->DeleteAtCursor();
                    if (!cursor_.in_window->frame_.selection_.active) {
-                       StartAutoCompletionTimeout();
+                       StartAutoCompletionTimer();
                    }
                }});
     MGO_KEYMAP("<c-w>",
@@ -438,7 +436,7 @@ void Editor::HandleKey() {
             } else {
                 cursor_.in_window->AddStringAtCursor(c);
             }
-            StartAutoCompletionTimeout();
+            StartAutoCompletionTimer();
         }
         return;
     } else if (res == kKeyseqMatched) {
@@ -912,7 +910,7 @@ void Editor::SaveCurrentBuffer() {
     }
 }
 
-void Editor::StartAutoCompletionTimeout() {
+void Editor::StartAutoCompletionTimer() {
     // We start a timer, every terminal event will cancel it.
     // So if the timer is timeout, user input seems over, but we shouldn't rely
     // on that and think the current cursor pos is a real grapheme

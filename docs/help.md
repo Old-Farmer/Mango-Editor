@@ -185,7 +185,7 @@ Window Scope:
 
 1. line_number  
     type: int,
-    available: 0 = none, 1 = absolute,
+    available: 0 = none, 1 = absolute, 2 = relative,
     default: 1,
     desc: Show line number.
 

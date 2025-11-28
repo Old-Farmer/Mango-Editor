@@ -23,6 +23,7 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"tab_space", kOptTabSpace},
     {"auto_indent", kOptAutoIndent},
     {"auto_pair", kOptAutoPair},
+    {"wrap", kOptWrap},
     {"line_number", kOptLineNumber},
     {"status_line_sep_width", kOptStatusLineSepWidth},
     {"cmp_menu_max_height", kOptCmpMenuMaxHeight},
@@ -60,7 +61,6 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptVi] = {OptScope::kGlobal, Type::kBool};
-
         static_opt_info[kOptCursorBlinking] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptCursorBlinkingShowInterval] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptCursorBlinkingHideInterval] = {OptScope::kGlobal, Type::kInteger};
@@ -72,6 +72,7 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptTabSpace] = {OptScope::kBuffer, Type::kBool};
         static_opt_info[kOptAutoIndent] = {OptScope::kBuffer, Type::kBool};
         static_opt_info[kOptAutoPair] = {OptScope::kBuffer, Type::kBool};
+        static_opt_info[kOptWrap] = {OptScope::kBuffer, Type::kBool};
 
         static_opt_info[kOptColorScheme] = {OptScope::kGlobal, Type::kPtr};
 

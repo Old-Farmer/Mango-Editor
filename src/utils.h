@@ -63,4 +63,14 @@ Result Exec(const char* file, char* const argv[], const std::string* stdin_data,
             std::string* stdout_data, std::string* stderr_data, int& exit_code,
             bool check = false);
 
+// Calc width of a number, e.g. 100 -> 3, 0 -> 1
+inline size_t NumberWidth(size_t num) {
+    size_t width = 0;
+    do {
+        num /= 10;
+        width++;
+    } while (num);
+    return width;
+}
+
 }  // namespace mango
