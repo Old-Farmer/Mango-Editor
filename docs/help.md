@@ -227,7 +227,7 @@ Global Scope:
 
 7. auto_cmp_timeout:  
     type: integer,
-    default: 100,
+    default: 125,
     desc: Auto-completion is triggered after a timeout following the user’s input.
 
 

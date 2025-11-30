@@ -1,5 +1,5 @@
 {
-    "poll_event_timeout": 50,
+    "poll_event_timeout": 100,
     "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
@@ -15,7 +15,7 @@
     "cursor_blinking": true,
     "cursor_blinking_show_interval": 600,
     "cursor_blinking_hide_interval": 600,
-    "auto_cmp_timeout": 100,
+    "auto_cmp_timeout": 125,
 
     "line_number": 1,
 
