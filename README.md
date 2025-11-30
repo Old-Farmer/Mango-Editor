@@ -14,13 +14,12 @@ Terminal editors are always difficult to use, hard to configure. Most of them we
 
 Linux only now.
 
-This project is far from mature. Do not use it in the production environment.
+This project is far from mature and may not be safe for production.
 
 ## Features
 
 - rich unicode support(utf-8)
 - mouse support
-- simple edit
 - syntax highlighting with tree-sitter(only a few languages now)
 - basic word-based auto completion
 - colorscheme
