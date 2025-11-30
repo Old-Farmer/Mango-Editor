@@ -177,6 +177,11 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
         const std::string& line = buffer_->GetLine(i);
         auto words = GetWords(line);
         for (auto word : words) {
+            if (cur_word_prefix.data() == word.data()) {
+                // Filter the word under cursor
+                continue;
+            }
+
             if (s.count(word)) {
                 continue;
             }
