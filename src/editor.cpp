@@ -302,7 +302,9 @@ void Editor::InitKeymaps() {
                    cursor_.in_window->ScrollRows(
                        -cursor_.in_window->frame_.height_ - 1);
                }});
-    MGO_KEYMAP("<esc>", {[this] { (void)this; }});
+    MGO_KEYMAP("<esc>", {[this] {
+                   cursor_.in_window->frame_.selection_.active = false;
+               }});
 }
 
 void Editor::InitKeymapsVi() {}
@@ -587,7 +589,10 @@ void Editor::Draw() {
     // screen parts
     // TODO: do not redraw not modified part
     term_.Clear();
-    if (cursor_.s_row != cursor_.s_row_last ||
+    if (cursor_.s_col == -1 && cursor_.s_row == -1) {
+        // when not make visible
+        term_.HideCursor();
+    } else if (cursor_.s_row != cursor_.s_row_last ||
         cursor_.s_col != cursor_.s_col_last) {
         term_.SetCursor(cursor_.s_col, cursor_.s_row);
         if (cursor_.blinking_timer_) {

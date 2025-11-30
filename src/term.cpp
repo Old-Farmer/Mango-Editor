@@ -9,13 +9,13 @@ namespace mango {
 
 Terminal::~Terminal() { Shutdown(); }
 
-void Terminal::InitEscKeyseq(KeyseqManager& m) {
-    m.AddKeyseq("[200~", {[this] {
+void Terminal::InitEscKeyseq() {
+    esc_keyseq_manager_->AddKeyseq("[200~", {[this] {
                     event_.type =
                         static_cast<uint8_t>(EventType::kBracketedPasteOpen);
                 }},
                 {Mode::kNone});
-    m.AddKeyseq("[201~", {[this] {
+    esc_keyseq_manager_->AddKeyseq("[201~", {[this] {
                     event_.type =
                         static_cast<uint8_t>(EventType::kBracketedPasteClose);
                 }},
@@ -31,13 +31,14 @@ void Terminal::Init(GlobalOpts* global_opts) {
     global_opts_ = global_opts;
 
     esc_keyseq_manager_ = new KeyseqManager(mode_);
-    InitEscKeyseq(*esc_keyseq_manager_);
+    InitEscKeyseq();
 
     int ret = tb_init();
     if (ret != TB_OK) {
         MGO_LOG_ERROR("%s", tb_strerror(ret));
         throw TermException("%s", tb_strerror(ret));
     }
+    init_ = true;
 
     // NOTE: We use esc mode, so pure codepoint will not have any mod.
     // And enable mouse.
@@ -63,7 +64,6 @@ void Terminal::Init(GlobalOpts* global_opts) {
     // Enable Bracketed Paste
     tb_sendf("\e[?2004h");
     tb_present();
-    init_ = true;
 }
 
 void Terminal::Shutdown() {

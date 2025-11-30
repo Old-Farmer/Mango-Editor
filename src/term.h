@@ -58,7 +58,7 @@ class Terminal {
     void Shutdown();
 
    private:
-    void InitEscKeyseq(KeyseqManager& m);
+    void InitEscKeyseq();
 
    public:
     using Attr = uintattr_t;

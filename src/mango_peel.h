@@ -21,9 +21,6 @@ class MangoPeel {
 
     void MakeCursorVisible();
 
-    // return real b_view_col
-    int64_t SetCursorByBViewCol(size_t b_view_col);
-
     void SetCursorHint(size_t s_row, size_t s_col);
 
     void ScrollRows(int64_t count);

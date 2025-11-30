@@ -23,16 +23,12 @@ void Window::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-size_t Window::SetCursorByBViewCol(size_t b_view_col) {
-    return frame_.SetCursorByBViewCol(b_view_col);
-}
-
 void Window::SetCursorHint(size_t s_row, size_t s_col) {
     frame_.SetCursorHint(s_row, s_col);
 }
 
 void Window::ScrollRows(int64_t count) {
-    frame_.ScrollRows(count, cursor_->in_window == this);
+    frame_.ScrollRows(count);
 }
 
 void Window::ScrollCols(int64_t count) { frame_.ScrollCols(count); }

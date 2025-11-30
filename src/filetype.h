@@ -1,6 +1,7 @@
 #pragma once
 #include <string_view>
 #include <vector>
+
 #include "utils.h"
 
 namespace mango {
@@ -11,7 +12,9 @@ zstring_view DecideFiletype(std::string_view file_name);
 
 std::vector<zstring_view> AllFiletypes();
 
-bool IsFiletype(zstring_view filetype);
+// if this is a known filetype, return a static lifetime filetype stringview
+// else return an empty zstring_view
+zstring_view IsFiletype(zstring_view filetype);
 
 zstring_view FiletypeStrRep(zstring_view filetype);
 

@@ -94,8 +94,7 @@ Use `<c-k>` as a general leader key.
     paste
 
 - `<c-x>`
-    cut (copy/paste will use OS clipboard if available,
-    install xsel if you want this feature)
+    cut (copy/paste will use OS clipboard if available, install xsel if you want this feature)
 
 - `<c-a>` or `<c-k><c-l>`
     select all
@@ -171,6 +170,11 @@ Buffer Scope:
     default: true,
     desc: Auto pair for brackets, etc.
 
+5. wrap  
+    type: bool,
+    default: false,
+    desc: Wrap the file content.
+
 Note that you can set per filetype buffer options like:
 
 ```json
@@ -199,15 +203,12 @@ Global Scope:
 2. truecolor  
     type: bool,
     default: true,
-    desc: Truecolor support. If enabled, all ui will use the terminal 
-    truecolor ability, otherwise all ui use the terminal 8 color.
+    desc: Truecolor support. If enabled, all ui will use the terminal truecolor ability, otherwise all ui use the terminal 8 color.
 
 3. colorscheme:  
     type: string,
     default: "default",
-    desc: A colorscheme. When truecolor not enabled, 
-    default is a clean 8 color colorscheme; 
-    Otherwise, Default is a Catpuccin-like colorscheme(See colorscheme.md for more info).
+    desc: A colorscheme. When truecolor not enabled, default is a clean 8 color colorscheme; Otherwise, Default is a Catpuccin-like colorscheme(See colorscheme.md for more info).
 
 4. cursor_blinking:  
     type: bool,
@@ -217,14 +218,12 @@ Global Scope:
 5. cursor_blinking_show_interval:  
     type: integer,
     default: 600,
-    desc: When cursor_blinking is enabled, this option controls 
-    how long the cursor will show in a blinking loop(unit: ms).
+    desc: When cursor_blinking is enabled, this option controls how long the cursor will show in a blinking loop(unit: ms).
 
 6. cursor_blinking_hide_interval:  
     type: integer,
     default: 600,
-    desc: When cursor_blinking is enabled, this option controls 
-    how long the cursor will hide in a blinking loop(unit: ms).
+    desc: When cursor_blinking is enabled, this option controls how long the cursor will hide in a blinking loop(unit: ms).
 
 7. auto_cmp_timeout:  
     type: integer,
@@ -240,11 +239,7 @@ The path of logging file is `%XDG_CACHE_HOME/mango.log`.
 
 ### Unicode && UTF-8
 
-Unicode is a complex and 💩, but I support it as much as I can.
-However, bugs may be occured due to **lack of knowledgement, poor support**
-**of low-level library or terminal issues/limitaions**.
-Also, sometimes I loose the constraint of unicode **which will not effect the normal** **circumstance** to just simplify the implementaion or to gain some performance benifit.
-Please feel free to report any issue that you have encountered.
+Unicode is a complex and 💩, but I support it as much as I can. However, bugs may be occured due to **lack of knowledgement, poor support of low-level library or terminal issues/limitaions**. Also, sometimes I loose the constraint of unicode **which will not effect the normal circumstance** to just simplify the implementaion or to gain some performance benifit. Please feel free to report any issue that you have encountered.
 
 References:
 

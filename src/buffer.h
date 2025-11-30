@@ -167,7 +167,8 @@ class Buffer {
     }
     bool read_only() const noexcept { return read_only_; }
     int64_t version() const noexcept { return version_; }
-    size_t cursor_state_line() const noexcept { return cursor_state_line_; }
+    // -1 means not stored
+    int64_t cursor_state_line() const noexcept { return cursor_state_line_; }
     size_t cursor_state_character_in_line() const noexcept {
         return cursor_state_character_in_line_;
     }
@@ -214,7 +215,7 @@ class Buffer {
     int64_t
         version_;  // When a buffer is modified, version_ will be bumpped up.
 
-    size_t cursor_state_line_ = 0;
+    int64_t cursor_state_line_ = -1;
     size_t cursor_state_byte_offset_ = 0;
     std::optional<size_t> cursor_state_b_view_col_want_;
     size_t cursor_state_character_in_line_ =

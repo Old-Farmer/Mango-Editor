@@ -52,7 +52,7 @@ void StatusLine::Draw() {
     }
 
     std::string sep(sep_width, kSpaceChar);
-    ss << sep << line << "," << character_in_line << sep
+    ss << sep << (line + 1) << "," << (character_in_line + 1) << sep
        << FiletypeStrRep(b->filetype()) << sep
        << (b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:")
        << b->opts().GetOpt<int64_t>(kOptTabStop) << sep << b->eol_seq();

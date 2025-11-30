@@ -62,9 +62,12 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptVi] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptCursorBlinking] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptCursorBlinkingShowInterval] = {OptScope::kGlobal, Type::kInteger};
-        static_opt_info[kOptCursorBlinkingHideInterval] = {OptScope::kGlobal, Type::kInteger};
-        static_opt_info[kOptAutoCmpTimeout] = {OptScope::kGlobal, Type::kInteger};
+        static_opt_info[kOptCursorBlinkingShowInterval] = {OptScope::kGlobal,
+                                                           Type::kInteger};
+        static_opt_info[kOptCursorBlinkingHideInterval] = {OptScope::kGlobal,
+                                                           Type::kInteger};
+        static_opt_info[kOptAutoCmpTimeout] = {OptScope::kGlobal,
+                                               Type::kInteger};
 
         static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
 
@@ -209,8 +212,9 @@ static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
 
 void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
     for (const auto& [k, v] : config.items()) {
-        if (IsFiletype(k)) {
-            filetype_opts_.insert({k, {}});
+        auto filetype = IsFiletype(k);
+        if (!filetype.empty()) {
+            filetype_opts_.insert({filetype, {}});
             for (const auto& [inner_k, inner_v] : v.items()) {
                 auto iter = kStrRepToOptKey.find(inner_k);
                 if (iter == kStrRepToOptKey.end()) {
@@ -223,16 +227,17 @@ void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
                 }
 
                 if (opt_info.type == Type::kBool && inner_v.is_boolean()) {
-                    filetype_opts_[k][opt_key] =
+                    filetype_opts_[filetype][opt_key] =
                         reinterpret_cast<void*>(inner_v.get<bool>());
                 } else if (opt_info.type == Type::kInteger &&
                            inner_v.is_number_integer()) {
-                    filetype_opts_[k][opt_key] =
+                    filetype_opts_[filetype][opt_key] =
                         reinterpret_cast<void*>(inner_v.get<int64_t>());
                 } else {
                     throw OptionLoadException(
                         "value type wrong: key: %s, v type: %d %d",
-                        ("/" + k + "/" + inner_k).c_str(), opt_info.type,
+                        ("/" + std::string(filetype) + "/" + inner_k).c_str(),
+                        opt_info.type,
                         inner_v.type());  // flatten rep of key
                 }
             }

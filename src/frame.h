@@ -32,14 +32,11 @@ class Frame {
 
     void MakeCursorVisible();
 
-    // return real b_view_col
-    size_t SetCursorByBViewCol(size_t b_view_col);
-
     void SetCursorHint(size_t s_row, size_t s_col);
 
     // count > 0 for down
     // < 0 for up
-    void ScrollRows(int64_t count, bool cursor_in_frame);
+    void ScrollRows(int64_t count);
     void ScrollCols(int64_t count);
 
     void CursorGoRight();
@@ -77,7 +74,33 @@ class Frame {
 
    private:
     size_t SidebarWidth();
-    void DrawSidebar(int screen_row, size_t absolute_line, size_t width);
+    void DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width);
+    Range CalcWrapRange(size_t content_width);
+
+    // return real b_view_col
+    size_t SetCursorByBViewCol(size_t b_view_col_from_byte_offset,
+                               size_t byte_offset, size_t content_width,
+                               bool wrap);
+
+    void SetCursorHintNoWrap(size_t s_row, size_t s_col, size_t sidebar_width);
+    void SetCursorHintWrap(size_t s_row, size_t s_col, size_t sidebar_width);
+
+    void MakeCursorVisibleNotWrap();
+    void MakeCursorVisibleWrap();
+    void MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
+        size_t content_width);
+    void MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
+        size_t content_width);
+
+    void CursorGoUpWrap(size_t content_width);
+    void CursorGoUpNoWrap(size_t content_width);
+    void CursorGoDownWrap(size_t content_width);
+    void CursorGoDownNoWrap(size_t content_width);
+
+    void ScrollRowsWrap(int64_t count, size_t content_width);
+    void ScrollRowsNoWrap(int64_t count, size_t content_width);
+
+    bool SizeValid(size_t sidebar_width);
 
     void UpdateSyntax();
     void SelectionFollowCursor();
@@ -107,17 +130,21 @@ class Frame {
     // col
     Buffer* buffer_ = nullptr;  // associated buffer
     Cursor* cursor_ = nullptr;
-    // when no wrap, If we put a buffer in an infinite window, (b_view_line_,
-    // b_view_row_) means the top left corner to show the buffer if the buffer
-    // top left coner is (0, 0).
-    // When wrap, b_view_col_ is not used
+
+    // Wrap or no wrap: which line of buffer on the first screen row
     size_t b_view_line_ = 0;
+    // No wrap: which col of buffer view on the first screen col
     size_t b_view_col_ = 0;
-    bool wrap_ = false;
-    LineNumberType line_number_;
+    // Wrap: When in wrap, a buffer line may be rendered in multi rows, dividing
+    // a line into multi sublines. This member represents which sub line of
+    // buffer on the first screen row.
+    size_t b_view_subline_ = 0;
 
     Selection selection_;
     ClipBoard* clipboard_;
+
+    bool make_cursor_visible_ =
+        true;  // TODO: don't call xxx = true in every call.
 
    private:
     SyntaxParser* parser_;

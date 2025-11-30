@@ -27,5 +27,9 @@
 
     "makefile": {
         "tab_space": false
+    },
+
+    "markdown": {
+        "wrap": true
     }
 }

@@ -38,6 +38,7 @@ struct Cursor {
     // when cursor move up/down or scroll rows make cursor move,
     // b_view_col should be the same.
     // Editing or cursor move left/right/jump lose this effect
+    // NOTE: wrap, no wrap have different meanings.
     std::optional<size_t> b_view_col_want;
 
     Window* in_window;  // nullptr means in MangoPeel
@@ -54,6 +55,13 @@ struct Cursor {
         byte_offset = pos.byte_offset;
     }
     Pos ToPos() { return {line, byte_offset}; }
+
+    void SetScreenPos(int screen_col, int screen_row) {
+        s_col_last = s_col;
+        s_row_last = s_row;
+        s_col = screen_col;
+        s_row = screen_row;
+    }
 };
 
 }  // namespace mango

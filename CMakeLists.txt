@@ -29,7 +29,7 @@ FetchContent_Declare(
 set(TERMBOX2_LIB "${THIRD_PARTY_DIR}/termbox2/libtermbox2.a")
 set(TERMBOX2_INCLUDE_DIR "${THIRD_PARTY_DIR}/termbox2")
 add_custom_target(build_termbox2
-    COMMAND make libtermbox2.a CFLAGS=\"-DTB_OPT_ATTR_W=64 -DTB_OPT_EGC -O3\" --always-make
+    COMMAND make libtermbox2.a CFLAGS=\"-DTB_OPT_ATTR_W=64 -DTB_OPT_EGC -O2\" --always-make
     WORKING_DIRECTORY "${THIRD_PARTY_DIR}/termbox2"
     COMMENT "Building termbox2 library"
     BYPRODUCTS "${TERMBOX2_LIB}"

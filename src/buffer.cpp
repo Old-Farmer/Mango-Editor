@@ -599,6 +599,7 @@ void Buffer::RestoreCursorState(Cursor& cursor) {
         cursor.line = 0;
         cursor.byte_offset = 0;
         cursor.b_view_col_want = 0;
+        cursor_state_line_ = -1;
         return;
     }
 
@@ -606,6 +607,7 @@ void Buffer::RestoreCursorState(Cursor& cursor) {
     cursor.byte_offset = std::min<int64_t>(lines_[cursor.line].line_str.size(),
                                            cursor_state_byte_offset_);
     cursor.b_view_col_want = cursor_state_b_view_col_want_;
+    cursor_state_line_ = -1;
 }
 
 void Buffer::Modified() {

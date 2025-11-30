@@ -24,15 +24,11 @@ void MangoPeel::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-int64_t MangoPeel::SetCursorByBViewCol(size_t b_view_col) {
-    return frame_.SetCursorByBViewCol(b_view_col);
-}
-
 void MangoPeel::SetCursorHint(size_t s_row, size_t s_col) {
     frame_.SetCursorHint(s_row, s_col);
 }
 
-void MangoPeel::ScrollRows(int64_t count) { frame_.ScrollRows(count, true); }
+void MangoPeel::ScrollRows(int64_t count) { frame_.ScrollRows(count); }
 
 void MangoPeel::ScrollCols(int64_t count) { frame_.ScrollCols(count); }
 

@@ -98,8 +98,12 @@ std::vector<zstring_view> AllFiletypes() {
     return filetypes;
 }
 
-bool IsFiletype(zstring_view filetype) {
-    return kFileTypesToStrRep.count(filetype) != 0;
+zstring_view IsFiletype(zstring_view filetype) {
+    auto iter = kFileTypesToStrRep.find(filetype);
+    if (iter == kFileTypesToStrRep.end()) {
+        return {};
+    }
+    return iter->first;
 }
 
 zstring_view FiletypeStrRep(zstring_view filetype) {
