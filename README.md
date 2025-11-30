@@ -1,6 +1,6 @@
 # 🥭Mango
 
-Mango is an modern terminal editor that focuses on simplicity and OOTB.
+Mango is a modern terminal editor that focuses on simplicity and OOTB.
 
 It's my hobby project. I really don't know how far I could go. Any advice is welcome.
 
