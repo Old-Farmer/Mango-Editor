@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "pos.h"
+#include "timer_manager.h"
 
 namespace mango {
 
@@ -13,7 +14,6 @@ class Selection;
 class GlobalOpts;
 class Opts;
 class MangoPeel;
-class LoopTimer;
 
 // ms
 static constexpr size_t kCusorBlinkingShowInterval = 750;
@@ -45,7 +45,7 @@ struct Cursor {
     Window* restore_from_peel = nullptr;
 
     bool show = true;
-    std::shared_ptr<LoopTimer> blinking_timer_ = nullptr;
+    std::unique_ptr<LoopTimer> blinking_timer_ = nullptr;
 
     // TODO: other info
 

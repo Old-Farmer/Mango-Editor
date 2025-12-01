@@ -244,6 +244,7 @@ Unicode is a complex and 💩, but I support it as much as I can. However, bugs 
 References:
 
 - [UAX#11](http://www.unicode.org/reports/tr11/)
+- [UAX#14](http://www.unicode.org/reports/tr14/)
 - [UAX#15](https://unicode.org/reports/tr15/)
 - [UAX#29](http://www.unicode.org/reports/tr29/)
 - [UTX#51](https://unicode.org/reports/tr51/)

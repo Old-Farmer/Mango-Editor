@@ -16,7 +16,6 @@ static const std::string kUserColorschemePath =
     std::string(Path::GetConfig()) + "mango-editor/colorscheme.json";
 
 static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
-    {"poll_event_timeout", kOptPollEventTimeout},
     {"scroll_rows", kOptScrollRows},
     {"cursor_start_holding_interval", kOptCursorStartHoldingInterval},
     {"tab_stop", kOptTabStop},
@@ -42,8 +41,6 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
 static void OptStaticInit(const OptInfo*& opt_info) {
     static const auto static_opt_info = [] {
         auto static_opt_info = new OptInfo[__kOptKeyCount];
-        static_opt_info[kOptPollEventTimeout] = {OptScope::kGlobal,
-                                                 Type::kInteger};
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
                                                            Type::kInteger};

@@ -46,5 +46,6 @@ int main(int argc, char* argv[]) {
     auto init_opts = std::make_unique<InitOpts>();
     ParseCmdArgs(argc, argv, global_opts.get(), init_opts.get());
     Editor& editor = Editor::GetInstance();
-    editor.Loop(std::move(global_opts), std::move(init_opts));
+    editor.Init(std::move(global_opts), std::move(init_opts));
+    editor.Loop();
 }

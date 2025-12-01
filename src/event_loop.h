@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "poll.h"
+#include "timer_manager.h"
 
 namespace mango {
 
@@ -25,6 +26,7 @@ struct EventInfo {
 
 class GlobalOpts;
 
+// Event loop will not handle handler events.
 class EventLoop {
    public:
     EventLoop(GlobalOpts* global_opts);
@@ -49,6 +51,9 @@ class EventLoop {
     std::function<void()> after_all_events_;
 
     GlobalOpts* global_opts_;
+
+    public:
+    TimerManager timer_manager_;
 };
 
 }  // namespace mango

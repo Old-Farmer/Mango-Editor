@@ -16,9 +16,8 @@ using namespace std::chrono_literals;
 static constexpr int kScreenMinWidth = 10;
 static constexpr int kScreenMinHeight = 3;
 
-void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
-                  std::unique_ptr<InitOpts> init_options) {
-    MGO_LOG_DEBUG("Loop init");
+void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
+                  std::unique_ptr<InitOpts> init_opts) {
     global_opts_ = std::move(global_opts);
 
     loop_ = std::make_unique<EventLoop>(global_opts_.get());
@@ -35,7 +34,7 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
     syntax_parser_ = std::make_unique<SyntaxParser>(global_opts_.get());
 
     // Create all buffers
-    for (const char* path : init_options->begin_files) {
+    for (const char* path : init_opts->begin_files) {
         buffer_manager_.AddBuffer(
             Buffer(global_opts_.get(), std::string(path)));
     }
@@ -68,26 +67,31 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         InitCommandsVi();
     }
 
-    // init options end of life
-    init_options.reset();
-
     if (!global_opts_->IsUserConfigValid()) {
         peel_->SetContent(
             "User config file error! Please check your configuration." +
             global_opts_->GetUserConfigErrorReportStrAndReleaseIt());
     }
 
+    if (global_opts_->GetOpt<bool>(kOptCursorBlinking)) {
+        cursor_.blinking_timer_ = std::make_unique<LoopTimer>(
+            std::vector<std::chrono::milliseconds>{
+                std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
+                    kOptCursorBlinkingShowInterval)),
+                std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
+                    kOptCursorBlinkingHideInterval))},
+            [this] { cursor_.show = !cursor_.show; });
+        loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
+    }
+    autocmp_trigger_timer_ = std::make_unique<SingleTimer>(
+        std::chrono::milliseconds(
+            global_opts_->GetOpt<int64_t>(kOptAutoCmpTimeout)),
+        [this] { TriggerCompletion(true); });
+}
+
+void Editor::Loop() {
     bool in_bracketed_paste = false;
     std::string bracketed_paste_buffer;
-
-    if (global_opts_->GetOpt<bool>(kOptCursorBlinking)) {
-        cursor_.blinking_timer_ = timer_manager_.AddLoopTimer(
-            {std::chrono::milliseconds(
-                 global_opts_->GetOpt<int64_t>(kOptCursorBlinkingShowInterval)),
-             std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
-                 kOptCursorBlinkingHideInterval))},
-            [this] { cursor_.show = !cursor_.show; });
-    }
 
     auto before_poll = [this] {
         // When the screen is too small, rendering is hard to cope with,
@@ -95,15 +99,12 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
         // until the screen is bigger again.
         while (term_.Height() < kScreenMinHeight ||
                term_.Width() < kScreenMinWidth) {
-            if (term_.Poll(
-                    global_opts_->GetOpt<int64_t>(kOptPollEventTimeout))) {
+            if (term_.Poll(-1)) {
                 if (term_.WhatEvent() == Terminal::EventType::kResize) {
                     HandleResize();
                 }
             }
         }
-
-        timer_manager_.Tick();
 
         PreProcess();
         Draw();
@@ -113,58 +114,57 @@ void Editor::Loop(std::unique_ptr<GlobalOpts> global_opts,
                          &bracketed_paste_buffer](Event e) {
         (void)e;
         MGO_ASSERT(e & kEventRead);
-
-        // Poll a new Event
-        bool have_event = term_.Poll(0);
-        if (!have_event) {
-            return;
+        if (e & (kEventClose | kEventError)) {
+            throw TermException("%s", "Poll event close or event error");
         }
 
-        show_cmp_menu_ = false;
-        if (autocmp_trigger_timer_) {
-            autocmp_trigger_timer_->Cancel();
-            autocmp_trigger_timer_.reset();
-        }
+        while (term_.Poll(0)) {
+            show_cmp_menu_ = false;
+            if (autocmp_trigger_timer_->IsTimingOn()) {
+                loop_->timer_manager_.StopTimer(autocmp_trigger_timer_.get());
+            }
 
-        // Handle it and do sth
-        switch (term_.WhatEvent()) {
-            case Terminal::EventType::kKey: {
-                if (in_bracketed_paste) {
-                    HandleBracketedPaste(bracketed_paste_buffer);
-                } else {
-                    HandleKey();
+            // Handle it and do sth
+            switch (term_.WhatEvent()) {
+                case Terminal::EventType::kKey: {
+                    if (in_bracketed_paste) {
+                        HandleBracketedPaste(bracketed_paste_buffer);
+                    } else {
+                        HandleKey();
+                    }
+                    break;
                 }
-                break;
-            }
-            case Terminal::EventType::kMouse: {
-                HandleMouse();
-                break;
-            }
-            case Terminal::EventType::kResize: {
-                HandleResize();
-                break;
-            }
-            case Terminal::EventType::kBracketedPasteOpen: {
-                in_bracketed_paste = true;
-                break;
-            }
-            case Terminal::EventType::kBracketedPasteClose: {
-                in_bracketed_paste = false;
-                if (IsPeel(mode_)) {
-                    peel_->AddStringAtCursor(std::move(bracketed_paste_buffer));
-                } else {
-                    cursor_.in_window->AddStringAtCursor(
-                        std::move(bracketed_paste_buffer));
+                case Terminal::EventType::kMouse: {
+                    HandleMouse();
+                    break;
                 }
-                bracketed_paste_buffer = "";
-                break;
+                case Terminal::EventType::kResize: {
+                    HandleResize();
+                    break;
+                }
+                case Terminal::EventType::kBracketedPasteOpen: {
+                    in_bracketed_paste = true;
+                    break;
+                }
+                case Terminal::EventType::kBracketedPasteClose: {
+                    in_bracketed_paste = false;
+                    if (IsPeel(mode_)) {
+                        peel_->AddStringAtCursor(
+                            std::move(bracketed_paste_buffer));
+                    } else {
+                        cursor_.in_window->AddStringAtCursor(
+                            std::move(bracketed_paste_buffer));
+                    }
+                    bracketed_paste_buffer = "";
+                    break;
+                }
             }
-        }
 
-        // If autocmp trigger timer has started,
-        // don't cancel it to avoid flash of cmp menu.
-        if (!show_cmp_menu_ && autocmp_trigger_timer_ == nullptr) {
-            CancellCompletion();
+            // If autocmp trigger timer has started,
+            // don't cancel it to avoid flash of cmp menu.
+            if (!show_cmp_menu_ && !autocmp_trigger_timer_->IsTimingOn()) {
+                CancellCompletion();
+            }
         }
     };
 
@@ -593,10 +593,10 @@ void Editor::Draw() {
         // when not make visible
         term_.HideCursor();
     } else if (cursor_.s_row != cursor_.s_row_last ||
-        cursor_.s_col != cursor_.s_col_last) {
+               cursor_.s_col != cursor_.s_col_last) {
         term_.SetCursor(cursor_.s_col, cursor_.s_row);
         if (cursor_.blinking_timer_) {
-            cursor_.blinking_timer_->Restart();
+            loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
             cursor_.show = true;
         }
     } else if (cursor_.show) {
@@ -920,13 +920,7 @@ void Editor::StartAutoCompletionTimer() {
     // So if the timer is timeout, user input seems over, but we shouldn't rely
     // on that and think the current cursor pos is a real grapheme
     // end(user-percieved). Good time to trigger a autocmp.
-    autocmp_trigger_timer_ = timer_manager_.AddSingleTimer(
-        std::chrono::milliseconds(
-            global_opts_->GetOpt<int64_t>(kOptAutoCmpTimeout)),
-        [this] {
-            TriggerCompletion(true);
-            autocmp_trigger_timer_.reset();
-        });
+    loop_->timer_manager_.StartTimer(autocmp_trigger_timer_.get());
 }
 
 }  // namespace mango

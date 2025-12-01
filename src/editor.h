@@ -32,9 +32,11 @@ class Editor {
     MGO_DELETE_MOVE(Editor);
 
     // Make sure that options is static lifetime
-    // throws TermException
-    void Loop(std::unique_ptr<GlobalOpts> global_opts,
+    void Init(std::unique_ptr<GlobalOpts> global_opts,
               std::unique_ptr<InitOpts> init_opts);
+
+    // throws TermException
+    void Loop();
 
     static Editor& GetInstance();
 
@@ -89,7 +91,6 @@ class Editor {
     BufferManager buffer_manager_;
     KeyseqManager keymap_manager_{mode_};
     CommandManager command_manager_;
-    TimerManager timer_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
 
     enum class ContextID : int {};
@@ -129,7 +130,7 @@ class Editor {
     Completer* tmp_completer_ = nullptr;
     bool show_cmp_menu_ = false; // if false, hide cmp menu.
 
-    std::shared_ptr<SingleTimer> autocmp_trigger_timer_;
+    std::unique_ptr<SingleTimer> autocmp_trigger_timer_;
 
     size_t count_ = 1;
 

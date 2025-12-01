@@ -51,7 +51,6 @@ enum class LineNumberType {
 
 // NOTE: The unit of time related opts is ms.
 enum OptKey {
-    kOptPollEventTimeout,
     kOptScrollRows,
     kOptCursorStartHoldingInterval,
     kOptTabStop,

@@ -25,6 +25,8 @@ void EventLoop::AfterAllEvents(std::function<void()> f) {
 
 void EventLoop::Loop() {
     while (!quit_) {
+        timer_manager_.Tick();
+
         if (before_poll_) {
             before_poll_();
         }
@@ -45,7 +47,7 @@ void EventLoop::Loop() {
         }
 
         int rc = poll(poll_fds_.data(), poll_fds_.size(),
-                      global_opts_->GetOpt<int64_t>(kOptPollEventTimeout));
+                      timer_manager_.NextTimeout());
 
         if (rc == -1) {
             if (errno == EAGAIN || errno == EINTR) {

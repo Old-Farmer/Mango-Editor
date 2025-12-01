@@ -1,3 +1,5 @@
+#include <thread>
+
 #include "catch2/catch_test_macros.hpp"
 #include "command_manager.h"
 #include "keyseq_manager.h"
@@ -135,4 +137,22 @@ TEST_CASE("command_manager test") {
 
     res = m.EvalCommand("my_command true 1024 hello", args, co);
     REQUIRE(res == mango::kNotExist);
+}
+
+TEST_CASE("timer_manager test") {
+    TimerManager manager;
+
+    int64_t first = 0;
+    SingleTimer t1(std::chrono::milliseconds(50), [&] { first = 1; });
+    SingleTimer t2(std::chrono::milliseconds(100), [&] { first = 2; });
+
+    manager.StartTimer(&t2);
+    manager.StartTimer(&t1);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    manager.Tick();
+    REQUIRE(first == 1);
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    manager.Tick();
+    REQUIRE(first == 2);
 }
