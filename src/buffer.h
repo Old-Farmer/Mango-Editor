@@ -2,7 +2,6 @@
 #include <cstdint>
 #include <list>
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
 
@@ -168,10 +167,6 @@ class Buffer {
     bool read_only() const noexcept { return read_only_; }
     int64_t version() const noexcept { return version_; }
     // -1 means not stored
-    int64_t cursor_state_line() const noexcept { return cursor_state_line_; }
-    size_t cursor_state_character_in_line() const noexcept {
-        return cursor_state_character_in_line_;
-    }
     zstring_view filetype() const noexcept { return filetype_; }
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
     const Opts& opts() { return opts_; }
@@ -185,11 +180,8 @@ class Buffer {
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;
     void RemoveFromList() noexcept;
-    bool IsLastBuffer();
-    bool IsFirstBuffer();
-
-    void SaveCursorState(Cursor& cursor);
-    void RestoreCursorState(Cursor& cursor);
+    bool IsLastBuffer() const;
+    bool IsFirstBuffer() const;
 
     TSInputEdit GetEditForTreeSitter();
 
@@ -215,12 +207,6 @@ class Buffer {
     int64_t
         version_;  // When a buffer is modified, version_ will be bumpped up.
 
-    int64_t cursor_state_line_ = -1;
-    size_t cursor_state_byte_offset_ = 0;
-    std::optional<size_t> cursor_state_b_view_col_want_;
-    size_t cursor_state_character_in_line_ =
-        0;  // for status line to show the state, no need to restore
-
     using HistoryList = std::list<BufferEditHistoryItem>;
     using HistoryListIter = HistoryList::iterator;
     // Use unique ptr to avoid a issue when std::list is moved, its iterator
@@ -228,7 +214,7 @@ class Buffer {
     std::unique_ptr<HistoryList> edit_history_ =
         std::make_unique<HistoryList>();
     HistoryListIter edit_history_cursor_ = edit_history_->end();
-    bool never_wrap_history = true;
+    bool never_wrap_history_ = true;
 
     // Just for tree-sitter
     TSInputEdit ts_edit_;

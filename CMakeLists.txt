@@ -156,6 +156,8 @@ target_sources(
   mango_lib PUBLIC
   "${SRC_DIR}/buffer_manager.h"
   "${SRC_DIR}/buffer_manager.cpp"
+  "${SRC_DIR}/buffer_view.h"
+  "${SRC_DIR}/buffer_view.cpp"
   "${SRC_DIR}/buffer.h"
   "${SRC_DIR}/buffer.cpp"
   "${SRC_DIR}/character.h"

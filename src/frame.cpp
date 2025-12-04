@@ -17,10 +17,11 @@ namespace mango {
 
 static constexpr std::string_view kSublineIndicator = "<<<";
 
-Frame::Frame(Buffer* buffer, Cursor* cursor, Opts* opts, SyntaxParser* parser,
-             ClipBoard* clipboard) noexcept
+Frame::Frame(Buffer* buffer, BufferView* buffer_view, Cursor* cursor,
+             Opts* opts, SyntaxParser* parser, ClipBoard* clipboard) noexcept
     : buffer_(buffer),
       cursor_(cursor),
+      b_view_(buffer_view),
       clipboard_(clipboard),
       parser_(parser),
       opts_(opts) {}
@@ -62,10 +63,10 @@ void Frame::Draw() {
         Range render_range;
         if (!GetOpt<bool>(kOptWrap)) {
             size_t last_line =
-                std::min(b_view_line_ + height_ - 1, buffer_->LineCnt() - 1);
+                std::min(b_view_->line + height_ - 1, buffer_->LineCnt() - 1);
             // If not wrap, render range is larger than the real render range,
             // but it's ok.
-            render_range = {{b_view_line_, 0},
+            render_range = {{b_view_->line, 0},
                             {last_line, buffer_->GetLine(last_line).size()}};
         } else {
             render_range = CalcWrapRange(content_width);
@@ -83,11 +84,11 @@ void Frame::Draw() {
         memset(sidebar_buf, kSpaceChar, sidebar_width);
         sidebar_buf[sidebar_width] = '\0';
 
-        size_t line = b_view_line_;
+        size_t line = b_view_->line;
         size_t byte_offset = 0;
 
         // First, we skip some sublines.
-        for (size_t i = 0; i < b_view_subline_; i++) {
+        for (size_t i = 0; i < b_view_->subline; i++) {
             byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
                                       content_width, tabstop, true);
         }
@@ -124,7 +125,7 @@ void Frame::Draw() {
         const size_t line_cnt = buffer_->LineCnt();
         for (size_t win_r = 0; win_r < height_; win_r++) {
             int cur_s_row = win_r + row_;
-            size_t line = win_r + b_view_line_;
+            size_t line = win_r + b_view_->line;
 
             if (line_cnt <= line) {
                 Codepoint codepoint = '~';
@@ -133,7 +134,7 @@ void Frame::Draw() {
                 continue;
             }
             DrawSidebar(cur_s_row, line, sidebar_width);
-            DrawLine(*term_, buffer_->GetLine(line), {line, 0}, b_view_col_,
+            DrawLine(*term_, buffer_->GetLine(line), {line, 0}, b_view_->col,
                      content_width, cur_s_row, content_s_col, &highlights,
                      scheme[kNormal], tabstop, false);
         }
@@ -150,7 +151,7 @@ bool Frame::In(size_t s_col, size_t s_row) {
 // TODO: scrolloff?
 void Frame::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
     size_t content_width) {
-    b_view_line_ = cursor_->line;
+    b_view_->line = cursor_->line;
 
     size_t byte_offset = 0;
     size_t subline = 0;
@@ -159,14 +160,14 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
         bool stop_at_target;
         size_t character_cnt;
         byte_offset = ArrangeLine(
-            buffer_->GetLine(b_view_line_), byte_offset, 0, content_width,
+            buffer_->GetLine(b_view_->line), byte_offset, 0, content_width,
             GetOpt<int64_t>(kOptTabStop), true, &end_b_view_col,
             &cursor_->byte_offset, &stop_at_target, &character_cnt);
         cursor_->character_in_line += character_cnt;
         if (stop_at_target) {
             cursor_->SetScreenPos(end_b_view_col + width_ - content_width,
                                   subline);
-            b_view_subline_ = subline;
+            b_view_->subline = subline;
             if (!cursor_->b_view_col_want.has_value()) {
                 cursor_->b_view_col_want = end_b_view_col;
             }
@@ -214,8 +215,8 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
             continue;
         }
 
-        b_view_line_ = line;
-        b_view_subline_ = row_cnt - row_cnt_before_cursor_line;
+        b_view_->line = line;
+        b_view_->subline = row_cnt - row_cnt_before_cursor_line;
         return;
     }
 }
@@ -229,11 +230,11 @@ void Frame::MakeCursorVisibleWrap() {
     size_t content_width = width_ - sidebar_width;
     int tabstop = GetOpt<int64_t>(kOptTabStop);
 
-    size_t line = b_view_line_;
+    size_t line = b_view_->line;
     size_t byte_offset = 0;
 
     // First, we skip some sub lines.
-    for (size_t i = 0; i < b_view_subline_; i++) {
+    for (size_t i = 0; i < b_view_->subline; i++) {
         byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
                                   content_width, tabstop, true);
     }
@@ -334,44 +335,65 @@ void Frame::MakeCursorVisibleNotWrap() {
     size_t content_width = width_ - sidebar_width;
 
     // adjust col of view
-    if (cur_b_view_c < b_view_col_) {
+    if (cur_b_view_c < b_view_->col) {
         if (!make_cursor_visible_) {
             cursor_->SetScreenPos(-1, -1);
             return;
         }
-        b_view_col_ = cur_b_view_c;
-    } else if (cur_b_view_c - b_view_col_ >= content_width) {
+        b_view_->col = cur_b_view_c;
+    } else if (cur_b_view_c - b_view_->col >= content_width) {
         if (!make_cursor_visible_) {
             cursor_->SetScreenPos(-1, -1);
             return;
         }
-        b_view_col_ = cur_b_view_c + 2 - width_;
+        b_view_->col = cur_b_view_c + 2 - width_;
     }
 
     // adjust row of view
-    if (row < b_view_line_) {
+    if (row < b_view_->line) {
         if (!make_cursor_visible_) {
             cursor_->SetScreenPos(-1, -1);
             return;
         }
-        b_view_line_ = row;
-    } else if (row - b_view_line_ >= height_) {
+        b_view_->line = row;
+    } else if (row - b_view_->line >= height_) {
         if (!make_cursor_visible_) {
             cursor_->SetScreenPos(-1, -1);
             return;
         }
-        b_view_line_ = row + 1 - height_;
+        b_view_->line = row + 1 - height_;
     }
 
-    cursor_->SetScreenPos(cur_b_view_c - b_view_col_ + content_s_col,
-                          row - b_view_line_ + row_);
+    cursor_->SetScreenPos(cur_b_view_c - b_view_->col + content_s_col,
+                          row - b_view_->line + row_);
 }
 
 void Frame::MakeCursorVisible() {
+    // MakeSureViewValid(); // call it outside
     if (GetOpt<bool>(kOptWrap)) {
         MakeCursorVisibleWrap();
     } else {
         MakeCursorVisibleNotWrap();
+    }
+}
+
+void Frame::MakeSureViewValid() {
+    if (GetOpt<bool>(kOptWrap)) {
+        if (b_view_->line >= buffer_->LineCnt()) {
+            b_view_->line = buffer_->LineCnt() - 1;
+            b_view_->subline = 0;
+        } else {
+            if (b_view_->subline == 0) {
+                return;
+            }
+            b_view_->subline =
+                std::min(ScreenRows(buffer_->GetLine(b_view_->line),
+                                    width_ - SidebarWidth(),
+                                    GetOpt<int64_t>(kOptTabStop)),
+                         b_view_->subline);
+        }
+    } else {
+        b_view_->line = std::min(buffer_->LineCnt(), b_view_->line);
     }
 }
 
@@ -423,7 +445,7 @@ size_t Frame::SetCursorByBViewCol(size_t b_view_col_from_byte_offset,
 
 void Frame::SetCursorHintNoWrap(size_t s_row, size_t s_col,
                                 size_t sidebar_width) {
-    size_t cur_b_view_row = s_row - row_ + b_view_line_;
+    size_t cur_b_view_row = s_row - row_ + b_view_->line;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->LineCnt()) {
         cursor_->line = buffer_->LineCnt() - 1;
@@ -435,7 +457,7 @@ void Frame::SetCursorHintNoWrap(size_t s_row, size_t s_col,
     cursor_->line = cur_b_view_row;
 
     // Search througn line
-    size_t target_b_view_col = s_col - (col_ + sidebar_width) + b_view_col_;
+    size_t target_b_view_col = s_col - (col_ + sidebar_width) + b_view_->col;
     SetCursorByBViewCol(target_b_view_col, 0, width_ - SidebarWidth(), false);
     SelectionFollowCursor();
     cursor_->DontHoldColWant();
@@ -443,12 +465,12 @@ void Frame::SetCursorHintNoWrap(size_t s_row, size_t s_col,
 
 void Frame::SetCursorHintWrap(size_t s_row, size_t s_col,
                               size_t sidebar_width) {
-    size_t line = b_view_line_;
+    size_t line = b_view_->line;
     size_t byte_offset = 0;
     // to the screen row where hint is.
 
     // First, we skip some sub lines.
-    for (size_t i = 0; i < b_view_subline_; i++) {
+    for (size_t i = 0; i < b_view_->subline; i++) {
         byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
                                   width_ - sidebar_width,
                                   GetOpt<int64_t>(kOptTabStop), true);
@@ -497,6 +519,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
         return;
     }
 
+    MakeSureViewValid();
     if (GetOpt<bool>(kOptWrap)) {
         SetCursorHintWrap(s_row, s_col, sidebar_width);
     } else {
@@ -508,40 +531,40 @@ void Frame::ScrollRowsWrap(int64_t count, size_t content_width) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     if (count > 0) {
         while (count > 0) {
-            size_t row_cnt = ScreenRows(buffer_->GetLine(b_view_line_),
+            size_t row_cnt = ScreenRows(buffer_->GetLine(b_view_->line),
                                         content_width, tabstop);
-            if (row_cnt - b_view_subline_ <= static_cast<size_t>(count)) {
-                if (b_view_line_ == buffer_->LineCnt() - 1) {
-                    b_view_subline_ = row_cnt - 1;
+            if (row_cnt - b_view_->subline <= static_cast<size_t>(count)) {
+                if (b_view_->line == buffer_->LineCnt() - 1) {
+                    b_view_->subline = row_cnt - 1;
                     return;
                 }
-                count -= (row_cnt - b_view_subline_);
-                b_view_line_++;
-                b_view_subline_ = 0;
+                count -= (row_cnt - b_view_->subline);
+                b_view_->line++;
+                b_view_->subline = 0;
             } else {
                 // >
-                b_view_subline_ += count;
+                b_view_->subline += count;
                 count = 0;
             }
         }
     } else {
         count = -count;
         while (count > 0) {
-            if (b_view_subline_ == 0) {
-                if (b_view_line_ == 0) {
+            if (b_view_->subline == 0) {
+                if (b_view_->line == 0) {
                     return;
                 }
-                b_view_line_--;
-                size_t row_cnt = ScreenRows(buffer_->GetLine(b_view_line_),
+                b_view_->line--;
+                size_t row_cnt = ScreenRows(buffer_->GetLine(b_view_->line),
                                             content_width, tabstop);
-                b_view_subline_ = row_cnt - 1;
+                b_view_->subline = row_cnt - 1;
                 count -= 1;
             } else {
-                if (b_view_subline_ < static_cast<size_t>(count)) {
-                    count -= b_view_subline_;
-                    b_view_subline_ = 0;
+                if (b_view_->subline < static_cast<size_t>(count)) {
+                    count -= b_view_->subline;
+                    b_view_->subline = 0;
                 } else {
-                    b_view_subline_ -= count;
+                    b_view_->subline -= count;
                     count = 0;
                 }
             }
@@ -552,22 +575,28 @@ void Frame::ScrollRowsWrap(int64_t count, size_t content_width) {
 void Frame::ScrollRowsNoWrap(int64_t count, size_t content_width) {
     (void)content_width;
     if (count > 0) {
-        b_view_line_ = std::min(b_view_line_ + count, buffer_->LineCnt() - 1);
+        b_view_->line = std::min(b_view_->line + count, buffer_->LineCnt() - 1);
     } else {
-        b_view_line_ =
-            std::max<int64_t>(static_cast<int64_t>(b_view_line_) + count,
+        b_view_->line =
+            std::max<int64_t>(static_cast<int64_t>(b_view_->line) + count,
                               0);  // cast is necessary here
     }
 }
 
 void Frame::ScrollRows(int64_t count) {
     MGO_ASSERT(buffer_);
+    if (!cursor_->b_view_col_want.has_value()) {
+        // Maybe we meet lagging, we skip the scroll.
+        return;
+    }
+
     make_cursor_visible_ = false;
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
         return;
     }
 
+    MakeSureViewValid();
     if (!GetOpt<bool>(kOptWrap)) {
         ScrollRowsNoWrap(count, width_ - sidebar_width);
     } else {
@@ -616,132 +645,71 @@ void Frame::CursorGoLeft() {
     SelectionFollowCursor();
 }
 
-void Frame::CursorGoUpWrap(size_t content_width) {
+void Frame::CursorGoUpWrap(size_t count, size_t content_width) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     size_t byte_offset = 0;
-    size_t subline_end_byte_offset =
-        ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset, 0,
-                    content_width, tabstop, true);
-    if (cursor_->byte_offset < subline_end_byte_offset ||
-        subline_end_byte_offset == buffer_->GetLine(cursor_->line).size()) {
-        // We need to go to the prev line.
-        if (cursor_->line == 0) {
-            return;
+    std::vector<size_t> subline_begin_byte_offsets;
+    while (true) {
+        subline_begin_byte_offsets.push_back(byte_offset);
+        byte_offset = ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset,
+                                  0, content_width, tabstop, true);
+        if (cursor_->byte_offset < byte_offset ||
+            byte_offset == buffer_->GetLine(cursor_->line).size()) {
+            break;
+        }
+    }
+    subline_begin_byte_offsets.pop_back();
+
+    while (true) {
+        if (count <= subline_begin_byte_offsets.size()) {
+            byte_offset =
+                subline_begin_byte_offsets[subline_begin_byte_offsets.size() -
+                                           count];
+            break;
+        } else {
+            count -= subline_begin_byte_offsets.size();
+            if (cursor_->line == 0) {
+                byte_offset = 0;
+                break;
+            }
+            cursor_->line--;
         }
 
-        // we choose the last subline of prev line
-        cursor_->line--;
-        size_t subline_begin_byte_offset = 0;
+        subline_begin_byte_offsets.clear();
+        if (buffer_->GetLine(cursor_->line).size() == 0) {
+            subline_begin_byte_offsets.push_back(0);
+            continue;
+        }
+        byte_offset = 0;
         while (byte_offset < buffer_->GetLine(cursor_->line).size()) {
-            subline_begin_byte_offset = byte_offset;
+            subline_begin_byte_offsets.push_back(byte_offset);
             byte_offset =
                 ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset, 0,
                             content_width, tabstop, true);
         }
-
-        MGO_ASSERT(cursor_->b_view_col_want.has_value());
-        SetCursorByBViewCol(cursor_->b_view_col_want.value(),
-                            subline_begin_byte_offset, content_width, true);
-        SelectionFollowCursor();
-        return;
     }
-
-    // We find the loc of the cursor, and go the prev subline.
-    size_t last_subline_begin_byte = 0;
-    byte_offset = subline_end_byte_offset;
-    while (true) {
-        size_t subline_begin_byte_offset = byte_offset;
-        byte_offset = ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset,
-                                  0, content_width, tabstop, true);
-        if (cursor_->byte_offset < byte_offset ||
-            byte_offset == buffer_->GetLine(cursor_->line).size()) {
-            break;
-        }
-        last_subline_begin_byte = subline_begin_byte_offset;
-    }
-    MGO_ASSERT(cursor_->b_view_col_want.has_value());
-    SetCursorByBViewCol(cursor_->b_view_col_want.value(),
-                        last_subline_begin_byte, content_width, true);
-    SelectionFollowCursor();
-}
-
-void Frame::CursorGoUpNoWrap(size_t content_width) {
-    // first line
-    if (cursor_->line == 0) {
-        return;
-    }
-
-    cursor_->line--;
-    MGO_ASSERT(cursor_->b_view_col_want.has_value());
-    SetCursorByBViewCol(cursor_->b_view_col_want.value(), 0, content_width,
-                        false);
-    SelectionFollowCursor();
-}
-
-void Frame::CursorGoUp() {
-    MGO_ASSERT(buffer_);
-    make_cursor_visible_ = true;
-    size_t sidebar_width = SidebarWidth();
-    if (!SizeValid(sidebar_width)) {
-        return;
-    }
-
-    if (!GetOpt<bool>(kOptWrap)) {
-        CursorGoUpNoWrap(width_ - sidebar_width);
-    } else {
-        CursorGoUpWrap(width_ - sidebar_width);
-    }
-}
-
-void Frame::CursorGoDownWrap(size_t content_width) {
-    int tabstop = GetOpt<int64_t>(kOptTabStop);
-    size_t byte_offset = 0;
-
-    while (true) {
-        byte_offset = ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset,
-                                  0, content_width, tabstop, true);
-        if (cursor_->byte_offset < byte_offset ||
-            byte_offset == buffer_->GetLine(cursor_->line).size()) {
-            break;
-        }
-    }
-
-    // last subline of this line, we need to search the next line
-    if (byte_offset == buffer_->GetLine(cursor_->line).size()) {
-        if (cursor_->line == buffer_->LineCnt() - 1) {
-            return;
-        }
-
-        cursor_->line++;
-        MGO_ASSERT(cursor_->b_view_col_want.has_value());
-        SetCursorByBViewCol(cursor_->b_view_col_want.value(), 0, content_width,
-                            true);
-        SelectionFollowCursor();
-        return;
-    }
-
-    // Otherwise, this line still have next subline, we use that subline
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value(), byte_offset,
                         content_width, true);
     SelectionFollowCursor();
 }
 
-void Frame::CursorGoDownNoWrap(size_t content_width) {
-    // last line
-    if (buffer_->LineCnt() - 1 == cursor_->line) {
+void Frame::CursorGoUpNoWrap(size_t count, size_t content_width) {
+    // first line
+    if (cursor_->line == 0) {
         return;
     }
 
-    cursor_->line++;
+    cursor_->line = cursor_->line > count ? cursor_->line - count : 0;
     MGO_ASSERT(cursor_->b_view_col_want.has_value());
     SetCursorByBViewCol(cursor_->b_view_col_want.value(), 0, content_width,
                         false);
     SelectionFollowCursor();
 }
 
-void Frame::CursorGoDown() {
+void Frame::CursorGoUp(size_t count) {
     MGO_ASSERT(buffer_);
+    MGO_ASSERT(count != 0);
     make_cursor_visible_ = true;
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
@@ -749,9 +717,78 @@ void Frame::CursorGoDown() {
     }
 
     if (!GetOpt<bool>(kOptWrap)) {
-        CursorGoDownNoWrap(width_ - sidebar_width);
+        CursorGoUpNoWrap(count, width_ - sidebar_width);
     } else {
-        CursorGoDownWrap(width_ - sidebar_width);
+        CursorGoUpWrap(count, width_ - sidebar_width);
+    }
+}
+
+void Frame::CursorGoDownWrap(size_t count, size_t content_width) {
+    int tabstop = GetOpt<int64_t>(kOptTabStop);
+    size_t byte_offset = 0;
+
+    size_t subline_begin_byte_offset = byte_offset;
+    while (true) {
+        byte_offset = ArrangeLine(buffer_->GetLine(cursor_->line),
+                                  subline_begin_byte_offset, 0, content_width,
+                                  tabstop, true);
+        if (cursor_->byte_offset < byte_offset ||
+            byte_offset == buffer_->GetLine(cursor_->line).size()) {
+            break;
+        }
+        subline_begin_byte_offset = byte_offset;
+    }
+
+    size_t i = 0;
+    while (true) {
+        if (byte_offset == buffer_->GetLine(cursor_->line).size()) {
+            if (cursor_->line == buffer_->LineCnt() - 1) {
+                break;
+            }
+            cursor_->line++;
+            subline_begin_byte_offset = 0;
+        } else {
+            subline_begin_byte_offset = byte_offset;
+        }
+        if (++i == count) {
+            break;
+        }
+        byte_offset = ArrangeLine(buffer_->GetLine(cursor_->line),
+                                  subline_begin_byte_offset, 0, content_width,
+                                  tabstop, true);
+    }
+    SetCursorByBViewCol(cursor_->b_view_col_want.value(),
+                        subline_begin_byte_offset, content_width, true);
+    SelectionFollowCursor();
+}
+
+void Frame::CursorGoDownNoWrap(size_t count, size_t content_width) {
+    // last line
+    if (buffer_->LineCnt() - 1 == cursor_->line) {
+        return;
+    }
+
+    // TODO: Overflow?
+    cursor_->line = std::min(buffer_->LineCnt() - 1, cursor_->line + count);
+    MGO_ASSERT(cursor_->b_view_col_want.has_value());
+    SetCursorByBViewCol(cursor_->b_view_col_want.value(), 0, content_width,
+                        false);
+    SelectionFollowCursor();
+}
+
+void Frame::CursorGoDown(size_t count) {
+    MGO_ASSERT(buffer_);
+    MGO_ASSERT(count != 0);
+    make_cursor_visible_ = true;
+    size_t sidebar_width = SidebarWidth();
+    if (!SizeValid(sidebar_width)) {
+        return;
+    }
+
+    if (!GetOpt<bool>(kOptWrap)) {
+        CursorGoDownNoWrap(count, width_ - sidebar_width);
+    } else {
+        CursorGoDownWrap(count, width_ - sidebar_width);
     }
 }
 
@@ -819,16 +856,16 @@ void Frame::SelectAll() {
     cursor_->DontHoldColWant();
 }
 
-void Frame::DeleteAtCursor() {
+Result Frame::DeleteAtCursor() {
     make_cursor_visible_ = true;
     if (selection_.active) {
-        DeleteSelection();
+        return DeleteSelection();
     } else {
-        DeleteCharacterBeforeCursor();
+        return DeleteCharacterBeforeCursor();
     }
 }
 
-void Frame::DeleteWordBeforeCursor() {
+Result Frame::DeleteWordBeforeCursor() {
     MGO_ASSERT(!selection_.active);
     MGO_ASSERT(buffer_);
     make_cursor_visible_ = true;
@@ -836,7 +873,7 @@ void Frame::DeleteWordBeforeCursor() {
     const std::string* cur_line = &buffer_->GetLine(cursor_->line);
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
-            return;
+            return kOk;
         }
         deleted_until.line = cursor_->line - 1;
         cur_line = &buffer_->GetLine(deleted_until.line);
@@ -848,19 +885,21 @@ void Frame::DeleteWordBeforeCursor() {
         MGO_ASSERT(res == kOk || res == kNotExist);
     }
     Pos pos;
-    if (buffer_->Delete({deleted_until, {cursor_->line, cursor_->byte_offset}},
-                        nullptr, pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Delete(
+                         {deleted_until, {cursor_->line, cursor_->byte_offset}},
+                         nullptr, pos)) != kOk) {
+        return res;
     }
     AfterModify(pos);
+    return kOk;
 }
 
-void Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
+Result Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
     make_cursor_visible_ = true;
     if (selection_.active) {
-        ReplaceSelection(std::move(str), cursor_pos);
+        return ReplaceSelection(std::move(str), cursor_pos);
     } else {
-        AddStringAtCursorNoSelection(std::move(str), cursor_pos);
+        return AddStringAtCursorNoSelection(std::move(str), cursor_pos);
     }
 }
 
@@ -881,14 +920,13 @@ Result Frame::Replace(const Range& range, std::string str,
     return kOk;
 }
 
-void Frame::TabAtCursor() {
+Result Frame::TabAtCursor() {
     make_cursor_visible_ = true;
     // TODO: support tab when selection
     selection_.active = false;
 
     if (!GetOpt<bool>(kOptTabSpace)) {
-        AddStringAtCursor("\t");
-        return;
+        return AddStringAtCursor("\t");
     }
 
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
@@ -914,33 +952,35 @@ void Frame::TabAtCursor() {
         cur_b_view_c += character_width;
     }
     int need_space = tabstop - cur_b_view_c % tabstop;
-    AddStringAtCursor(std::string(need_space, kSpaceChar));
+    return AddStringAtCursor(std::string(need_space, kSpaceChar));
 }
 
-void Frame::Redo() {
+Result Frame::Redo() {
     make_cursor_visible_ = true;
     selection_.active = false;
 
     Pos pos;
-    if (buffer_->Redo(pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Redo(pos)) != kOk) {
+        return res;
     }
     cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
     UpdateSyntax();
+    return kOk;
 }
 
-void Frame::Undo() {
+Result Frame::Undo() {
     make_cursor_visible_ = true;
     selection_.active = false;
 
     Pos pos;
-    if (buffer_->Undo(pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Undo(pos)) != kOk) {
+        return res;
     }
     cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
     UpdateSyntax();
+    return kOk;
 }
 
 void Frame::Copy() {
@@ -956,7 +996,7 @@ void Frame::Copy() {
     }
 }
 
-void Frame::Paste() {
+Result Frame::Paste() {
     make_cursor_visible_ = true;
     bool lines;
     std::string content = clipboard_->GetContent(lines);
@@ -964,10 +1004,10 @@ void Frame::Paste() {
         // Nothing in clipboard, do nothing at all.
         // TODO: when error codition occur,
         // content will also be empty, maybe a notification mechansim?
-        return;
+        return kFail;
     }
     if (selection_.active) {
-        ReplaceSelection(std::move(content));
+        return ReplaceSelection(std::move(content));
     } else {
         Pos pos;
         if (lines) {
@@ -980,6 +1020,7 @@ void Frame::Paste() {
                          std::move(content), nullptr, false, pos);
         }
         AfterModify(pos);
+        return kOk;
     }
 }
 
@@ -1013,11 +1054,11 @@ void Frame::Cut() {
     }
 }
 
-void Frame::DeleteCharacterBeforeCursor() {
+Result Frame::DeleteCharacterBeforeCursor() {
     Range range;
     if (cursor_->byte_offset == 0) {
         if (cursor_->line == 0) {
-            return;
+            return kFail;
         }
         range = {
             {cursor_->line - 1, buffer_->GetLine(cursor_->line - 1).size()},
@@ -1032,41 +1073,48 @@ void Frame::DeleteCharacterBeforeCursor() {
                  {cursor_->line, cursor_->byte_offset}};
     }
     Pos pos;
-    if (buffer_->Delete(range, nullptr, pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Delete(range, nullptr, pos)) != kOk) {
+        return res;
     }
     AfterModify(pos);
+    return kOk;
 }
-void Frame::DeleteSelection() {
+Result Frame::DeleteSelection() {
     Pos pos;
     Pos cursor_pos = {cursor_->line, cursor_->byte_offset};
-    if (buffer_->Delete(selection_.ToRange(), &cursor_pos, pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Delete(selection_.ToRange(), &cursor_pos,
+                                           pos)) != kOk) {
+        return res;
     }
     AfterModify(pos);
     SelectionCancell();
+    return kOk;
 }
 
-void Frame::AddStringAtCursorNoSelection(std::string str,
-                                         const Pos* cursor_pos) {
+Result Frame::AddStringAtCursorNoSelection(std::string str,
+                                           const Pos* cursor_pos) {
     MGO_ASSERT(!selection_.active);
 
     Pos pos;
     if (cursor_pos != nullptr) {
         pos = *cursor_pos;
     }
-    if (buffer_->Add({cursor_->line, cursor_->byte_offset}, std::move(str),
-                     nullptr, cursor_pos != nullptr, pos) != kOk) {
-        return;
+    if (Result res; (res = buffer_->Add({cursor_->line, cursor_->byte_offset},
+                                        std::move(str), nullptr,
+                                        cursor_pos != nullptr, pos)) != kOk) {
+        return res;
     }
     AfterModify(pos);
+    return kOk;
 }
 
-void Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
-    if (Replace(selection_.ToRange(), std::move(str), cursor_pos) != kOk) {
-        return;
+Result Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
+    if (Result res; (res = Replace(selection_.ToRange(), std::move(str),
+                                   cursor_pos)) != kOk) {
+        return res;
     }
     SelectionCancell();
+    return kOk;
 }
 
 size_t Frame::SidebarWidth() {
@@ -1101,8 +1149,8 @@ void Frame::DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width) {
     if (line_number_type == LineNumberType::kAboslute) {
         line_number = absolute_line + 1;
     } else if (line_number_type == LineNumberType::kRelative) {
-        size_t cursor_line = buffer_->cursor_state_line() != -1
-                                 ? buffer_->cursor_state_line()
+        size_t cursor_line = b_view_->cursor_state.has_value()
+                                 ? b_view_->cursor_state->line
                                  : cursor_->line;
         line_number = absolute_line == cursor_line
                           ? absolute_line + 1
@@ -1125,11 +1173,11 @@ void Frame::DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width) {
 }
 
 Range Frame::CalcWrapRange(size_t content_width) {
-    size_t cur_b_view_line = b_view_line_;
+    size_t cur_b_view_line = b_view_->line;
     size_t byte_offset = 0;
 
     // First, we skip some sub lines.
-    for (size_t i = 0; i < b_view_subline_; i++) {
+    for (size_t i = 0; i < b_view_->subline; i++) {
         byte_offset =
             ArrangeLine(buffer_->GetLine(cur_b_view_line), byte_offset, 0,
                         content_width, GetOpt<int64_t>(kOptTabStop), true);
@@ -1148,7 +1196,7 @@ Range Frame::CalcWrapRange(size_t content_width) {
             byte_offset = 0;
         }
     }
-    return {{b_view_line_, start_byte_offset}, {cur_b_view_line, byte_offset}};
+    return {{b_view_->line, start_byte_offset}, {cur_b_view_line, byte_offset}};
 }
 
 void Frame::UpdateSyntax() {

@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include "buffer.h"
+#include "buffer_view.h"
 #include "options.h"
 #include "selection.h"
 #include "term.h"
@@ -20,8 +21,8 @@ class ClipBoard;
 class Frame {
    public:
     Frame() = default;
-    Frame(Buffer* buffer, Cursor* cursor, Opts* opts, SyntaxParser* parser,
-          ClipBoard* clipboard) noexcept;
+    Frame(Buffer* buffer, BufferView* buffer_view, Cursor* cursor, Opts* opts,
+          SyntaxParser* parser, ClipBoard* clipboard) noexcept;
     ~Frame() = default;
     MGO_DELETE_COPY(Frame);
     MGO_DEFAULT_MOVE(Frame);
@@ -29,6 +30,14 @@ class Frame {
     void Draw();
 
     bool In(size_t s_col, size_t s_row);
+
+    // Adjust view to a valid view.
+    // Now we use this to make sure that the current buffer view is valid.
+    // This garrentee will make lots of method implementations easier, like
+    // Scroll, MakeCursorVisible.
+    // TODO: maybe we don't neet make sure valid every time In some
+    // circumstance?
+    void MakeSureViewValid();
 
     void MakeCursorVisible();
 
@@ -41,8 +50,8 @@ class Frame {
 
     void CursorGoRight();
     void CursorGoLeft();
-    void CursorGoUp();
-    void CursorGoDown();
+    void CursorGoUp(size_t count);
+    void CursorGoDown(size_t count);
     void CursorGoHome();
     void CursorGoEnd();
     void CursorGoWordEnd(bool one_more_character);
@@ -50,27 +59,27 @@ class Frame {
 
     void SelectAll();
 
-    void DeleteAtCursor();
-    void DeleteWordBeforeCursor();
+    Result DeleteAtCursor();
+    Result DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
-    void AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
+    Result AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
     // kOk for truely done
     Result Replace(const Range& range, std::string str,
                    const Pos* cursor_pos = nullptr);
-    void TabAtCursor();
-    void Redo();
-    void Undo();
+    Result TabAtCursor();
+    Result Redo();
+    Result Undo();
 
     void Copy();
-    void Paste();
+    Result Paste();
     void Cut();
 
-    void DeleteCharacterBeforeCursor();
-    void DeleteSelection();
+    Result DeleteCharacterBeforeCursor();
+    Result DeleteSelection();
 
-    void AddStringAtCursorNoSelection(std::string str,
+    Result AddStringAtCursorNoSelection(std::string str,
                                       const Pos* cursor_pos = nullptr);
-    void ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
+    Result ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
    private:
     size_t SidebarWidth();
@@ -92,10 +101,10 @@ class Frame {
     void MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
         size_t content_width);
 
-    void CursorGoUpWrap(size_t content_width);
-    void CursorGoUpNoWrap(size_t content_width);
-    void CursorGoDownWrap(size_t content_width);
-    void CursorGoDownNoWrap(size_t content_width);
+    void CursorGoUpWrap(size_t count, size_t content_width);
+    void CursorGoUpNoWrap(size_t count, size_t content_width);
+    void CursorGoDownWrap(size_t count, size_t content_width);
+    void CursorGoDownNoWrap(size_t count, size_t content_width);
 
     void ScrollRowsWrap(int64_t count, size_t content_width);
     void ScrollRowsNoWrap(int64_t count, size_t content_width);
@@ -131,14 +140,17 @@ class Frame {
     Buffer* buffer_ = nullptr;  // associated buffer
     Cursor* cursor_ = nullptr;
 
-    // Wrap or no wrap: which line of buffer on the first screen row
-    size_t b_view_line_ = 0;
-    // No wrap: which col of buffer view on the first screen col
-    size_t b_view_col_ = 0;
-    // Wrap: When in wrap, a buffer line may be rendered in multi rows, dividing
-    // a line into multi sublines. This member represents which sub line of
-    // buffer on the first screen row.
-    size_t b_view_subline_ = 0;
+    // // Wrap or no wrap: which line of buffer on the first screen row
+    // size_t b_view_line_ = 0;
+    // // No wrap: which col of buffer view on the first screen col
+    // size_t b_view_col_ = 0;
+    // // Wrap: When in wrap, a buffer line may be rendered in multi rows,
+    // dividing
+    // // a line into multi sublines. This member represents which sub line of
+    // // buffer on the first screen row.
+    // size_t b_view_subline_ = 0;
+
+    BufferView* b_view_;
 
     Selection selection_;
     ClipBoard* clipboard_;

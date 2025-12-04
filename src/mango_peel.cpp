@@ -10,7 +10,7 @@ MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
                      ClipBoard* clipboard, BufferManager* buffer_manager)
     : buffer_(global_opts, false),
       opts_(global_opts),
-      frame_(&buffer_, cursor, &opts_, nullptr, clipboard),
+      frame_(&buffer_, &b_view_, cursor, &opts_, nullptr, clipboard),
       completer_(this, buffer_manager) {
     buffer_.Load();
 
@@ -24,21 +24,9 @@ void MangoPeel::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-void MangoPeel::SetCursorHint(size_t s_row, size_t s_col) {
-    frame_.SetCursorHint(s_row, s_col);
-}
-
-void MangoPeel::ScrollRows(int64_t count) { frame_.ScrollRows(count); }
-
-void MangoPeel::ScrollCols(int64_t count) { frame_.ScrollCols(count); }
-
 void MangoPeel::CursorGoRight() { frame_.CursorGoRight(); }
 
 void MangoPeel::CursorGoLeft() { frame_.CursorGoLeft(); }
-
-void MangoPeel::CursorGoUp() { frame_.CursorGoUp(); }
-
-void MangoPeel::CursorGoDown() { frame_.CursorGoDown(); }
 
 void MangoPeel::CursorGoHome() { frame_.CursorGoHome(); }
 
@@ -50,21 +38,12 @@ void MangoPeel::CursorGoNextWordEnd(bool one_more_character) {
 
 void MangoPeel::CursorGoPrevWord() { frame_.CursorGoWordBegin(); }
 
-void MangoPeel::DeleteCharacterBeforeCursor() { frame_.DeleteAtCursor(); }
-
-void MangoPeel::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
-
-void MangoPeel::AddStringAtCursor(std::string str) {
-    frame_.AddStringAtCursor(std::move(str));
-}
-
-void MangoPeel::Copy() { frame_.Copy(); }
-void MangoPeel::Paste() {
+Result MangoPeel::Paste() {
     MGO_ASSERT(!frame_.selection_.active);
     bool lines;
     std::string content = frame_.clipboard_->GetContent(lines);
     if (content.empty()) {
-        return;
+        return kFail;
     }
 
     for (char& c : content) {
@@ -72,7 +51,7 @@ void MangoPeel::Paste() {
             c = ' ';
         }
     }
-    frame_.AddStringAtCursor(std::move(content));
+    return frame_.AddStringAtCursor(std::move(content));
 }
 
 void MangoPeel::SetContent(std::string content) {

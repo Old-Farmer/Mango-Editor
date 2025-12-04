@@ -9,6 +9,7 @@ namespace mango {
 enum Result {
     kOk = 0,
     kError,
+    kFail, // A failure is not an error
     kNotExist, // sth. not exist
     kInvalidCoding,
     kEof,

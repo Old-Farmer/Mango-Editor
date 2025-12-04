@@ -49,7 +49,8 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
     }
     MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->Name()));
     window_ = std::make_unique<Window>(buf, &cursor_, global_opts_.get(),
-                                       syntax_parser_.get(), clipboard_.get());
+                                       syntax_parser_.get(), clipboard_.get(),
+                                       &buffer_manager_);
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
@@ -81,12 +82,17 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
                 std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
                     kOptCursorBlinkingHideInterval))},
             [this] { cursor_.show = !cursor_.show; });
-        loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
     }
     autocmp_trigger_timer_ = std::make_unique<SingleTimer>(
         std::chrono::milliseconds(
             global_opts_->GetOpt<int64_t>(kOptAutoCmpTimeout)),
         [this] { TriggerCompletion(true); });
+
+    // Register buffer remove callback
+    buffer_manager_.AddOnBufferRemoveHandler([this](const Buffer* buffer) {
+        window_->OnBufferDelete(buffer);
+        syntax_parser_->OnBufferDelete(buffer);
+    });
 }
 
 void Editor::Loop() {
@@ -180,6 +186,10 @@ void Editor::Loop() {
     loop_->AddEventHandler(std::move(term_tty));
     loop_->AddEventHandler(std::move(term_resize));
 
+    if (cursor_.blinking_timer_) {
+        loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
+    }
+
     loop_->Loop();
 }
 
@@ -200,8 +210,9 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<tab>", {[this] { TriggerCompletion(false); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<bs>", {[this] {
-                   peel_->DeleteCharacterBeforeCursor();
-                   StartAutoCompletionTimer();
+                   if (peel_->DeleteCharacterBeforeCursor() == kOk) {
+                       StartAutoCompletionTimer();
+                   }
                }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
@@ -247,12 +258,20 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<c-k><c-n>", {[this] { SearchNext(); }});
 
     // cmp
-    MGO_KEYMAP("<c-k><c-c>", {[this] { TriggerCompletion(false); }}, kAllModes);
+    MGO_KEYMAP("<c-k><c-c>", {[this] {
+                   if (!IsPeel(mode_) &&
+                       (!cursor_.in_window->frame_.buffer_->IsLoad() ||
+                        cursor_.in_window->frame_.buffer_->read_only())) {
+                       return;
+                   }
+                   TriggerCompletion(false);
+               }},
+               kAllModes);
 
     // edit
     MGO_KEYMAP("<bs>", {[this] {
-                   cursor_.in_window->DeleteAtCursor();
-                   if (!cursor_.in_window->frame_.selection_.active) {
+                   if (cursor_.in_window->DeleteAtCursor() == kOk &&
+                       !cursor_.in_window->frame_.selection_.active) {
                        StartAutoCompletionTimer();
                    }
                }});
@@ -294,14 +313,14 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<c-n>", {[this] { CursorDown(); }}, kAllModes);
     MGO_KEYMAP("<home>", {[this] { cursor_.in_window->CursorGoHome(); }});
     MGO_KEYMAP("<end>", {[this] { cursor_.in_window->CursorGoEnd(); }});
-    MGO_KEYMAP("<pgdn>", {[this] {
-                   cursor_.in_window->ScrollRows(
-                       cursor_.in_window->frame_.height_ - 1);
-               }});
-    MGO_KEYMAP("<pgup>", {[this] {
-                   cursor_.in_window->ScrollRows(
-                       -cursor_.in_window->frame_.height_ - 1);
-               }});
+    MGO_KEYMAP(
+        "<pgdn>", {[this] {
+            cursor_.in_window->CursorGoDown(cursor_.in_window->frame_.height_);
+        }});
+    MGO_KEYMAP(
+        "<pgup>", {[this] {
+            cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
+        }});
     MGO_KEYMAP("<esc>", {[this] {
                    cursor_.in_window->frame_.selection_.active = false;
                }});
@@ -433,12 +452,15 @@ void Editor::HandleKey() {
             int len = UnicodeToUtf8(key_info.codepoint, c);
             c[len] = '\0';
             MGO_ASSERT(len > 0);
+            Result res;
             if (IsPeel(mode_)) {
-                peel_->AddStringAtCursor(c);
+                res = peel_->AddStringAtCursor(c);
             } else {
-                cursor_.in_window->AddStringAtCursor(c);
+                res = cursor_.in_window->AddStringAtCursor(c);
             }
-            StartAutoCompletionTimer();
+            if (res == kOk) {
+                StartAutoCompletionTimer();
+            }
         }
         return;
     } else if (res == kKeyseqMatched) {
@@ -450,7 +472,6 @@ void Editor::HandleKey() {
 }
 
 void Editor::HandleLeftClick(int s_row, int s_col) {
-    // MGO_LOG_DEBUG("left mouse row %d, col %d", s_row, s_col);
     Window* win = LocateWindow(s_col, s_row);
     Window* prev_win = cursor_.in_window;
     Pos prev_pos = {cursor_.line, cursor_.byte_offset};
@@ -511,7 +532,6 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
 
 void Editor::HandleRelease(int s_row, int s_col) {
     (void)s_row, (void)s_col;
-    // MGO_LOG_DEBUG("release mouse row %d, col %d", s_row, s_col);
     mouse_.state = MouseState::kReleased;
 }
 
@@ -585,10 +605,20 @@ void Editor::HandleResize() {
 }
 
 void Editor::Draw() {
+    // TODO: do not redraw not modified part
+
     // First clear the screen so we don't need to print spaces for blank
     // screen parts
-    // TODO: do not redraw not modified part
     term_.Clear();
+
+    window_->Draw();
+    status_line_->Draw();
+    peel_->Draw();
+
+    // Put it at last so it can override some parts
+    cmp_menu_->Draw();
+
+    // Draw cursor
     if (cursor_.s_col == -1 && cursor_.s_row == -1) {
         // when not make visible
         term_.HideCursor();
@@ -604,13 +634,6 @@ void Editor::Draw() {
     } else {
         term_.HideCursor();
     }
-
-    window_->Draw();
-    status_line_->Draw();
-    peel_->Draw();
-
-    // Put it at last so it can override some parts
-    cmp_menu_->Draw();
 
     term_.Present();
 }
@@ -630,6 +653,8 @@ void Editor::PreProcess() {
         }
     }
 
+    window_->frame_.MakeSureViewValid();
+    // Peel no need valid because it only have one line.
     if (!IsPeel(mode_)) {
         cursor_.in_window->MakeCursorVisible();
     } else {
@@ -689,7 +714,7 @@ void Editor::GotoPeel() {
     MGO_ASSERT(!IsPeel(mode_));
 
     peel_->SetContent("");
-    cursor_.in_window->frame_.buffer_->SaveCursorState(cursor_);
+    cursor_.in_window->frame_.b_view_->SaveCursorState(&cursor_);
     cursor_.restore_from_peel = cursor_.in_window;
     cursor_.in_window = nullptr;
     cursor_.line = 0;
@@ -701,7 +726,8 @@ void Editor::ExitFromMode() {
     if (IsPeel(mode_)) {
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
-        cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
+        const Frame& f = cursor_.in_window->frame_;
+        f.b_view_->RestoreCursorState(&cursor_, f.buffer_);
     }
     mode_ = Mode::kEdit;
 }
@@ -710,7 +736,8 @@ void Editor::ExitFromModeVi() {
     if (IsPeel(mode_)) {
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
-        cursor_.in_window->frame_.buffer_->RestoreCursorState(cursor_);
+        const Frame& f = cursor_.in_window->frame_;
+        f.b_view_->RestoreCursorState(&cursor_, f.buffer_);
     }
     mode_ = Mode::kViNormal;
 }
@@ -870,7 +897,7 @@ void Editor::CursorUp() {
         cmp_menu_->SelectPrev();
         show_cmp_menu_ = true;
     } else if (!IsPeel(mode_)) {
-        cursor_.in_window->CursorGoUp();
+        cursor_.in_window->CursorGoUp(count_);
     }
 }
 
@@ -879,22 +906,12 @@ void Editor::CursorDown() {
         cmp_menu_->SelectNext();
         show_cmp_menu_ = true;
     } else if (!IsPeel(mode_)) {
-        cursor_.in_window->CursorGoDown();
+        cursor_.in_window->CursorGoDown(count_);
     }
 }
 
 void Editor::RemoveCurrentBuffer() {
-    Buffer* cur_buffer = cursor_.in_window->frame_.buffer_;
-    if (cur_buffer->IsFirstBuffer() && cur_buffer->IsLastBuffer()) {
-        cursor_.in_window->AttachBuffer(
-            buffer_manager_.AddBuffer({global_opts_.get()}));
-    } else if (cur_buffer->IsFirstBuffer()) {
-        cursor_.in_window->NextBuffer();
-    } else {
-        cursor_.in_window->PrevBuffer();
-    }
-    syntax_parser_->OnBufferDelete(cur_buffer);
-    buffer_manager_.RemoveBuffer(cur_buffer);
+    buffer_manager_.RemoveBuffer(cursor_.in_window->frame_.buffer_);
 }
 
 void Editor::SaveCurrentBuffer() {

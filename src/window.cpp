@@ -3,6 +3,7 @@
 #include <gsl/util>
 
 #include "buffer.h"
+#include "buffer_manager.h"
 #include "character.h"
 #include "cursor.h"
 #include "options.h"
@@ -10,60 +11,28 @@
 
 namespace mango {
 Window::Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
-               SyntaxParser* parser, ClipBoard* clipboard) noexcept
+               SyntaxParser* parser, ClipBoard* clipboard,
+               BufferManager* buffer_manager) noexcept
     : cursor_(cursor),
       opts_(global_opts),
       parser_(parser),
-      frame_(buffer, cursor, &opts_, parser, clipboard) {}
-
-void Window::Draw() { frame_.Draw(); }
-
-void Window::MakeCursorVisible() {
-    MGO_ASSERT(cursor_->in_window == this);
-    frame_.MakeCursorVisible();
+      buffer_manager_(buffer_manager),
+      // Use nullptr first, then we assign the buffer view
+      frame_(buffer, nullptr, cursor, &opts_, parser, clipboard) {
+    buffer_views_[buffer->id()] = {};
+    frame_.b_view_ = &buffer_views_[buffer->id()];
 }
 
-void Window::SetCursorHint(size_t s_row, size_t s_col) {
-    frame_.SetCursorHint(s_row, s_col);
-}
-
-void Window::ScrollRows(int64_t count) {
-    frame_.ScrollRows(count);
-}
-
-void Window::ScrollCols(int64_t count) { frame_.ScrollCols(count); }
-
-void Window::CursorGoRight() { frame_.CursorGoRight(); }
-
-void Window::CursorGoLeft() { frame_.CursorGoLeft(); }
-
-void Window::CursorGoUp() { frame_.CursorGoUp(); }
-
-void Window::CursorGoDown() { frame_.CursorGoDown(); }
-
-void Window::CursorGoHome() { frame_.CursorGoHome(); }
-
-void Window::CursorGoEnd() { frame_.CursorGoEnd(); }
-
-void Window::CursorGoWordEnd(bool one_more_character) {
-    frame_.CursorGoWordEnd(one_more_character);
-}
-
-void Window::CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
-
-void Window::SelectAll() { frame_.SelectAll(); }
-
-void Window::DeleteAtCursor() {
+Result Window::DeleteAtCursor() {
     if (frame_.selection_.active) {
-        frame_.DeleteSelection();
-        return;
+        return frame_.DeleteSelection();
     }
 
     Buffer* buffer = frame_.buffer_;
     Range range;
     if (cursor_->byte_offset == 0) {  // first byte
         if (cursor_->line == 0) {
-            return;
+            return kFail;
         }
         range = {{cursor_->line - 1, buffer->GetLine(cursor_->line - 1).size()},
                  {cursor_->line, 0}};
@@ -113,26 +82,23 @@ void Window::DeleteAtCursor() {
     }
 
     Pos pos;
-    if (buffer->Delete(range, nullptr, pos) != kOk) {
-        return;
+    if (Result res; (res = buffer->Delete(range, nullptr, pos)) != kOk) {
+        return res;
     }
     cursor_->SetPos(pos);
     cursor_->DontHoldColWant();
     parser_->ParseSyntaxAfterEdit(buffer);
+    return kOk;
 }
 
-void Window::DeleteWordBeforeCursor() { frame_.DeleteWordBeforeCursor(); }
-
-void Window::AddStringAtCursor(std::string str, bool raw) {
+Result Window::AddStringAtCursor(std::string str, bool raw) {
     if (raw) {
-        frame_.AddStringAtCursor(std::move(str));
-        return;
+        return frame_.AddStringAtCursor(std::move(str));
     }
 
     // TODO: better support autopair autoindent when selection
     if (frame_.selection_.active) {
-        frame_.AddStringAtCursor(std::move(str));
-        return;
+        return frame_.AddStringAtCursor(std::move(str));
     }
 
     char c = -1;
@@ -141,8 +107,7 @@ void Window::AddStringAtCursor(std::string str, bool raw) {
     }
 
     if (c == -1) {
-        frame_.AddStringAtCursor(std::move(str));
-        return;
+        return frame_.AddStringAtCursor(std::move(str));
     }
 
     if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
@@ -151,16 +116,18 @@ void Window::AddStringAtCursor(std::string str, bool raw) {
         if (IsPair(c)) {
             TryAutoPair(std::move(str));
         } else {
-            frame_.AddStringAtCursor(std::move(str));
+            return frame_.AddStringAtCursor(std::move(str));
         }
     }
+    // Will not reach here.
+    return kOk;
 }
 
 Result Window::Replace(const Range& range, std::string str) {
     return frame_.Replace(range, std::move(str));
 }
 
-void Window::TryAutoPair(std::string str) {
+Result Window::TryAutoPair(std::string str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
     bool end_of_line =
@@ -181,9 +148,15 @@ void Window::TryAutoPair(std::string str) {
     // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
     if (!start_of_line && !end_of_line) {
         if (IsPair(prev_c, cur_c) && cur_c == str[0]) {
+            if (!frame_.buffer_->IsLoad()) {
+                return kBufferCannotLoad;
+            }
+            if (frame_.buffer_->read_only()) {
+                return kBufferReadOnly;
+            }
             cursor_->byte_offset++;
             cursor_->DontHoldColWant();
-            return;
+            return kOk;
         }
     }
 
@@ -191,21 +164,19 @@ void Window::TryAutoPair(std::string str) {
     // try auto pair
     auto [is_open, c_close] = IsPairOpen(str[0]);
     if (!is_open) {
-        frame_.AddStringAtCursor(std::move(str));
-        return;
+        return frame_.AddStringAtCursor(std::move(str));
     }
 
     if (end_of_line || !IsPair(str[0], cur_c)) {
         Pos pos = {cursor_->line, cursor_->byte_offset + 1};
         str += c_close;
-        frame_.AddStringAtCursor(std::move(str), &pos);
-        return;
+        return frame_.AddStringAtCursor(std::move(str), &pos);
     }
 
-    frame_.AddStringAtCursor(std::move(str));
+    return frame_.AddStringAtCursor(std::move(str));
 }
 
-void Window::TryAutoIndent() {
+Result Window::TryAutoIndent() {
     const std::string& line = frame_.buffer_->GetLine(cursor_->line);
     std::string indent = "";
     std::string str = "\n";
@@ -272,29 +243,18 @@ void Window::TryAutoIndent() {
         }
     }
     if (maunally_set_cursor_pos) {
-        frame_.AddStringAtCursor(std::move(str), &cursor_pos);
+        return frame_.AddStringAtCursor(std::move(str), &cursor_pos);
     } else {
-        frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(std::move(str));
     }
 }
-
-void Window::TabAtCursor() { frame_.TabAtCursor(); }
-
-void Window::Redo() { frame_.Redo(); }
-void Window::Undo() { frame_.Undo(); }
-
-void Window::Copy() { frame_.Copy(); }
-void Window::Paste() { frame_.Paste(); }
-void Window::Cut() { frame_.Cut(); }
 
 void Window::NextBuffer() {
     if (frame_.buffer_->IsLastBuffer()) {
         return;
     }
     Buffer* next = frame_.buffer_->next_;
-    DetachBuffer();
-    frame_.buffer_ = next;
-    frame_.buffer_->RestoreCursorState(*cursor_);
+    AttachBuffer(next);
 }
 
 void Window::PrevBuffer() {
@@ -302,9 +262,7 @@ void Window::PrevBuffer() {
         return;
     }
     Buffer* prev = frame_.buffer_->prev_;
-    DetachBuffer();
-    frame_.buffer_ = prev;
-    frame_.buffer_->RestoreCursorState(*cursor_);
+    AttachBuffer(prev);
 }
 
 void Window::AttachBuffer(Buffer* buffer) {
@@ -312,16 +270,38 @@ void Window::AttachBuffer(Buffer* buffer) {
         DetachBuffer();
     }
     frame_.buffer_ = buffer;
-    frame_.buffer_->RestoreCursorState(*cursor_);
+    auto b_view_iter = buffer_views_.find(buffer->id());
+    if (b_view_iter == buffer_views_.end()) {
+        bool ok;
+        std::tie(b_view_iter, ok) =
+            buffer_views_.emplace(buffer->id(), BufferView());
+        MGO_ASSERT(ok);
+    }
+    b_view_iter->second.RestoreCursorState(cursor_, frame_.buffer_);
+    frame_.b_view_ = &b_view_iter->second;
 }
 
 void Window::DetachBuffer() {
     if (frame_.buffer_) {
-        frame_.buffer_->SaveCursorState(*cursor_);
+        frame_.b_view_->SaveCursorState(cursor_);
+        frame_.b_view_ = nullptr;
         frame_.buffer_ = nullptr;
         DestorySearchContext();
         frame_.selection_.active = false;
     }
+}
+
+void Window::OnBufferDelete(const Buffer* buffer) {
+    if (buffer == frame_.buffer_) {
+        if (buffer->IsFirstBuffer() && buffer->IsLastBuffer()) {
+            AttachBuffer(buffer_manager_->AddBuffer({opts_.global_opts_}));
+        } else if (buffer->IsFirstBuffer()) {
+            NextBuffer();
+        } else {
+            PrevBuffer();
+        }
+    }
+    buffer_views_.erase(buffer->id());
 }
 
 void Window::BuildSearchContext(std::string pattern) {

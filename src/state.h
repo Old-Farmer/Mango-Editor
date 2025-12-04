@@ -23,10 +23,10 @@ enum class BufferState : int {
 };
 
 constexpr const char* BufferStateString[] = {
-    "[Modified]",       "",
+    "[M]",       "",
     "[Can't Read]",     "[Haven't Read]",
-    "[Can' Create]",    "[Read Only]",
-    "[Coding Invalid]",
+    "[Can't Create]",    "[RdOnly]",
+    "[CodingInvalid]",
 };
 
 enum class Mode : int {

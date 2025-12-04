@@ -423,7 +423,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     if (edit_history_->size() ==
         static_cast<size_t>(GetOpt<int64_t>(kOptEditHistoryMaxItem))) {
         edit_history_->pop_front();
-        never_wrap_history = false;
+        never_wrap_history_ = false;
     }
     edit_history_->push_back(std::move(item));
 }
@@ -519,20 +519,16 @@ Result Buffer::Undo(Pos& cursor_pos_hint) {
         return kNoHistoryAvailable;
     }
     if (edit_history_cursor_ == edit_history_->begin()) {
-        if (never_wrap_history && state_ == BufferState::kModified) {
-            state_ = BufferState::kNotModified;
-        }
         return kNoHistoryAvailable;
     }
 
-    if (edit_history_cursor_ == edit_history_->end()) {
-        edit_history_cursor_ = --edit_history_->end();
-    } else {
-        edit_history_cursor_--;
-    }
-
+    edit_history_cursor_--;
     Edit(edit_history_cursor_->reverse, cursor_pos_hint);
     cursor_pos_hint = edit_history_cursor_->reverse_pos_hint;
+    if (edit_history_cursor_ == edit_history_->begin() && never_wrap_history_ &&
+        state_ == BufferState::kModified) {
+        state_ = BufferState::kNotModified;
+    }
     return kOk;
 }
 
@@ -584,31 +580,8 @@ void Buffer::RemoveFromList() noexcept {
     prev_ = nullptr;
 }
 
-bool Buffer::IsLastBuffer() { return next_->next_ == nullptr; }
-bool Buffer::IsFirstBuffer() { return prev_->prev_ == nullptr; }
-
-void Buffer::SaveCursorState(Cursor& cursor) {
-    cursor_state_line_ = cursor.line;
-    cursor_state_byte_offset_ = cursor.byte_offset;
-    cursor_state_b_view_col_want_ = cursor.b_view_col_want;
-    cursor_state_character_in_line_ = cursor.character_in_line;
-}
-
-void Buffer::RestoreCursorState(Cursor& cursor) {
-    if (state_ == BufferState::kHaveNotRead) {
-        cursor.line = 0;
-        cursor.byte_offset = 0;
-        cursor.b_view_col_want = 0;
-        cursor_state_line_ = -1;
-        return;
-    }
-
-    cursor.line = std::min<int64_t>(lines_.size() - 1, cursor_state_line_);
-    cursor.byte_offset = std::min<int64_t>(lines_[cursor.line].line_str.size(),
-                                           cursor_state_byte_offset_);
-    cursor.b_view_col_want = cursor_state_b_view_col_want_;
-    cursor_state_line_ = -1;
-}
+bool Buffer::IsLastBuffer() const { return next_->next_ == nullptr; }
+bool Buffer::IsFirstBuffer() const { return prev_->prev_ == nullptr; }
 
 void Buffer::Modified() {
     MGO_ASSERT(IsLoad() && !read_only());

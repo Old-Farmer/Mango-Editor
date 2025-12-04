@@ -90,7 +90,7 @@ class LoopTimer : public Timer {
 
 // A class to manager timer.
 // This class don't manage timers lifetime.
-// Every methods of this class won't create or delete any timer.
+// Every methods of this class won't new or delete any timer.
 class TimerManager {
    public:
     MGO_DEFAULT_CONSTRUCT_DESTRUCT(TimerManager);

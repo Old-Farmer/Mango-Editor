@@ -8,46 +8,51 @@ namespace mango {
 class Window {
    public:
     Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
-           SyntaxParser* parser, ClipBoard* clipboard) noexcept;
+           SyntaxParser* parser, ClipBoard* clipboard,
+           BufferManager* buffer_manager) noexcept;
     ~Window() = default;
     MGO_DELETE_COPY(Window);
     MGO_DEFAULT_MOVE(Window);
 
     int id() { return id_; }
 
-    void Draw();
+    void Draw() { frame_.Draw(); }
 
-    void MakeCursorVisible();
+    void MakeCursorVisible() { frame_.MakeCursorVisible(); }
 
-    void SetCursorHint(size_t s_row, size_t s_col);
+    void SetCursorHint(size_t s_row, size_t s_col) {
+        frame_.SetCursorHint(s_row, s_col);
+    }
 
-    void ScrollRows(int64_t count);
-    void ScrollCols(int64_t count);
+    void ScrollRows(int64_t count) { frame_.ScrollRows(count); }
+    void ScrollCols(int64_t count) { frame_.ScrollCols(count); }
 
-    void CursorGoRight();
-    void CursorGoLeft();
-    void CursorGoUp();
-    void CursorGoDown();
-    void CursorGoHome();
-    void CursorGoEnd();
-    void CursorGoWordEnd(bool one_more_character);
-    void CursorGoWordBegin();
+    void CursorGoRight() { frame_.CursorGoRight(); }
+    void CursorGoLeft() { frame_.CursorGoLeft(); }
+    void CursorGoUp(size_t count) { frame_.CursorGoUp(count); }
+    void CursorGoDown(size_t count) { frame_.CursorGoDown(count); }
+    void CursorGoHome() { frame_.CursorGoHome(); }
+    void CursorGoEnd() { frame_.CursorGoEnd(); }
+    void CursorGoWordEnd(bool one_more_character) {
+        frame_.CursorGoWordEnd(one_more_character);
+    }
+    void CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
 
-    void SelectAll();
+    void SelectAll() { frame_.SelectAll(); }
 
-    void DeleteAtCursor();
-    void DeleteWordBeforeCursor();
+    Result DeleteAtCursor();
+    Result DeleteWordBeforeCursor() { return frame_.DeleteWordBeforeCursor(); }
     // raw means do not treat it as keystroke
-    void AddStringAtCursor(std::string str, bool raw = false);
+    Result AddStringAtCursor(std::string str, bool raw = false);
     // See Frame::Replace
     Result Replace(const Range& range, std::string str);
-    void TabAtCursor();
-    void Redo();
-    void Undo();
+    Result TabAtCursor() { return frame_.TabAtCursor(); }
+    Result Redo() { return frame_.Redo(); }
+    Result Undo() { return frame_.Undo(); }
 
-    void Copy();
-    void Paste();
-    void Cut();
+    void Copy() { frame_.Copy(); }
+    Result Paste() { return frame_.Paste(); }
+    void Cut() { frame_.Cut(); }
 
     void NextBuffer();
     void PrevBuffer();
@@ -56,6 +61,8 @@ class Window {
     void AttachBuffer(Buffer* buffer);
     // dangerous op, must attach buffer before preprocess & draw
     void DetachBuffer();
+
+    void OnBufferDelete(const Buffer* buffer);
 
     // Search relevant
     struct SearchState {
@@ -75,8 +82,8 @@ class Window {
     static int64_t AllocId() noexcept;
     Window() {}  // only for list head
 
-    void TryAutoIndent();
-    void TryAutoPair(std::string str);
+    Result TryAutoIndent();
+    Result TryAutoPair(std::string str);
 
     template <typename T>
     T GetOpt(OptKey key) {
@@ -93,6 +100,8 @@ class Window {
     Cursor* cursor_;
     Opts opts_ = {nullptr};
     SyntaxParser* parser_;
+    BufferManager* buffer_manager_;
+    std::unordered_map<int64_t, BufferView> buffer_views_;
 
     std::vector<Range> search_result_;
     std::string search_pattern_;

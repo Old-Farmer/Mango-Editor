@@ -129,11 +129,7 @@ void TimerManager::PopTimer() {
 
 void TimerManager::Tick() {
     auto now = std::chrono::steady_clock::now();
-    while (true) {
-        if (timer_heap_.empty()) {
-            return;
-        }
-
+    while (!timer_heap_.empty()) {
         Timer* timer = timer_heap_[0];
         if (!TimeOut(timer->timeout_time_, now)) {
             break;

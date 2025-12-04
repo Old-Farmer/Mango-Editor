@@ -21,32 +21,30 @@ class MangoPeel {
 
     void MakeCursorVisible();
 
-    void SetCursorHint(size_t s_row, size_t s_col);
-
-    void ScrollRows(int64_t count);
-    void ScrollCols(int64_t count);
-
     void CursorGoRight();
     void CursorGoLeft();
-    void CursorGoUp();
-    void CursorGoDown();
     void CursorGoHome();
     void CursorGoEnd();
     void CursorGoNextWordEnd(bool one_more_character);
     void CursorGoPrevWord();
 
-    void DeleteCharacterBeforeCursor();
-    void DeleteWordBeforeCursor();
-    void AddStringAtCursor(std::string str);
+    Result DeleteCharacterBeforeCursor() {
+        return frame_.DeleteCharacterBeforeCursor();
+    }
+    Result DeleteWordBeforeCursor() { return frame_.DeleteWordBeforeCursor(); }
+    Result AddStringAtCursor(std::string str) {
+        return frame_.AddStringAtCursor(std::move(str));
+    }
 
-    void Copy();
-    void Paste();
+    void Copy() { frame_.Paste(); }
+    Result Paste();
 
     void SetContent(std::string content);
     const std::string& GetContent();
 
    private:
-    Buffer buffer_;  // Unlike window, Peel owns her nofilebacked buffer
+    Buffer buffer_;      // Unlike window, Peel owns her nofilebacked buffer
+    BufferView b_view_;  // And it's view
     Opts opts_;
 
    public:
