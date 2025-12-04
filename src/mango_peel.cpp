@@ -10,9 +10,13 @@ MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
                      ClipBoard* clipboard, BufferManager* buffer_manager)
     : buffer_(global_opts, false),
       opts_(global_opts),
-      frame_(&buffer_, &b_view_, cursor, &opts_, nullptr, clipboard),
+      frame_(cursor, &opts_, nullptr, clipboard),
       completer_(this, buffer_manager) {
     buffer_.Load();
+
+    frame_.buffer_ = &buffer_;
+    frame_.b_view_ = &b_view_;
+    b_view_.cursor_state.reset();
 
     opts_.SetOpt(kOptLineNumber, static_cast<int64_t>(LineNumberType::kNone));
 }

@@ -21,8 +21,8 @@ class ClipBoard;
 class Frame {
    public:
     Frame() = default;
-    Frame(Buffer* buffer, BufferView* buffer_view, Cursor* cursor, Opts* opts,
-          SyntaxParser* parser, ClipBoard* clipboard) noexcept;
+    Frame(Cursor* cursor, Opts* opts, SyntaxParser* parser,
+          ClipBoard* clipboard) noexcept;
     ~Frame() = default;
     MGO_DELETE_COPY(Frame);
     MGO_DEFAULT_MOVE(Frame);
@@ -78,7 +78,7 @@ class Frame {
     Result DeleteSelection();
 
     Result AddStringAtCursorNoSelection(std::string str,
-                                      const Pos* cursor_pos = nullptr);
+                                        const Pos* cursor_pos = nullptr);
     Result ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
    private:

@@ -30,7 +30,7 @@ struct BufferView {
     // buffer on the first screen row.
     size_t subline = 0;
 
-    std::optional<CursorState> cursor_state;
+    std::optional<CursorState> cursor_state{std::in_place};
 
     void SaveCursorState(Cursor* cursor);
     void RestoreCursorState(Cursor* cursor, Buffer* buffer);

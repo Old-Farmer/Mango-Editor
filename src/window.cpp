@@ -10,18 +10,13 @@
 #include "syntax.h"
 
 namespace mango {
-Window::Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
-               SyntaxParser* parser, ClipBoard* clipboard,
-               BufferManager* buffer_manager) noexcept
+Window::Window(Cursor* cursor, GlobalOpts* global_opts, SyntaxParser* parser,
+               ClipBoard* clipboard, BufferManager* buffer_manager) noexcept
     : cursor_(cursor),
       opts_(global_opts),
       parser_(parser),
       buffer_manager_(buffer_manager),
-      // Use nullptr first, then we assign the buffer view
-      frame_(buffer, nullptr, cursor, &opts_, parser, clipboard) {
-    buffer_views_[buffer->id()] = {};
-    frame_.b_view_ = &buffer_views_[buffer->id()];
-}
+      frame_(cursor, &opts_, parser, clipboard) {}
 
 Result Window::DeleteAtCursor() {
     if (frame_.selection_.active) {

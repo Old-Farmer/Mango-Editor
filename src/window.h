@@ -7,7 +7,7 @@ namespace mango {
 
 class Window {
    public:
-    Window(Buffer* buffer, Cursor* cursor, GlobalOpts* global_opts,
+    Window(Cursor* cursor, GlobalOpts* global_opts,
            SyntaxParser* parser, ClipBoard* clipboard,
            BufferManager* buffer_manager) noexcept;
     ~Window() = default;

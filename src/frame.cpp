@@ -17,11 +17,10 @@ namespace mango {
 
 static constexpr std::string_view kSublineIndicator = "<<<";
 
-Frame::Frame(Buffer* buffer, BufferView* buffer_view, Cursor* cursor,
+Frame::Frame(Cursor* cursor,
              Opts* opts, SyntaxParser* parser, ClipBoard* clipboard) noexcept
-    : buffer_(buffer),
+    :
       cursor_(cursor),
-      b_view_(buffer_view),
       clipboard_(clipboard),
       parser_(parser),
       opts_(opts) {}

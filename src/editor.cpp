@@ -48,12 +48,13 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
         buf = buffer_manager_.AddBuffer({global_opts_.get()});
     }
     MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->Name()));
-    window_ = std::make_unique<Window>(buf, &cursor_, global_opts_.get(),
+    window_ = std::make_unique<Window>(&cursor_, global_opts_.get(),
                                        syntax_parser_.get(), clipboard_.get(),
                                        &buffer_manager_);
 
     // Set Cursor in the first window
     cursor_.in_window = window_.get();
+    window_->AttachBuffer(buf);
 
     // manually trigger resizing to create the layout
     Resize(term_.Width(), term_.Height());
