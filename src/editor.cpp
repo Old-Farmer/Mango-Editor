@@ -227,7 +227,7 @@ void Editor::InitKeymaps() {
                {Mode::kPeelCommand});
     MGO_KEYMAP("<right>", {[this] { peel_->CursorGoRight(); }},
                {Mode::kPeelCommand});
-    MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoPrevWord(); }},
+    MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoWordBegin(); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<c-right>", {[this] { peel_->CursorGoNextWordEnd(true); }},
                {Mode::kPeelCommand});

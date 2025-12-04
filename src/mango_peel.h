@@ -21,12 +21,14 @@ class MangoPeel {
 
     void MakeCursorVisible();
 
-    void CursorGoRight();
-    void CursorGoLeft();
-    void CursorGoHome();
-    void CursorGoEnd();
-    void CursorGoNextWordEnd(bool one_more_character);
-    void CursorGoPrevWord();
+    void CursorGoRight() { frame_.CursorGoRight(); }
+    void CursorGoLeft() { frame_.CursorGoLeft(); }
+    void CursorGoHome() { frame_.CursorGoHome(); }
+    void CursorGoEnd() { frame_.CursorGoEnd(); }
+    void CursorGoNextWordEnd(bool one_more_character) {
+        frame_.CursorGoWordEnd(one_more_character);
+    }
+    void CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
 
     Result DeleteCharacterBeforeCursor() {
         return frame_.DeleteCharacterBeforeCursor();

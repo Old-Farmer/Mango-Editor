@@ -24,20 +24,6 @@ void MangoPeel::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-void MangoPeel::CursorGoRight() { frame_.CursorGoRight(); }
-
-void MangoPeel::CursorGoLeft() { frame_.CursorGoLeft(); }
-
-void MangoPeel::CursorGoHome() { frame_.CursorGoHome(); }
-
-void MangoPeel::CursorGoEnd() { frame_.CursorGoEnd(); }
-
-void MangoPeel::CursorGoNextWordEnd(bool one_more_character) {
-    frame_.CursorGoWordEnd(one_more_character);
-}
-
-void MangoPeel::CursorGoPrevWord() { frame_.CursorGoWordBegin(); }
-
 Result MangoPeel::Paste() {
     MGO_ASSERT(!frame_.selection_.active);
     bool lines;
