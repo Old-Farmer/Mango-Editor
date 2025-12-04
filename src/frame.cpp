@@ -17,13 +17,9 @@ namespace mango {
 
 static constexpr std::string_view kSublineIndicator = "<<<";
 
-Frame::Frame(Cursor* cursor,
-             Opts* opts, SyntaxParser* parser, ClipBoard* clipboard) noexcept
-    :
-      cursor_(cursor),
-      clipboard_(clipboard),
-      parser_(parser),
-      opts_(opts) {}
+Frame::Frame(Cursor* cursor, Opts* opts, SyntaxParser* parser,
+             ClipBoard* clipboard) noexcept
+    : cursor_(cursor), clipboard_(clipboard), parser_(parser), opts_(opts) {}
 
 void Frame::Draw() {
     MGO_ASSERT(buffer_ != nullptr);
@@ -380,7 +376,10 @@ void Frame::MakeSureViewValid() {
     if (GetOpt<bool>(kOptWrap)) {
         if (b_view_->line >= buffer_->LineCnt()) {
             b_view_->line = buffer_->LineCnt() - 1;
-            b_view_->subline = 0;
+            b_view_->subline = ScreenRows(buffer_->GetLine(b_view_->line),
+                                          width_ - SidebarWidth(),
+                                          GetOpt<int64_t>(kOptTabStop)) -
+                               1;
         } else {
             if (b_view_->subline == 0) {
                 return;
@@ -392,7 +391,7 @@ void Frame::MakeSureViewValid() {
                          b_view_->subline);
         }
     } else {
-        b_view_->line = std::min(buffer_->LineCnt(), b_view_->line);
+        b_view_->line = std::min(buffer_->LineCnt() - 1, b_view_->line);
     }
 }
 
@@ -709,6 +708,11 @@ void Frame::CursorGoUpNoWrap(size_t count, size_t content_width) {
 void Frame::CursorGoUp(size_t count) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
+    if (!cursor_->b_view_col_want.has_value()) {
+        // Maybe we meet lagging.
+        return;
+    }
+
     make_cursor_visible_ = true;
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
@@ -778,6 +782,11 @@ void Frame::CursorGoDownNoWrap(size_t count, size_t content_width) {
 void Frame::CursorGoDown(size_t count) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
+    if (!cursor_->b_view_col_want.has_value()) {
+        // Maybe we meet lagging.
+        return;
+    }
+
     make_cursor_visible_ = true;
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
@@ -842,6 +851,18 @@ void Frame::CursorGoWordBegin() {
         WordBegin(*cur_line, cursor_->byte_offset, cursor_->byte_offset);
     MGO_ASSERT(res == kOk || res == kNotExist);
     cursor_->DontHoldColWant();
+    SelectionFollowCursor();
+}
+
+void Frame::CursorGoLine(size_t line) {
+    if (!cursor_->b_view_col_want.has_value()) {
+        // Maybe we meet lagging.
+        return;
+    }
+
+    cursor_->line = std::min(line, buffer_->LineCnt() - 1);
+    SetCursorByBViewCol(cursor_->b_view_col_want.value(), 0,
+                        width_ - SidebarWidth(), GetOpt<bool>(kOptWrap));
     SelectionFollowCursor();
 }
 

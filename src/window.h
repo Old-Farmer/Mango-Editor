@@ -7,9 +7,8 @@ namespace mango {
 
 class Window {
    public:
-    Window(Cursor* cursor, GlobalOpts* global_opts,
-           SyntaxParser* parser, ClipBoard* clipboard,
-           BufferManager* buffer_manager) noexcept;
+    Window(Cursor* cursor, GlobalOpts* global_opts, SyntaxParser* parser,
+           ClipBoard* clipboard, BufferManager* buffer_manager) noexcept;
     ~Window() = default;
     MGO_DELETE_COPY(Window);
     MGO_DEFAULT_MOVE(Window);
@@ -37,6 +36,7 @@ class Window {
         frame_.CursorGoWordEnd(one_more_character);
     }
     void CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
+    void CursorGoLine(size_t line) { frame_.CursorGoLine(line); }
 
     void SelectAll() { frame_.SelectAll(); }
 

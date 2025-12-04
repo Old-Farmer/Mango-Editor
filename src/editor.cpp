@@ -125,6 +125,11 @@ void Editor::Loop() {
             throw TermException("%s", "Poll event close or event error");
         }
 
+        // We use a while to eat all events.
+        // Usually, there will be only one event.
+        // Bracketed Paste and multi-codepoint grapheme will lead to mult events;
+        // Otherwise, multi events means we meet a slow machine, bad network or
+        // a bad routine executes too long. I think we should handle it.
         while (term_.Poll(0)) {
             show_cmp_menu_ = false;
             if (autocmp_trigger_timer_->IsTimingOn()) {
@@ -322,6 +327,10 @@ void Editor::InitKeymaps() {
         "<pgup>", {[this] {
             cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
         }});
+    MGO_KEYMAP("<c-g>", {[this] {
+                   GotoPeel();
+                   peel_->AddStringAtCursor("g ");
+               }});
     MGO_KEYMAP("<esc>", {[this] {
                    cursor_.in_window->frame_.selection_.active = false;
                }});
@@ -374,6 +383,13 @@ void Editor::InitCommands() {
                  cursor_.in_window->BuildSearchContext(
                      std::get<std::string>(args[0]));
                  SearchNext();
+             },
+             1});
+    MGO_CMD({"g",
+             "",
+             {Type::kInteger},
+             [this](CommandArgs args) {
+                 cursor_.in_window->CursorGoLine(std::get<int64_t>(args[0]));
              },
              1});
 }
@@ -465,7 +481,7 @@ void Editor::HandleKey() {
         }
         return;
     } else if (res == kKeyseqMatched) {
-        MGO_LOG_DEBUG("keymap matched");
+        // MGO_LOG_DEBUG("keymap matched");
         return;
     }
 

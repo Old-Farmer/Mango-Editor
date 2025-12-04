@@ -64,6 +64,9 @@ Use `<c-k>` as a general leader key.
 - `<c-f>`
     search. `<c-k><c-n>` or `<c-k><c-p>` to jump to search result when in search mode
 
+- `<c-g>`
+    goto line.
+
 ### Edit
 
 - `<bs>`
@@ -138,6 +141,9 @@ Use `<c-k>` as a general leader key.
 
 - "b `<path>`"
     goto and edit the buffer
+
+- "g `<line>`"
+    goto the line.
 
 ## Configuration
 

@@ -56,6 +56,7 @@ class Frame {
     void CursorGoEnd();
     void CursorGoWordEnd(bool one_more_character);
     void CursorGoWordBegin();
+    void CursorGoLine(size_t line);
 
     void SelectAll();
 
