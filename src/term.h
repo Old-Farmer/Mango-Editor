@@ -102,60 +102,34 @@ class Terminal {
     void SetClearAttr(const AttrPair& attr);
 
     // throws TermException
-    // or
-    // return
-    // kOk for ok
-    // kTermOutOfBounds for out of bounds
-    Result SetCell(int col, int row, const Codepoint* codepoint,
-                   size_t n_codepoint, const AttrPair& attr) {
+    void SetCell(int col, int row, const Codepoint* codepoint,
+                 size_t n_codepoint, const AttrPair& attr) {
         int ret = tb_set_cell_ex(
             col, row,
             const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(codepoint)),
             n_codepoint, attr.fg, attr.bg);
-        if (ret == TB_OK) {
-            return kOk;
-        } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
-            return kTermOutOfBounds;
-        } else {
+        if (ret != TB_OK) {
             MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
-        return kOk;
     }
 
     // throws TermException
-    // or
-    // return
-    // kOk for ok
-    // kTermOutOfBounds for start out of bounds
-    Result Print(int col, int row, const AttrPair& attr, const char* str) {
+    void Print(int col, int row, const AttrPair& attr, const char* str) {
         int ret = tb_print(col, row, attr.fg, attr.bg, str);
-        if (ret == TB_OK) {
-            return kOk;
-        } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
-            return kTermOutOfBounds;
-        } else {
+        if (ret != TB_OK) {
             MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
     }
 
     // throws TermException
-    // or
-    // return
-    // kOk for ok
-    // kTermOutOfBounds for out of bounds
-    Result SetCursor(int col, int row) {
+    void SetCursor(int col, int row) {
         int ret = tb_set_cursor(col, row);
-        if (ret == TB_OK) {
-            return kOk;
-        } else if (ret == TB_ERR_OUT_OF_BOUNDS) {
-            return kTermOutOfBounds;
-        } else {
+        if (ret != TB_OK) {
             MGO_LOG_ERROR("%s", tb_strerror(ret));
             throw TermException("%s", tb_strerror(ret));
         }
-        return kOk;
     }
 
     // throws TermException

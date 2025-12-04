@@ -80,16 +80,14 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
 
             int cur_screen_col = view_col - begin_view_col + screen_col;
             if (!is_tab) {
-                Result ret = term.SetCell(cur_screen_col, screen_row,
+                term.SetCell(cur_screen_col, screen_row,
                                           character.Codepoints(),
                                           character.CodePointCount(), attr);
-                MGO_ASSERT(ret == kOk);
             } else {
                 Codepoint space = kSpaceChar;
                 for (int i = 0; i < character_width; i++) {
-                    Result ret = term.SetCell(cur_screen_col, screen_row,
+                    term.SetCell(cur_screen_col, screen_row,
                                               &space, 1, attr);
-                    MGO_ASSERT(ret == kOk);
                     cur_screen_col++;
                 }
             }

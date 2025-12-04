@@ -81,10 +81,7 @@ void CmpMenu::Draw() {
         Codepoint space = kSpaceChar;
         // leading space
         if (width_ >= 1) {
-            Result res = term_->SetCell(col_, r + row_, &space, 1, attr);
-            if (res == kTermOutOfBounds) {
-                break;
-            }
+            term_->SetCell(col_, r + row_, &space, 1, attr);
             menu_col++;
         }
         // content
@@ -101,12 +98,9 @@ void CmpMenu::Draw() {
             // TODO: use entries_width
             // for show ... when space is not enough for long width entries
             if (menu_col + character_width <= width_) {
-                Result res = term_->SetCell(menu_col + col_, r + row_,
+                term_->SetCell(menu_col + col_, r + row_,
                                             character.Codepoints(),
                                             character.CodePointCount(), attr);
-                if (res == kTermOutOfBounds) {
-                    break;
-                }
             } else {
                 break;
             }
@@ -115,13 +109,7 @@ void CmpMenu::Draw() {
         }
         // make paddings because menu have different bg color
         while (menu_col < width_) {
-            Result res =
-                term_->SetCell(menu_col + col_, r + row_, &space, 1, attr);
-            if (res == kTermOutOfBounds) {
-                // User resize the screen now, just skip the
-                // left cols in this row
-                break;
-            }
+            term_->SetCell(menu_col + col_, r + row_, &space, 1, attr);
             menu_col++;
         }
     }

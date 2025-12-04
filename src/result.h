@@ -13,7 +13,6 @@ enum Result {
     kNotExist, // sth. not exist
     kInvalidCoding,
     kEof,
-    kTermOutOfBounds,
     kBufferNoBackupFile,
     kBufferCannotLoad,
     kBufferReadOnly,

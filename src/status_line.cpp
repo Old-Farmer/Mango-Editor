@@ -34,11 +34,7 @@ void StatusLine::Draw() {
 
     auto sep_width = global_opts_->GetOpt<int64_t>(kOptStatusLineSepWidth);
 
-    Result res =
-        term_->Print(sep_width, row_, scheme[t], cursor_in_info.c_str());
-    if (res == kTermOutOfBounds) {
-        ;
-    }
+    term_->Print(sep_width, row_, scheme[t], cursor_in_info.c_str());
 
     std::stringstream ss;
     int64_t line, character_in_line;
@@ -57,11 +53,8 @@ void StatusLine::Draw() {
        << (b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:")
        << b->opts().GetOpt<int64_t>(kOptTabStop) << sep << b->eol_seq();
     // all is ascii character, so str len == width
-    res = term_->Print(width_ - ss.str().length() - sep_width, row_, scheme[t],
+    term_->Print(width_ - ss.str().length() - sep_width, row_, scheme[t],
                        ss.str().c_str());
-    if (res == kTermOutOfBounds) {
-        ;
-    }
 }
 
 }  // namespace mango
