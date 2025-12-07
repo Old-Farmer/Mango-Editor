@@ -129,7 +129,7 @@ Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     cursor->SetPos(pos);
     Result res;
     if (type_ == SuggestType::kPath &&
-        suggestions_[index].back() != kPathSeperator) {
+        suggestions_[index].back() == kPathSeperator) {
         res = kRetriggerCmp;
     } else {
         res = kOk;
