@@ -133,7 +133,7 @@ class Buffer {
 
    public:
     // Make sure that Range or Pos is valid, otherwise behavir
-    // is undefined.
+    // is undefined(allow Range is empty).
     // Also, make sure that all edit op will not corrupt buffer coding
     // correctness, otherwise behavior is undefined.
     // One error,

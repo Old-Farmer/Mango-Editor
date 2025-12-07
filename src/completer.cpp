@@ -107,10 +107,7 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
 Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     Pos pos;
     peel_->frame_.b_view_->make_cursor_visible = true;
-    if (this_arg_offset_ == cursor->byte_offset) {
-        peel_->frame_.buffer_->Add({0, cursor->byte_offset},
-                                   suggestions_[index], nullptr, false, pos);
-    } else if (type_ == SuggestType::kBuffer) {
+    if (type_ == SuggestType::kBuffer) {
         peel_->frame_.buffer_->Replace(
             {{0, this_arg_offset_}, {0, cursor->byte_offset}},
             suggestions_[index], nullptr, false, pos);

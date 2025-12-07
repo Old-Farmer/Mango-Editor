@@ -289,7 +289,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
     MGO_ASSERT(lines_.size() > end.line);
     MGO_ASSERT(range.begin.line < end.line ||
                (range.begin.line == range.end.line &&
-                range.begin.byte_offset < range.end.byte_offset));
+                range.begin.byte_offset <= range.end.byte_offset));
     while (range.begin.line <= end.line) {
         if (range.begin.line < end.line) {
             if (end.byte_offset == lines_[end.line].line_str.size()) {
