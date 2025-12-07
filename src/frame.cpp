@@ -708,7 +708,7 @@ bool Frame::CursorGoUpStateWrap(size_t count, size_t content_width,
                                       0, content_width, tabstop, true);
         }
     }
-    if (i == 0) {
+    if (i == count) {
         return false;
     }
 
