@@ -56,8 +56,7 @@ static std::vector<std::string> SuggestBuffers(std::string_view hint,
     std::vector<std::string> ret;
     for (Buffer* buffer = buffer_manager->Begin();
          buffer != buffer_manager->End(); buffer = buffer->next_) {
-        if (hint.empty() ||
-            StrFuzzyMatchInBytes(hint, buffer->Name(), true)) {
+        if (hint.empty() || StrFuzzyMatchInBytes(hint, buffer->Name(), true)) {
             ret.emplace_back(buffer->Name());
         }
     }
@@ -107,7 +106,7 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
 }
 Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     Pos pos;
-    peel_->frame_.make_cursor_visible_ = true;
+    peel_->frame_.b_view_->make_cursor_visible = true;
     if (this_arg_offset_ == cursor->byte_offset) {
         peel_->frame_.buffer_->Add({0, cursor->byte_offset},
                                    suggestions_[index], nullptr, false, pos);
@@ -131,8 +130,15 @@ Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
         }
     }
     cursor->SetPos(pos);
+    Result res;
+    if (type_ == SuggestType::kPath &&
+        suggestions_[index].back() != kPathSeperator) {
+        res = kRetriggerCmp;
+    } else {
+        res = kOk;
+    }
     suggestions_.clear();
-    return type_ == SuggestType::kPath ? kRetriggerCmp : kOk;
+    return res;
 }
 
 void PeelCompleter::Cancel() { suggestions_.clear(); }
