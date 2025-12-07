@@ -38,7 +38,6 @@ void Window::CursorGoDown(size_t count) {
         if (SetJumpPointIfFarEnough(state)) {
             MoveJumpHistoryCursorForwardAndTruncate();
         }
-        MoveJumpHistoryCursorForwardAndTruncate();
         state.SetCursor(cursor_);
         frame_.SelectionFollowCursor();
     }
