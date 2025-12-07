@@ -2,26 +2,27 @@
     "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
+
+    "auto_cmp_timeout": 125,
+    "basic_word_completion": true,
     "cmp_menu_max_height": 15,
     "cmp_menu_max_width": 40,
-    "edit_history_max_item": 1000,
-
-    "basic_word_completion": true,
-    "truecolor": true,
     "colorscheme": "default",
-    "logverbose": false,
-    "vi": false,
     "cursor_blinking": true,
-    "cursor_blinking_show_interval": 600,
     "cursor_blinking_hide_interval": 600,
-    "auto_cmp_timeout": 125,
+    "cursor_blinking_show_interval": 600,
+    "logverbose": false,
+    "max_edit_history": 100,
+    "max_jump_history": 100,
+    "truecolor": true,
+    "vi": false,
 
     "line_number": 1,
 
-    "tab_stop": 4,
-    "tab_space": true,
     "auto_indent": true,
     "auto_pair": true,
+    "tab_space": true,
+    "tab_stop": 4,
     "wrap": false,
 
     "makefile": {

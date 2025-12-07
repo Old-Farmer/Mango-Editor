@@ -16,7 +16,7 @@ MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
 
     frame_.buffer_ = &buffer_;
     frame_.b_view_ = &b_view_;
-    b_view_.cursor_state.reset();
+    b_view_.cursor_state_valid = false;
 
     opts_.SetOpt(kOptLineNumber, static_cast<int64_t>(LineNumberType::kNone));
 }

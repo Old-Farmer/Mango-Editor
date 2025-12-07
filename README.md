@@ -14,7 +14,9 @@ Terminal editors are always difficult to use, hard to configure. Most of them we
 
 Linux only now.
 
-This project is far from mature and may not be safe for production.
+This project is far from mature, so: 
+    - May not be safe for production.
+    - Breaking changes affecting configurations, keymaps, and related components may be introduced frequently.
 
 ## Features
 

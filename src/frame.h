@@ -39,6 +39,8 @@ class Frame {
     // circumstance?
     void MakeSureViewValid();
 
+    void MakeSureBColViewWantReady(CursorState& state);
+
     void MakeCursorVisible();
 
     void SetCursorHint(size_t s_row, size_t s_col);
@@ -47,6 +49,16 @@ class Frame {
     // < 0 for up
     void ScrollRows(int64_t count);
     void ScrollCols(int64_t count);
+
+    bool CursorGoRightState(CursorState& state);
+    bool CursorGoLeftState(CursorState& state);
+    bool CursorGoUpState(size_t count, CursorState& state);
+    bool CursorGoDownState(size_t count, CursorState& state);
+    bool CursorGoHomeState(CursorState& state);
+    bool CursorGoEndState(CursorState& state);
+    bool CursorGoWordEndState(bool one_more_character, CursorState& state);
+    bool CursorGoWordBeginState(CursorState& state);
+    bool CursorGoLineState(size_t line, CursorState& state);
 
     void CursorGoRight();
     void CursorGoLeft();
@@ -82,15 +94,18 @@ class Frame {
                                         const Pos* cursor_pos = nullptr);
     Result ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
 
+    void SelectionFollowCursor();
+
    private:
     size_t SidebarWidth();
     void DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width);
     Range CalcWrapRange(size_t content_width);
 
-    // return real b_view_col
-    size_t SetCursorByBViewCol(size_t b_view_col_from_byte_offset,
-                               size_t byte_offset, size_t content_width,
-                               bool wrap);
+    // return byte_offset
+    size_t CalcByteOffsetByBViewCol(std::string_view line,
+                                    size_t b_view_col_from_byte_offset,
+                                    size_t byte_offset, size_t content_width,
+                                    bool wrap);
 
     void SetCursorHintNoWrap(size_t s_row, size_t s_col, size_t sidebar_width);
     void SetCursorHintWrap(size_t s_row, size_t s_col, size_t sidebar_width);
@@ -102,10 +117,10 @@ class Frame {
     void MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
         size_t content_width);
 
-    void CursorGoUpWrap(size_t count, size_t content_width);
-    void CursorGoUpNoWrap(size_t count, size_t content_width);
-    void CursorGoDownWrap(size_t count, size_t content_width);
-    void CursorGoDownNoWrap(size_t count, size_t content_width);
+    bool CursorGoUpStateWrap(size_t count, size_t content_width, CursorState& state);
+    bool CursorGoUpStateNoWrap(size_t count, size_t content_width, CursorState& state);
+    bool CursorGoDownStateWrap(size_t count, size_t content_width, CursorState& state);
+    bool CursorGoDownStateNoWrap(size_t count, size_t content_width, CursorState& state);
 
     void ScrollRowsWrap(int64_t count, size_t content_width);
     void ScrollRowsNoWrap(int64_t count, size_t content_width);
@@ -113,7 +128,6 @@ class Frame {
     bool SizeValid(size_t sidebar_width);
 
     void UpdateSyntax();
-    void SelectionFollowCursor();
     void SelectionCancell() { selection_.active = false; }
     void AfterModify(const Pos& cursor_pos);
 
@@ -141,23 +155,10 @@ class Frame {
     Buffer* buffer_ = nullptr;  // associated buffer
     Cursor* cursor_ = nullptr;
 
-    // // Wrap or no wrap: which line of buffer on the first screen row
-    // size_t b_view_line_ = 0;
-    // // No wrap: which col of buffer view on the first screen col
-    // size_t b_view_col_ = 0;
-    // // Wrap: When in wrap, a buffer line may be rendered in multi rows,
-    // dividing
-    // // a line into multi sublines. This member represents which sub line of
-    // // buffer on the first screen row.
-    // size_t b_view_subline_ = 0;
-
     BufferView* b_view_;
 
     Selection selection_;
     ClipBoard* clipboard_;
-
-    bool make_cursor_visible_ =
-        true;  // TODO: don't call xxx = true in every call.
 
    private:
     SyntaxParser* parser_;

@@ -18,6 +18,44 @@ Window::Window(Cursor* cursor, GlobalOpts* global_opts, SyntaxParser* parser,
       buffer_manager_(buffer_manager),
       frame_(cursor, &opts_, parser, clipboard) {}
 
+void Window::CursorGoUp(size_t count) {
+    MGO_ASSERT(count != 0);
+    frame_.b_view_->make_cursor_visible = true;
+    CursorState state(cursor_);
+    if (frame_.CursorGoUpState(count, state)) {
+        if (SetJumpPointIfFarEnough(state)) {
+            MoveJumpHistoryCursorForwardAndTruncate();
+        }
+        state.SetCursor(cursor_);
+        frame_.SelectionFollowCursor();
+    }
+}
+
+void Window::CursorGoDown(size_t count) {
+    frame_.b_view_->make_cursor_visible = true;
+    CursorState state(cursor_);
+    if (frame_.CursorGoDownState(count, state)) {
+        if (SetJumpPointIfFarEnough(state)) {
+            MoveJumpHistoryCursorForwardAndTruncate();
+        }
+        MoveJumpHistoryCursorForwardAndTruncate();
+        state.SetCursor(cursor_);
+        frame_.SelectionFollowCursor();
+    }
+}
+
+void Window::CursorGoLine(size_t line) {
+    frame_.b_view_->make_cursor_visible = true;
+    CursorState state(cursor_);
+    if (frame_.CursorGoLineState(line, state)) {
+        if (SetJumpPointIfFarEnough(state)) {
+            MoveJumpHistoryCursorForwardAndTruncate();
+        }
+        state.SetCursor(cursor_);
+        frame_.SelectionFollowCursor();
+    }
+}
+
 Result Window::DeleteAtCursor() {
     if (frame_.selection_.active) {
         return frame_.DeleteSelection();
@@ -261,10 +299,8 @@ void Window::PrevBuffer() {
 }
 
 void Window::AttachBuffer(Buffer* buffer) {
-    if (frame_.buffer_) {
-        DetachBuffer();
-    }
-    frame_.buffer_ = buffer;
+    DetachBuffer();
+    MoveJumpHistoryCursorForwardAndTruncate();
     auto b_view_iter = buffer_views_.find(buffer->id());
     if (b_view_iter == buffer_views_.end()) {
         bool ok;
@@ -272,16 +308,17 @@ void Window::AttachBuffer(Buffer* buffer) {
             buffer_views_.emplace(buffer->id(), BufferView());
         MGO_ASSERT(ok);
     }
-    b_view_iter->second.RestoreCursorState(cursor_, frame_.buffer_);
+    b_view_iter->second.RestoreCursorState(cursor_, buffer);
     frame_.b_view_ = &b_view_iter->second;
+    frame_.buffer_ = buffer;
 }
 
 void Window::DetachBuffer() {
     if (frame_.buffer_) {
         frame_.b_view_->SaveCursorState(cursor_);
+        SetJumpPoint();
         frame_.b_view_ = nullptr;
         frame_.buffer_ = nullptr;
-        DestorySearchContext();
         frame_.selection_.active = false;
     }
 }
@@ -309,6 +346,7 @@ void Window::DestorySearchContext() {
     search_pattern_.clear();
     search_result_.clear();
     search_buffer_version_ = -1;
+    search_buffer_id_ = -1;
 }
 
 Window::SearchState Window::CursorGoNextSearchResult() {
@@ -316,10 +354,12 @@ Window::SearchState Window::CursorGoNextSearchResult() {
         return {};
     }
 
-    if (frame_.buffer_->version() != search_buffer_version_) {
-        // The buffer has changed, we do search again;
+    if (frame_.buffer_->id() != search_buffer_id_ ||
+        frame_.buffer_->version() != search_buffer_version_) {
+        // Another buffer or the buffer has changed, we do search again.
         search_result_ = frame_.buffer_->Search(search_pattern_);
         search_buffer_version_ = frame_.buffer_->version();
+        search_buffer_id_ = frame_.buffer_->id();
     }
 
     if (search_result_.size() == 0) {
@@ -366,10 +406,12 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
         return {};
     }
 
-    if (frame_.buffer_->version() != search_buffer_version_) {
-        // The buffer has changed, we do search again;
+    if (frame_.buffer_->id() != search_buffer_id_ ||
+        frame_.buffer_->version() != search_buffer_version_) {
+        // Another buffer or the buffer has changed, we do search again.
         search_result_ = frame_.buffer_->Search(search_pattern_);
         search_buffer_version_ = frame_.buffer_->version();
+        search_buffer_id_ = frame_.buffer_->id();
     }
 
     if (search_result_.size() == 0) {
@@ -410,6 +452,83 @@ Window::SearchState Window::CursorGoPrevSearchResult() {
     cursor_->byte_offset = search_result_[left - 1].begin.byte_offset;
     cursor_->DontHoldColWant();
     return {static_cast<size_t>(left), search_result_.size()};
+}
+
+void Window::SetJumpPoint() {
+    BufferView b_view = *frame_.b_view_;
+    b_view.SaveCursorState(cursor_);
+    if (jump_history_cursor_ == jump_history_->end()) {
+        jump_history_->emplace_back(b_view, frame_.buffer_->id());
+        jump_history_cursor_--;
+        return;
+    }
+    jump_history_cursor_->b_view = b_view;
+    jump_history_cursor_->buffer = frame_.buffer_->id();
+}
+
+bool Window::SetJumpPointIfFarEnough(CursorState& state) {
+    if ((cursor_->line > state.line
+             ? cursor_->line - state.line
+             : state.line - cursor_->line) >= frame_.height_ / 2) {
+        SetJumpPoint();
+        return true;
+    }
+    return false;
+}
+
+void Window::MoveJumpHistoryCursorForwardAndTruncate() {
+    if (jump_history_cursor_ != jump_history_->end()) {
+        jump_history_cursor_ =
+            jump_history_->erase(++jump_history_cursor_, jump_history_->end());
+    }
+    while (jump_history_->size() >
+           static_cast<size_t>(GetOpt<int64_t>(kOptMaxJumpHistory))) {
+        jump_history_->pop_front();
+    }
+}
+
+void Window::JumpForward() {
+    JumpHistory::iterator iter = jump_history_cursor_;
+    if (iter == jump_history_->end() || ++iter == jump_history_->end()) {
+        return;
+    }
+    while (iter != jump_history_->end()) {
+        Buffer* b = buffer_manager_->FindBuffer(iter->buffer);
+        if (b == nullptr) {
+            iter = jump_history_->erase(iter);
+            continue;
+        }
+        DetachBuffer();
+        buffer_views_[b->id()] = iter->b_view;
+        frame_.b_view_ = &buffer_views_[b->id()];
+        frame_.buffer_ = b;
+        frame_.b_view_->RestoreCursorState(cursor_, b);
+        jump_history_cursor_ = iter;
+        return;
+    }
+}
+
+void Window::JumpBackward() {
+    JumpHistory::iterator iter = jump_history_cursor_;
+    if (iter == jump_history_->begin()) {
+        return;
+    }
+    while (iter != jump_history_->begin()) {
+        iter--;
+        MGO_ASSERT(iter != jump_history_->end());
+        Buffer* b = buffer_manager_->FindBuffer(iter->buffer);
+        if (b == nullptr) {
+            iter = jump_history_->erase(iter);
+            continue;
+        }
+        DetachBuffer();
+        buffer_views_[b->id()] = iter->b_view;
+        frame_.b_view_ = &buffer_views_[b->id()];
+        frame_.buffer_ = b;
+        frame_.b_view_->RestoreCursorState(cursor_, frame_.buffer_);
+        jump_history_cursor_ = iter;
+        return;
+    }
 }
 
 int64_t Window::AllocId() noexcept { return cur_window_id_++; }

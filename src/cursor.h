@@ -41,6 +41,8 @@ struct Cursor {
     // NOTE: wrap, no wrap have different meanings.
     std::optional<size_t> b_view_col_want;
 
+    bool must_visible = true;
+
     Window* in_window;  // nullptr means in MangoPeel
     Window* restore_from_peel = nullptr;
 
@@ -62,6 +64,25 @@ struct Cursor {
         s_col = screen_col;
         s_row = screen_row;
     }
+};
+
+// A core state of cursor
+struct CursorState {
+    size_t line = 0;
+    size_t byte_offset = 0;
+    std::optional<size_t> b_view_col_want;
+
+    CursorState(Cursor* cursor)
+        : line(cursor->line),
+          byte_offset(cursor->byte_offset),
+          b_view_col_want(cursor->b_view_col_want) {}
+
+    void SetCursor(Cursor* cursor) {
+        cursor->line = line;
+        cursor->byte_offset = byte_offset;
+        cursor->b_view_col_want = b_view_col_want;
+    }
+    void DontHoldColWant() { b_view_col_want.reset(); }
 };
 
 }  // namespace mango

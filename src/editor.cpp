@@ -127,9 +127,10 @@ void Editor::Loop() {
 
         // We use a while to eat all events.
         // Usually, there will be only one event.
-        // Bracketed Paste and multi-codepoint grapheme will lead to mult events;
-        // Otherwise, multi events means we meet a slow machine, bad network or
-        // a bad routine executes too long. I think we should handle it.
+        // Bracketed Paste and multi-codepoint grapheme will lead to mult
+        // events; Otherwise, multi events means we meet a slow machine, bad
+        // network or a bad routine executes too long. I think we should handle
+        // it.
         while (term_.Poll(0)) {
             show_cmp_menu_ = false;
             if (autocmp_trigger_timer_->IsTimingOn()) {
@@ -334,6 +335,8 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<esc>", {[this] {
                    cursor_.in_window->frame_.selection_.active = false;
                }});
+    MGO_KEYMAP("<a-left>", {[this] { cursor_.in_window->JumpBackward(); }});
+    MGO_KEYMAP("<a-right>", {[this] { cursor_.in_window->JumpForward(); }});
 }
 
 void Editor::InitKeymapsVi() {}

@@ -39,9 +39,9 @@ void StatusLine::Draw() {
     std::stringstream ss;
     int64_t line, character_in_line;
     if (IsPeel(*mode_)) {
-        line = cursor_->restore_from_peel->frame_.b_view_->cursor_state->line;
+        line = cursor_->restore_from_peel->frame_.b_view_->cursor_state.line;
         character_in_line = cursor_->restore_from_peel->frame_.b_view_
-                                ->cursor_state->character_in_line_;
+                                ->cursor_state.character_in_line_;
     } else {
         line = cursor_->line;
         character_in_line = cursor_->character_in_line;

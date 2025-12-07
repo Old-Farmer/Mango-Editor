@@ -27,7 +27,8 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"status_line_sep_width", kOptStatusLineSepWidth},
     {"cmp_menu_max_height", kOptCmpMenuMaxHeight},
     {"cmp_menu_max_width", kOptCmpMenuMaxWidth},
-    {"edit_history_max_item", kOptEditHistoryMaxItem},
+    {"max_edit_history", kOptMaxEditHistory},
+    {"max_jump_history", kOptMaxJumpHistory},
     {"basic_word_completion", kOptBasicWordCompletion},
     {"truecolor", kOptTrueColor},
     {"logverbose", kOptLogVerbose},
@@ -50,7 +51,9 @@ static void OptStaticInit(const OptInfo*& opt_info) {
                                                 Type::kInteger};
         static_opt_info[kOptCmpMenuMaxHeight] = {OptScope::kGlobal,
                                                  Type::kInteger};
-        static_opt_info[kOptEditHistoryMaxItem] = {OptScope::kGlobal,
+        static_opt_info[kOptMaxEditHistory] = {OptScope::kGlobal,
+                                                   Type::kInteger};
+        static_opt_info[kOptMaxJumpHistory] = {OptScope::kGlobal,
                                                    Type::kInteger};
 
         static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,

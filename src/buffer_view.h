@@ -8,7 +8,7 @@ namespace mango {
 class Buffer;
 struct Cursor;
 
-struct CursorState {
+struct CursorStateForStore {
     size_t line = 0;
     size_t byte_offset = 0;
     std::optional<size_t> b_view_col_want_;
@@ -30,7 +30,11 @@ struct BufferView {
     // buffer on the first screen row.
     size_t subline = 0;
 
-    std::optional<CursorState> cursor_state{std::in_place};
+    // TODO: don't call xxx = true in every call.
+    bool make_cursor_visible = true;
+
+    CursorStateForStore cursor_state;
+    bool cursor_state_valid = true;
 
     void SaveCursorState(Cursor* cursor);
     void RestoreCursorState(Cursor* cursor, Buffer* buffer);

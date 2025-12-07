@@ -390,7 +390,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     }
 
     // No item in history, return fast
-    MGO_ASSERT(GetOpt<int64_t>(kOptEditHistoryMaxItem) > 0);
+    MGO_ASSERT(GetOpt<int64_t>(kOptMaxEditHistory) > 0);
     if (edit_history_->size() == 0) {
         edit_history_->push_back(std::move(item));
         return;
@@ -421,7 +421,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     // THINK IT: adjacent replaces need to be merged?
 
     if (edit_history_->size() ==
-        static_cast<size_t>(GetOpt<int64_t>(kOptEditHistoryMaxItem))) {
+        static_cast<size_t>(GetOpt<int64_t>(kOptMaxEditHistory))) {
         edit_history_->pop_front();
         never_wrap_history_ = false;
     }

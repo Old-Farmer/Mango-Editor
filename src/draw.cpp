@@ -80,14 +80,12 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
 
             int cur_screen_col = view_col - begin_view_col + screen_col;
             if (!is_tab) {
-                term.SetCell(cur_screen_col, screen_row,
-                                          character.Codepoints(),
-                                          character.CodePointCount(), attr);
+                term.SetCell(cur_screen_col, screen_row, character.Codepoints(),
+                             character.CodePointCount(), attr);
             } else {
                 Codepoint space = kSpaceChar;
                 for (int i = 0; i < character_width; i++) {
-                    term.SetCell(cur_screen_col, screen_row,
-                                              &space, 1, attr);
+                    term.SetCell(cur_screen_col, screen_row, &space, 1, attr);
                     cur_screen_col++;
                 }
             }
@@ -152,8 +150,9 @@ size_t ArrangeLine(std::string_view line, size_t begin_byte_offset,
         }
         // character at target byte offset can be rendered.
         if (target_byte_offset && *target_byte_offset == byte_offset) {
-            MGO_ASSERT(stop_at_target);
-            *stop_at_target = true;
+            if (stop_at_target) {
+                *stop_at_target = true;
+            }
             break;
         }
         if (character_cnt) {
@@ -165,7 +164,9 @@ size_t ArrangeLine(std::string_view line, size_t begin_byte_offset,
 
     if (target_byte_offset && *target_byte_offset == byte_offset &&
         byte_offset == line.size()) {
-        *stop_at_target = true;
+        if (stop_at_target) {
+            *stop_at_target = true;
+        }
     }
     if (end_view_col) {
         *end_view_col = view_col;

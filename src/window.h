@@ -28,15 +28,15 @@ class Window {
 
     void CursorGoRight() { frame_.CursorGoRight(); }
     void CursorGoLeft() { frame_.CursorGoLeft(); }
-    void CursorGoUp(size_t count) { frame_.CursorGoUp(count); }
-    void CursorGoDown(size_t count) { frame_.CursorGoDown(count); }
+    void CursorGoUp(size_t count);
+    void CursorGoDown(size_t count);
     void CursorGoHome() { frame_.CursorGoHome(); }
     void CursorGoEnd() { frame_.CursorGoEnd(); }
     void CursorGoWordEnd(bool one_more_character) {
         frame_.CursorGoWordEnd(one_more_character);
     }
     void CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
-    void CursorGoLine(size_t line) { frame_.CursorGoLine(line); }
+    void CursorGoLine(size_t line);
 
     void SelectAll() { frame_.SelectAll(); }
 
@@ -69,12 +69,18 @@ class Window {
         size_t i = 0;  // from 1 instead of zero
         size_t total = 0;
     };
-    //
     void BuildSearchContext(std::string pattern);
     void DestorySearchContext();
     const std::string& GetSearchPattern() { return search_pattern_; }
     SearchState CursorGoNextSearchResult();
     SearchState CursorGoPrevSearchResult();
+
+    void SetJumpPoint();
+    bool SetJumpPointIfFarEnough(CursorState& state);
+    void JumpForward();
+    void JumpBackward();
+    // TODO: Better name.
+    void MoveJumpHistoryCursorForwardAndTruncate();
 
     const Opts& opts() { return opts_; }
 
@@ -103,9 +109,26 @@ class Window {
     BufferManager* buffer_manager_;
     std::unordered_map<int64_t, BufferView> buffer_views_;
 
+    struct JumpPoint {
+        BufferView b_view;
+        int64_t buffer;
+
+        JumpPoint(BufferView _b_view, int64_t _buffer)
+            : b_view(_b_view), buffer(_buffer) {}
+    };
+    using JumpHistory = std::list<JumpPoint>;
+    std::unique_ptr<JumpHistory> jump_history_ =
+        std::make_unique<JumpHistory>();
+    // History cursor maybe at end, means we just create a jump point and jump here.
+    // when we want to jump to other places, current buffer view and cursor must
+    // be saved at where the history cursor points to.
+    JumpHistory::iterator jump_history_cursor_ = jump_history_->end();
+
+    // Search context
     std::vector<Range> search_result_;
     std::string search_pattern_;
     int64_t search_buffer_version_ = -1;
+    int64_t search_buffer_id_ = -1;
 
     int64_t id_ = AllocId();
     static int64_t cur_window_id_;
