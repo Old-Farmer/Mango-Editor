@@ -75,9 +75,10 @@ class Frame {
     Result DeleteAtCursor();
     Result DeleteWordBeforeCursor();
     // if cursor_pos != nullptr then cursor will set to cursor_pos
-    Result AddStringAtCursor(std::string str, const Pos* cursor_pos = nullptr);
+    Result AddStringAtCursor(std::string_view str,
+                             const Pos* cursor_pos = nullptr);
     // kOk for truely done
-    Result Replace(const Range& range, std::string str,
+    Result Replace(const Range& range, std::string_view str,
                    const Pos* cursor_pos = nullptr);
     Result TabAtCursor();
     Result Redo();
@@ -90,9 +91,9 @@ class Frame {
     Result DeleteCharacterBeforeCursor();
     Result DeleteSelection();
 
-    Result AddStringAtCursorNoSelection(std::string str,
+    Result AddStringAtCursorNoSelection(std::string_view str,
                                         const Pos* cursor_pos = nullptr);
-    Result ReplaceSelection(std::string str, const Pos* cursor_pos = nullptr);
+    Result ReplaceSelection(std::string_view str, const Pos* cursor_pos = nullptr);
 
     void SelectionFollowCursor();
 
@@ -117,10 +118,14 @@ class Frame {
     void MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
         size_t content_width);
 
-    bool CursorGoUpStateWrap(size_t count, size_t content_width, CursorState& state);
-    bool CursorGoUpStateNoWrap(size_t count, size_t content_width, CursorState& state);
-    bool CursorGoDownStateWrap(size_t count, size_t content_width, CursorState& state);
-    bool CursorGoDownStateNoWrap(size_t count, size_t content_width, CursorState& state);
+    bool CursorGoUpStateWrap(size_t count, size_t content_width,
+                             CursorState& state);
+    bool CursorGoUpStateNoWrap(size_t count, size_t content_width,
+                               CursorState& state);
+    bool CursorGoDownStateWrap(size_t count, size_t content_width,
+                               CursorState& state);
+    bool CursorGoDownStateNoWrap(size_t count, size_t content_width,
+                                 CursorState& state);
 
     void ScrollRowsWrap(int64_t count, size_t content_width);
     void ScrollRowsNoWrap(int64_t count, size_t content_width);

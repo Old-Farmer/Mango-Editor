@@ -43,9 +43,9 @@ class Window {
     Result DeleteAtCursor();
     Result DeleteWordBeforeCursor() { return frame_.DeleteWordBeforeCursor(); }
     // raw means do not treat it as keystroke
-    Result AddStringAtCursor(std::string str, bool raw = false);
+    Result AddStringAtCursor(std::string_view str, bool raw = false);
     // See Frame::Replace
-    Result Replace(const Range& range, std::string str);
+    Result Replace(const Range& range, std::string_view str);
     Result TabAtCursor() { return frame_.TabAtCursor(); }
     Result Redo() { return frame_.Redo(); }
     Result Undo() { return frame_.Undo(); }
@@ -89,7 +89,7 @@ class Window {
     Window() {}  // only for list head
 
     Result TryAutoIndent();
-    Result TryAutoPair(std::string str);
+    Result TryAutoPair(std::string_view str);
 
     template <typename T>
     T GetOpt(OptKey key) {
@@ -113,15 +113,15 @@ class Window {
         BufferView b_view;
         int64_t buffer;
 
-        JumpPoint(BufferView _b_view, int64_t _buffer)
+        JumpPoint(const BufferView& _b_view, int64_t _buffer)
             : b_view(_b_view), buffer(_buffer) {}
     };
     using JumpHistory = std::list<JumpPoint>;
     std::unique_ptr<JumpHistory> jump_history_ =
         std::make_unique<JumpHistory>();
-    // History cursor maybe at end, means we just create a jump point and jump here.
-    // when we want to jump to other places, current buffer view and cursor must
-    // be saved at where the history cursor points to.
+    // History cursor maybe at end, means we just create a jump point and jump
+    // here. when we want to jump to other places, current buffer view and
+    // cursor must be saved at where the history cursor points to.
     JumpHistory::iterator jump_history_cursor_ = jump_history_->end();
 
     // Search context

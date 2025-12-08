@@ -1019,16 +1019,16 @@ Result Frame::DeleteWordBeforeCursor() {
     return kOk;
 }
 
-Result Frame::AddStringAtCursor(std::string str, const Pos* cursor_pos) {
+Result Frame::AddStringAtCursor(std::string_view str, const Pos* cursor_pos) {
     b_view_->make_cursor_visible = true;
     if (selection_.active) {
-        return ReplaceSelection(std::move(str), cursor_pos);
+        return ReplaceSelection(str, cursor_pos);
     } else {
-        return AddStringAtCursorNoSelection(std::move(str), cursor_pos);
+        return AddStringAtCursorNoSelection(str, cursor_pos);
     }
 }
 
-Result Frame::Replace(const Range& range, std::string str,
+Result Frame::Replace(const Range& range, std::string_view str,
                       const Pos* cursor_pos) {
     b_view_->make_cursor_visible = true;
     Pos pos;
@@ -1036,7 +1036,7 @@ Result Frame::Replace(const Range& range, std::string str,
         pos = *cursor_pos;
     }
     Pos cur_cursor_pos = {cursor_->line, cursor_->byte_offset};
-    Result res = buffer_->Replace(range, std::move(str), &cur_cursor_pos,
+    Result res = buffer_->Replace(range, str, &cur_cursor_pos,
                                   cursor_pos != nullptr, pos);
     if (res != kOk) {
         return res;
@@ -1216,7 +1216,7 @@ Result Frame::DeleteSelection() {
     return kOk;
 }
 
-Result Frame::AddStringAtCursorNoSelection(std::string str,
+Result Frame::AddStringAtCursorNoSelection(std::string_view str,
                                            const Pos* cursor_pos) {
     MGO_ASSERT(!selection_.active);
 
@@ -1224,18 +1224,18 @@ Result Frame::AddStringAtCursorNoSelection(std::string str,
     if (cursor_pos != nullptr) {
         pos = *cursor_pos;
     }
-    if (Result res; (res = buffer_->Add({cursor_->line, cursor_->byte_offset},
-                                        std::move(str), nullptr,
-                                        cursor_pos != nullptr, pos)) != kOk) {
+    if (Result res;
+        (res = buffer_->Add({cursor_->line, cursor_->byte_offset}, str, nullptr,
+                            cursor_pos != nullptr, pos)) != kOk) {
         return res;
     }
     AfterModify(pos);
     return kOk;
 }
 
-Result Frame::ReplaceSelection(std::string str, const Pos* cursor_pos) {
-    if (Result res; (res = Replace(selection_.ToRange(), std::move(str),
-                                   cursor_pos)) != kOk) {
+Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
+    if (Result res;
+        (res = Replace(selection_.ToRange(), str, cursor_pos)) != kOk) {
         return res;
     }
     SelectionCancell();

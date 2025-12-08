@@ -203,7 +203,7 @@ void Buffer::Edit(const BufferEdit& edit, Pos& cursor_pos_hint) {
     }
 }
 
-void Buffer::AddInner(const Pos& pos, const std::string& str,
+void Buffer::AddInner(Pos pos, std::string_view str,
                       Pos& cursor_pos_hint, bool record_ts_edit) {
     auto _ = gsl::finally([this, record_ts_edit, &pos, &cursor_pos_hint, &str] {
         Modified();
@@ -366,7 +366,7 @@ std::string Buffer::DeleteInner(const Range& range, Pos& cursor_pos_hint,
     return old_str;
 }
 
-std::string Buffer::ReplaceInner(const Range& range, const std::string& str,
+std::string Buffer::ReplaceInner(const Range& range, std::string_view str,
                                  Pos& cursor_pos_hint, bool record_reverse) {
     Pos out_pos;
     std::string old_str = DeleteInner(range, out_pos, record_reverse, true);
@@ -428,7 +428,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
     edit_history_->push_back(std::move(item));
 }
 
-Result Buffer::Add(const Pos& pos, std::string str, const Pos* cursor_pos,
+Result Buffer::Add(Pos pos, std::string_view str, const Pos* cursor_pos,
                    bool use_given_pos_hint, Pos& cursor_pos_hint) {
     if (!IsLoad()) {
         return kBufferCannotLoad;
@@ -472,7 +472,7 @@ Result Buffer::Delete(const Range& range, const Pos* cursor_pos,
     return kOk;
 }
 
-Result Buffer::Replace(const Range& range, std::string str,
+Result Buffer::Replace(const Range& range, std::string_view str,
                        const Pos* cursor_pos, bool use_given_pos_hint,
                        Pos& cursor_pos_hint) {
     if (!IsLoad()) {

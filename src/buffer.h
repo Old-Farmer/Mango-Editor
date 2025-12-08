@@ -110,11 +110,11 @@ class Buffer {
     // if record is true, some info will be kept so reverse op can be done.
     // if record_ts_edit is true, ts edit will be kept for treesittier
     void Edit(const BufferEdit& edit, Pos& curosr_pos_hint);
-    void AddInner(const Pos& pos, const std::string& str, Pos& cursor_pos_hint,
+    void AddInner(Pos pos, std::string_view str, Pos& cursor_pos_hint,
                   bool record_ts_edit);
     std::string DeleteInner(const Range& range, Pos& cursor_pos_hint,
                             bool record_reverse, bool record_ts_edit);
-    std::string ReplaceInner(const Range& range, const std::string& str,
+    std::string ReplaceInner(const Range& range, std::string_view str,
                              Pos& cursor_pos_hint, bool record_reverse);
 
     void Record(BufferEditHistoryItem item);
@@ -140,12 +140,19 @@ class Buffer {
     // return kBufferCannotLoad, kBufferReadOnly; On ok, return kOk, and
     // cursor_pos_hint will be set to the suggest cursor pos if
     // use_given_pos_hint is false or no such parameter
-    Result Add(const Pos& pos, std::string str, const Pos* cursor_pos,
+    // NOTE:
+    // We use string_view here because:
+    // 1. we always want to copy the string and don't care about whether it is a
+    // rvalue.
+    // 2. Usually we want to insert a char[] to a buffer, use string_view can
+    // eliminate a string ctor.
+    Result Add(Pos pos, std::string_view str, const Pos* cursor_pos,
                bool use_given_pos_hint, Pos& cursor_pos_hint);
     Result Delete(const Range& range, const Pos* cursor_pos,
                   Pos& cursor_pos_hint);
-    Result Replace(const Range& range, std::string str, const Pos* cursor_pos,
-                   bool use_given_pos_hint, Pos& cursor_pos_hint);
+    Result Replace(const Range& range, std::string_view str,
+                   const Pos* cursor_pos, bool use_given_pos_hint,
+                   Pos& cursor_pos_hint);
 
     // return kNoHistoryAvailable if no action can be done
     // else return kOk

@@ -123,14 +123,14 @@ Result Window::DeleteAtCursor() {
     return kOk;
 }
 
-Result Window::AddStringAtCursor(std::string str, bool raw) {
+Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     if (raw) {
-        return frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(str);
     }
 
     // TODO: better support autopair autoindent when selection
     if (frame_.selection_.active) {
-        return frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(str);
     }
 
     char c = -1;
@@ -139,27 +139,27 @@ Result Window::AddStringAtCursor(std::string str, bool raw) {
     }
 
     if (c == -1) {
-        return frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(str);
     }
 
     if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
         TryAutoIndent();
     } else if (GetOpt<bool>(kOptAutoPair)) {
         if (IsPair(c)) {
-            TryAutoPair(std::move(str));
+            TryAutoPair(str);
         } else {
-            return frame_.AddStringAtCursor(std::move(str));
+            return frame_.AddStringAtCursor(str);
         }
     }
     // Will not reach here.
     return kOk;
 }
 
-Result Window::Replace(const Range& range, std::string str) {
-    return frame_.Replace(range, std::move(str));
+Result Window::Replace(const Range& range, std::string_view str) {
+    return frame_.Replace(range, str);
 }
 
-Result Window::TryAutoPair(std::string str) {
+Result Window::TryAutoPair(std::string_view str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
     bool end_of_line =
@@ -196,16 +196,16 @@ Result Window::TryAutoPair(std::string str) {
     // try auto pair
     auto [is_open, c_close] = IsPairOpen(str[0]);
     if (!is_open) {
-        return frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(str);
     }
 
     if (end_of_line || !IsPair(str[0], cur_c)) {
         Pos pos = {cursor_->line, cursor_->byte_offset + 1};
-        str += c_close;
-        return frame_.AddStringAtCursor(std::move(str), &pos);
+        std::string pairs = std::string(str) + c_close;
+        return frame_.AddStringAtCursor(pairs, &pos);
     }
 
-    return frame_.AddStringAtCursor(std::move(str));
+    return frame_.AddStringAtCursor(str);
 }
 
 Result Window::TryAutoIndent() {
@@ -275,9 +275,9 @@ Result Window::TryAutoIndent() {
         }
     }
     if (maunally_set_cursor_pos) {
-        return frame_.AddStringAtCursor(std::move(str), &cursor_pos);
+        return frame_.AddStringAtCursor(str, &cursor_pos);
     } else {
-        return frame_.AddStringAtCursor(std::move(str));
+        return frame_.AddStringAtCursor(str);
     }
 }
 
