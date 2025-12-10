@@ -6,8 +6,8 @@ namespace mango {
 
 EventLoop::EventLoop(GlobalOpts* global_opts) : global_opts_(global_opts) {}
 
-void EventLoop::AddEventHandler(EventInfo info) {
-    event_infos_.emplace(info.fd, std::move(info));
+void EventLoop::AddEventHandler(const EventInfo& info) {
+    event_infos_.emplace(info.fd, info);
     changed_ = true;
 }
 
@@ -16,11 +16,11 @@ void EventLoop::RemoveEventHandler(EventFD fd) {
     changed_ = true;
 }
 
-void EventLoop::BeforePoll(std::function<void()> f) {
-    before_poll_ = std::move(f);
+void EventLoop::BeforePoll(const std::function<void()>& f) {
+    before_poll_ = f;
 }
-void EventLoop::AfterAllEvents(std::function<void()> f) {
-    after_all_events_ = std::move(f);
+void EventLoop::AfterAllEvents(const std::function<void()>& f) {
+    after_all_events_ = f;
 }
 
 void EventLoop::Loop() {

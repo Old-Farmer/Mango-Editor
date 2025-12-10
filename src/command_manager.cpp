@@ -7,9 +7,9 @@ namespace mango {
 constexpr std::string_view kBoolTrue = "true";
 constexpr std::string_view kBoolFalse = "false";
 
-void CommandManager::AddCommand(Command command) {
+void CommandManager::AddCommand(const Command& command) {
     std::string name = command.name;
-    commands_[name] = std::move(command);
+    commands_[name] = command;
 }
 void CommandManager::RemoveCommand(const std::string& name) {
     commands_.erase(name);

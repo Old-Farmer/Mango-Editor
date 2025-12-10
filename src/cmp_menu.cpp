@@ -9,7 +9,7 @@ namespace mango {
 CmpMenu::CmpMenu(Cursor* cursor, GlobalOpts* global_opts)
     : global_opts_(global_opts), cursor_(cursor) {}
 
-void CmpMenu::SetEntries(std::vector<std::string> entries) {
+void CmpMenu::SetEntries(std::vector<std::string>&& entries) {
     entries_ = std::move(entries);
     menu_cursor_ = 0;
     menu_view_line_ = 0;

@@ -18,14 +18,14 @@ static constexpr const char* kXDGCacheHomeEnv = "XDG_CACHE_HOME";
 
 Path::Path() {}
 
-Path::Path(std::string str) {
+Path::Path(const std::string& str) {
     MGO_ASSERT(!str.empty());
     if (str[0] == kPathSeperator) {
-        absolute_path_ = std::move(str);
+        absolute_path_ = str;
         size_t pos = absolute_path_.find(cwd_);
         in_cwd_ = pos != std::string::npos;
     } else {
-        absolute_path_ = cwd_ + std::move(str);
+        absolute_path_ = cwd_ + str;
         in_cwd_ = true;
     }
 

@@ -363,7 +363,7 @@ void Editor::InitCommands() {
                      return;
                  }
                  cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer(
-                     Buffer(global_opts_.get(), Path(name_str))));
+                     Buffer(global_opts_.get(), Path(std::move(name_str)))));
              },
              1});
     MGO_CMD({"b",

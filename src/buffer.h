@@ -65,8 +65,8 @@ class Buffer {
     // if new_file == true, will alloc a new_file_id to this buffer, else just a
     // no file-backup buffer.
     Buffer(GlobalOpts* options, bool new_file = true);
-    Buffer(GlobalOpts* options, std::string path, bool read_only = false);
-    Buffer(GlobalOpts* options, Path path, bool read_only = false);
+    Buffer(GlobalOpts* options, const std::string& path, bool read_only = false);
+    Buffer(GlobalOpts* options, const Path& path, bool read_only = false);
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
     ~Buffer();
@@ -117,11 +117,12 @@ class Buffer {
     std::string ReplaceInner(const Range& range, std::string_view str,
                              Pos& cursor_pos_hint, bool record_reverse);
 
-    void Record(BufferEditHistoryItem item);
+    bool TryRecordMerge(const BufferEditHistoryItem& item);
+    void Record(BufferEditHistoryItem&& item);
 
     // return an global offset of a pos
     // TODO: optimize it.
-    size_t OffsetAndInvalidAfterPos(const Pos& pos);
+    size_t OffsetAndInvalidAfterPos(Pos pos);
 
     template <typename T>
     T GetOpt(OptKey key) {
@@ -181,7 +182,7 @@ class Buffer {
     bool lsp_attached() { return lsp_attached_; }
 
     zstring_view Name() noexcept {
-        return path_.Empty() ? new_file_name_ : path_.ThisPath();
+        return path_.Empty() ? new_file_info_->name : path_.ThisPath();
     }
 
     // Buffer list op
@@ -205,14 +206,17 @@ class Buffer {
     std::vector<Line> lines_;
 
     Path path_;
-    std::string new_file_name_;
-    int64_t new_file_id_;
+    struct NewFileInfo {
+        std::string name;
+        int64_t id;
+    };
+    std::unique_ptr<NewFileInfo> new_file_info_;
     zstring_view filetype_;
-    EOLSeq eol_seq_ = EOLSeq::kLF;  // Default LF
     BufferState state_ = BufferState::kHaveNotRead;
+    EOLSeq eol_seq_ = EOLSeq::kLF;  // Default LF
     bool read_only_ = false;
-    int64_t
-        version_;  // When a buffer is modified, version_ will be bumpped up.
+    // When a buffer is modified, version_ will be bumpped up.
+    int64_t version_;
 
     using HistoryList = std::list<BufferEditHistoryItem>;
     using HistoryListIter = HistoryList::iterator;

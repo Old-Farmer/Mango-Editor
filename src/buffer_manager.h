@@ -19,7 +19,7 @@ class BufferManager {
     MGO_DELETE_COPY(BufferManager);
     MGO_DELETE_MOVE(BufferManager);
 
-    Buffer* AddBuffer(Buffer buffer);
+    Buffer* AddBuffer(Buffer&& buffer);
     void RemoveBuffer(Buffer* buffer);
 
     struct HandlerID {

@@ -10,7 +10,7 @@ BufferManager::BufferManager()
     list_tail_.prev_ = &list_head_;
 }
 
-Buffer* BufferManager::AddBuffer(Buffer buffer) {
+Buffer* BufferManager::AddBuffer(Buffer&& buffer) {
     int64_t buffer_id = buffer.id();
     auto [iter, inserted] = buffers_.emplace(buffer_id, std::move(buffer));
     MGO_ASSERT(inserted);

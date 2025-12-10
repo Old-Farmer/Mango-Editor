@@ -22,7 +22,14 @@ std::string DefaultClipBoard::GetContent(bool& lines) const {
     lines = lines_;
     return content_;
 }
-void DefaultClipBoard::SetContent(std::string content, bool lines) {
+
+void DefaultClipBoard::SetContent(const std::string& content, bool lines) {
+    MGO_ASSERT(!lines || (lines && content[0] == '\n'));
+    lines_ = lines;
+    content_ = content;
+}
+
+void DefaultClipBoard::SetContent(std::string&& content, bool lines) {
     MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
     content_ = std::move(content);
@@ -77,7 +84,8 @@ std::string XClipBoard::GetContent(bool& lines) const {
     }
     return content;
 }
-void XClipBoard::SetContent(std::string content, bool lines) {
+
+void XClipBoard::SetContent(const std::string& content, bool lines) {
     MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
     const char* const argv[] = {"xsel", "--clipboard", NULL};
@@ -91,6 +99,10 @@ void XClipBoard::SetContent(std::string content, bool lines) {
     } catch (OSException& e) {
         return;
     }
+}
+
+void XClipBoard::SetContent(std::string&& content, bool lines) {
+    SetContent(content, lines);
 }
 
 void XClipBoard::WslFilterCharacter(std::string& content) {

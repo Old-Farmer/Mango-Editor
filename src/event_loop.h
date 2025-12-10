@@ -31,11 +31,11 @@ class EventLoop {
    public:
     EventLoop(GlobalOpts* global_opts);
 
-    void AddEventHandler(EventInfo info);
+    void AddEventHandler(const EventInfo& info);
     void RemoveEventHandler(EventFD fd);
 
-    void BeforePoll(std::function<void()> f);
-    void AfterAllEvents(std::function<void()> f);
+    void BeforePoll(const std::function<void()>& f);
+    void AfterAllEvents(const std::function<void()>& f);
 
     void Loop();
     void EndLoop() { quit_ = true; }

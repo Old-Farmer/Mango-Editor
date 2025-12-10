@@ -34,7 +34,7 @@ class KeyseqManager {
     // throws KeyNotPredefinedException if key str is not pre-defined
     // this is always considered a bug and should fixed emidiately
     // return kError if keymap is not well formed
-    Result AddKeyseq(const std::string& seq, Keyseq handler,
+    Result AddKeyseq(const std::string& seq, const Keyseq& handler,
                      const std::vector<Mode>& modes = kDefaultsModes);
     Result RemoveKeyseq(const std::string& seq,
                         const std::vector<Mode>& modes = kDefaultsModes);

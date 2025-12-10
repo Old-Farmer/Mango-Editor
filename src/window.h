@@ -69,7 +69,7 @@ class Window {
         size_t i = 0;  // from 1 instead of zero
         size_t total = 0;
     };
-    void BuildSearchContext(std::string pattern);
+    void BuildSearchContext(const std::string& pattern);
     void DestorySearchContext();
     const std::string& GetSearchPattern() { return search_pattern_; }
     SearchState CursorGoNextSearchResult();

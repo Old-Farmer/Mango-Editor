@@ -1,6 +1,7 @@
 #pragma once
 
-#include "buffer.h"
+#include "pos.h"
+#include "utils.h"
 
 namespace mango {
 

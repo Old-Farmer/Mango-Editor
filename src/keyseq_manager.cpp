@@ -108,7 +108,7 @@ Result KeyseqManager::ParseKeyseq(const std::string& seq,
     return kOk;
 }
 
-Result KeyseqManager::AddKeyseq(const std::string& seq, Keyseq handler,
+Result KeyseqManager::AddKeyseq(const std::string& seq, const Keyseq& handler,
                                 const std::vector<Mode>& modes) {
     std::vector<Terminal::KeyInfo> keys;
     Result res = ParseKeyseq(seq, keys);
@@ -126,7 +126,7 @@ Result KeyseqManager::AddKeyseq(const std::string& seq, Keyseq handler,
         }
         node->end = true;
         if (i == modes.size() - 1) {
-            node->handler = std::move(handler);
+            node->handler = handler;
         } else {
             node->handler = handler;
         }

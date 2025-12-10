@@ -17,33 +17,33 @@ std::vector<bool> Buffer::new_file_alloced_ids_ = {};
 
 Buffer::Buffer(GlobalOpts* global_opts, bool new_file) : opts_(global_opts) {
     if (new_file) {
+        new_file_info_ = std::make_unique<NewFileInfo>();
         for (size_t i = 0; i < new_file_alloced_ids_.size(); i++) {
             if (!new_file_alloced_ids_[i]) {
                 new_file_alloced_ids_[i] = true;
-                new_file_id_ = i + 1;
-                new_file_name_ =
-                    "[new-file-" + std::to_string(new_file_id_) + "]";
-                break;
+                new_file_info_->id = i + 1;
+                new_file_info_->name =
+                    "[new-file-" + std::to_string(new_file_info_->id) + "]";
+                return;
             }
         }
-        if (new_file_name_.empty()) {
-            new_file_alloced_ids_.resize(new_file_alloced_ids_.size() + 1);
-        }
+        new_file_alloced_ids_.resize(new_file_alloced_ids_.size() + 1);
         new_file_alloced_ids_.back() = true;
-        new_file_id_ = new_file_alloced_ids_.size();
-        new_file_name_ = "[new-file-" + std::to_string(new_file_id_) + "]";
+        new_file_info_->id = new_file_alloced_ids_.size();
+        new_file_info_->name =
+            "[new-file-" + std::to_string(new_file_info_->id) + "]";
     }
 }
 
-Buffer::Buffer(GlobalOpts* global_opts, std::string path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
+Buffer::Buffer(GlobalOpts* global_opts, const std::string& path, bool read_only)
+    : path_(path), read_only_(read_only), opts_(global_opts) {}
 
-Buffer::Buffer(GlobalOpts* global_opts, Path path, bool read_only)
-    : path_(std::move(path)), read_only_(read_only), opts_(global_opts) {}
+Buffer::Buffer(GlobalOpts* global_opts, const Path& path, bool read_only)
+    : path_(path), read_only_(read_only), opts_(global_opts) {}
 
 Buffer::~Buffer() {
-    if (!new_file_name_.empty()) {
-        new_file_alloced_ids_[new_file_id_ - 1] = false;
+    if (new_file_info_) {
+        new_file_alloced_ids_[new_file_info_->id - 1] = false;
     }
 }
 
@@ -203,8 +203,8 @@ void Buffer::Edit(const BufferEdit& edit, Pos& cursor_pos_hint) {
     }
 }
 
-void Buffer::AddInner(Pos pos, std::string_view str,
-                      Pos& cursor_pos_hint, bool record_ts_edit) {
+void Buffer::AddInner(Pos pos, std::string_view str, Pos& cursor_pos_hint,
+                      bool record_ts_edit) {
     auto _ = gsl::finally([this, record_ts_edit, &pos, &cursor_pos_hint, &str] {
         Modified();
         if (record_ts_edit) {
@@ -380,23 +380,9 @@ std::string Buffer::ReplaceInner(const Range& range, std::string_view str,
     return old_str;
 }
 
-void Buffer::Record(BufferEditHistoryItem item) {
-    // Delete all history iterms after cursor(include the item which cursor
-    // points to)
-    if (edit_history_cursor_ != edit_history_->end()) {
-        MGO_ASSERT(!edit_history_->empty());
-        edit_history_->erase(edit_history_cursor_, edit_history_->end());
-        edit_history_cursor_ = edit_history_->end();
-    }
 
-    // No item in history, return fast
-    MGO_ASSERT(GetOpt<int64_t>(kOptMaxEditHistory) > 0);
-    if (edit_history_->size() == 0) {
-        edit_history_->push_back(std::move(item));
-        return;
-    }
-
-    // Can we merge adjacent edits?
+bool Buffer::TryRecordMerge(const BufferEditHistoryItem& item) {
+    MGO_ASSERT(edit_history_->size() > 0);
     BufferEditHistoryItem& last_item = edit_history_->back();
     if (last_item.origin.str.empty() && item.origin.str.empty() &&
         last_item.origin.range.begin == item.origin.range.end) {
@@ -407,7 +393,7 @@ void Buffer::Record(BufferEditHistoryItem item) {
         last_item.reverse.range.end = item.reverse.range.end;
         last_item.reverse.str.insert(0, item.reverse.str);
         last_item.reverse_pos_hint = item.reverse_pos_hint;
-        return;
+        return true;
     } else if (last_item.origin.range.begin == last_item.origin.range.end &&
                item.origin.range.begin == item.origin.range.end &&
                last_item.reverse.range.end == item.reverse.range.begin) {
@@ -416,9 +402,35 @@ void Buffer::Record(BufferEditHistoryItem item) {
 
         last_item.origin.str.append(item.origin.str);
         last_item.origin_pos_hint = item.origin_pos_hint;
-        return;
+        return true;
     }
     // THINK IT: adjacent replaces need to be merged?
+    return false;
+}
+
+void Buffer::Record(BufferEditHistoryItem&& item) {
+    if (GetOpt<int64_t>(kOptMaxEditHistory) <= 0) {
+        return;
+    }
+
+    // Delete all history iterms after cursor(include the item which cursor
+    // points to)
+    if (edit_history_cursor_ != edit_history_->end()) {
+        MGO_ASSERT(!edit_history_->empty());
+        edit_history_->erase(edit_history_cursor_, edit_history_->end());
+        edit_history_cursor_ = edit_history_->end();
+    }
+
+    // No item in history, return fast
+    if (edit_history_->size() == 0) {
+        edit_history_->push_back(std::move(item));
+        return;
+    }
+
+    // Can we merge adjacent edits?
+    if (TryRecordMerge(item)) {
+        return;
+    }
 
     if (edit_history_->size() ==
         static_cast<size_t>(GetOpt<int64_t>(kOptMaxEditHistory))) {
@@ -443,7 +455,7 @@ Result Buffer::Add(Pos pos, std::string_view str, const Pos* cursor_pos,
     }
     BufferEditHistoryItem item;
     item.origin.range = {pos, pos};
-    item.origin.str = std::move(str);
+    item.origin.str = str;
     item.origin_pos_hint = cursor_pos_hint;
 
     item.reverse.range = {pos, origin_pos_hint};
@@ -490,7 +502,7 @@ Result Buffer::Replace(const Range& range, std::string_view str,
 
     BufferEditHistoryItem item;
     item.origin.range = range;
-    item.origin.str = std::move(str);
+    item.origin.str = str;
     item.origin_pos_hint = cursor_pos_hint;
 
     item.reverse.range = {range.begin, cursor_pos_hint};
@@ -548,7 +560,7 @@ std::vector<Range> Buffer::Search(const std::string& pattern) {
     return res;
 }
 
-size_t Buffer::OffsetAndInvalidAfterPos(const Pos& pos) {
+size_t Buffer::OffsetAndInvalidAfterPos(Pos pos) {
     if (offset_per_line_.size() > pos.line + 1) {
         offset_per_line_.resize(pos.line + 1);
     } else {

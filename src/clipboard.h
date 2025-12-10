@@ -10,7 +10,8 @@ namespace mango {
 class ClipBoard {
    public:
     virtual std::string GetContent(bool& lines) const = 0;
-    virtual void SetContent(std::string content, bool lines) = 0;
+    virtual void SetContent(const std::string& content, bool lines) = 0;
+    virtual void SetContent(std::string&& content, bool lines) = 0;
     virtual ~ClipBoard() = default;
 
     // Create a clipboard. If prefer_system is true, it will detect and use the
@@ -25,8 +26,9 @@ class DefaultClipBoard : public ClipBoard {
     MGO_DEFAULT_CONSTRUCT_DESTRUCT(DefaultClipBoard);
     MGO_DELETE_COPY(DefaultClipBoard);
     MGO_DELETE_MOVE(DefaultClipBoard);
-    virtual std::string GetContent(bool& lines) const;
-    virtual void SetContent(std::string content, bool lines);
+    virtual std::string GetContent(bool& lines) const override;
+    virtual void SetContent(const std::string& content, bool lines) override;
+    virtual void SetContent(std::string&& content, bool lines) override;
 
    private:
     bool lines_;
@@ -39,8 +41,9 @@ class XClipBoard : public ClipBoard {
     XClipBoard();
     MGO_DELETE_COPY(XClipBoard);
     MGO_DELETE_MOVE(XClipBoard);
-    virtual std::string GetContent(bool& lines) const;
-    virtual void SetContent(std::string content, bool lines);
+    virtual std::string GetContent(bool& lines) const override;
+    virtual void SetContent(const std::string& content, bool lines) override;
+    virtual void SetContent(std::string&& content, bool lines) override;
 
     static bool DetectUsable();
 

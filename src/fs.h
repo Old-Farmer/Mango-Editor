@@ -13,7 +13,7 @@ class Path {
    public:
     Path();
     // relative or absolute path as str
-    explicit Path(std::string str);
+    explicit Path(const std::string& str);
 
     bool Empty() const noexcept { return absolute_path_.empty(); }
 
@@ -44,8 +44,8 @@ class Path {
    private:
     std::string absolute_path_;
     size_t file_name_len_;
-    bool in_cwd_;
     int64_t last_cwd_version_;
+    bool in_cwd_;
 
     static std::string cwd_;
     static int64_t cwd_version_;  // changing or getting cwd by syscall need

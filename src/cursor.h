@@ -41,6 +41,8 @@ struct Cursor {
     // NOTE: wrap, no wrap have different meanings.
     std::optional<size_t> b_view_col_want;
 
+    // The cursor must be visible, means we must adjust the view to make the
+    // cursor visible.
     bool must_visible = true;
 
     Window* in_window;  // nullptr means in MangoPeel
@@ -52,7 +54,7 @@ struct Cursor {
     // TODO: other info
 
     void DontHoldColWant() { b_view_col_want.reset(); }
-    void SetPos(const Pos& pos) {
+    void SetPos(Pos pos) {
         line = pos.line;
         byte_offset = pos.byte_offset;
     }

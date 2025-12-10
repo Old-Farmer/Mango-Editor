@@ -335,8 +335,8 @@ void Window::OnBufferDelete(const Buffer* buffer) {
     buffer_views_.erase(buffer->id());
 }
 
-void Window::BuildSearchContext(std::string pattern) {
-    search_pattern_ = std::move(pattern);
+void Window::BuildSearchContext(const std::string& pattern) {
+    search_pattern_ = pattern;
     search_result_ = frame_.buffer_->Search(search_pattern_);
     search_buffer_version_ = frame_.buffer_->version();
 }

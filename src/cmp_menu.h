@@ -21,7 +21,7 @@ class CmpMenu {
     MGO_DELETE_COPY(CmpMenu);
     MGO_DELETE_MOVE(CmpMenu);
 
-    void SetEntries(std::vector<std::string> entries);
+    void SetEntries(std::vector<std::string>&& entries);
 
     void Draw();
     void SelectNext();

@@ -30,7 +30,7 @@ class CommandManager {
     MGO_DELETE_COPY(CommandManager);
     MGO_DELETE_MOVE(CommandManager);
 
-    void AddCommand(Command command);
+    void AddCommand(const Command& command);
     void RemoveCommand(const std::string& name);
     // return
     // kOk

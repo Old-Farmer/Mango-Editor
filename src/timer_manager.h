@@ -16,7 +16,7 @@ class Timer {
     friend TimerManager;
 
    public:
-    Timer(Task task) : task_(std::move(task)) {}
+    Timer(const Task& task) : task_(task) {}
     virtual ~Timer() = default;
 
    public:
@@ -38,8 +38,8 @@ class Timer {
 
 class SingleTimer : public Timer {
    public:
-    SingleTimer(std::chrono::milliseconds timeout, Task task)
-        : Timer(std::move(task)), interval_(timeout) {}
+    SingleTimer(std::chrono::milliseconds timeout, const Task& task)
+        : Timer(task), interval_(timeout) {}
 
    protected:
     virtual bool Next(std::chrono::steady_clock::time_point now) override {
@@ -60,9 +60,9 @@ class LoopTimer : public Timer {
    public:
     // LoopTimer will do task at every intervals, when the timer reach intervals
     // end, it loops back.
-    LoopTimer(std::vector<std::chrono::milliseconds> intervals, Task task)
-        : Timer(std::move(task)),
-          intervals_(intervals),  // Copy
+    LoopTimer(const std::vector<std::chrono::milliseconds>& intervals, const Task& task)
+        : Timer(task),
+          intervals_(intervals),
           interval_i_(intervals.size() == 1 ? 0 : 1) {
         MGO_ASSERT(!intervals.empty());
     }
