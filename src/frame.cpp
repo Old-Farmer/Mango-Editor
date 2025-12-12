@@ -45,13 +45,6 @@ void Frame::Draw() {
         selection_hl.resize(1);
         selection_hl[0].range = selection_.ToRange();
         selection_hl[0].attr = scheme[kSelection];
-        if (cursor_->line == selection_hl[0].range.begin.line &&
-            cursor_->byte_offset == selection_hl[0].range.begin.byte_offset) {
-            // TODO: maybe all ready end of line, ++ will out of line, currently
-            // no problem
-            selection_hl[0].range.begin.byte_offset++;
-        }
-        selection_hl.push_back({selection_.ToRange(), scheme[kSelection]});
         highlights.push_back(&selection_hl);
     }
     if (parser_) {
