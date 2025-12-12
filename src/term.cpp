@@ -10,16 +10,16 @@ namespace mango {
 Terminal::~Terminal() { Shutdown(); }
 
 void Terminal::InitEscKeyseq() {
-    esc_keyseq_manager_->AddKeyseq("[200~", {[this] {
-                    event_.type =
-                        static_cast<uint8_t>(EventType::kBracketedPasteOpen);
-                }},
-                {Mode::kNone});
-    esc_keyseq_manager_->AddKeyseq("[201~", {[this] {
-                    event_.type =
-                        static_cast<uint8_t>(EventType::kBracketedPasteClose);
-                }},
-                {Mode::kNone});
+    esc_keyseq_manager_->AddKeyseq(
+        "[200~", {[this] {
+            event_.type = static_cast<uint8_t>(EventType::kBracketedPasteOpen);
+        }},
+        {Mode::kNone});
+    esc_keyseq_manager_->AddKeyseq(
+        "[201~", {[this] {
+            event_.type = static_cast<uint8_t>(EventType::kBracketedPasteClose);
+        }},
+        {Mode::kNone});
 }
 
 int my_tb_wcswidth_fn(uint32_t* ch, size_t nch) {
@@ -204,6 +204,11 @@ void Terminal::HandleEsc() {
             return;
         }
     }
+}
+
+Terminal& Terminal::GetInstance() {
+    static Terminal term;
+    return term;
 }
 
 }  // namespace mango

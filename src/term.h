@@ -46,10 +46,7 @@ class Terminal {
     MGO_DELETE_COPY(Terminal);
     MGO_DELETE_MOVE(Terminal);
 
-    static Terminal& GetInstance() {
-        static Terminal term;
-        return term;
-    }
+    static Terminal& GetInstance();
 
     // throws TermException
     void Init(GlobalOpts* global_opts);
