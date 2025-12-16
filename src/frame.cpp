@@ -167,6 +167,7 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
 
 void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
     size_t content_width) {
+    int tabstop = GetOpt<int64_t>(kOptTabStop);
     // Which subline of the line the cursor in?
     size_t byte_offset = 0;
     size_t subline = 0;
@@ -174,10 +175,10 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
     while (true) {
         bool stop_at_target;
         size_t character_cnt;
-        byte_offset = ArrangeLine(
-            buffer_->GetLine(cursor_->line), byte_offset, 0, content_width,
-            GetOpt<int64_t>(kOptTabStop), true, &end_view_col,
-            &cursor_->byte_offset, &stop_at_target, &character_cnt);
+        byte_offset =
+            ArrangeLine(buffer_->GetLine(cursor_->line), byte_offset, 0,
+                        content_width, tabstop, true, &end_view_col,
+                        &cursor_->byte_offset, &stop_at_target, &character_cnt);
         cursor_->character_in_line += character_cnt;
         if (stop_at_target) {
             cursor_->SetScreenPos(end_view_col + width_ - content_width,
@@ -195,8 +196,8 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
     // We don't need to check line isn't 0, because there must be a screen range
     // of text before us.
     while (true) {
-        size_t row_cnt = ScreenRows(buffer_->GetLine(line), content_width,
-                                    GetOpt<int64_t>(kOptTabStop));
+        size_t row_cnt =
+            ScreenRows(buffer_->GetLine(line), content_width, tabstop);
         if (row_cnt < row_cnt_before_cursor_line) {
             row_cnt_before_cursor_line -= row_cnt;
             line--;
@@ -394,16 +395,16 @@ void Frame::MakeSureBColViewWantReady(CursorState& state) {
     }
 
     size_t content_width = width_ - SidebarWidth();
+    int tabstop = GetOpt<int64_t>(kOptTabStop);
     MGO_ASSERT(state.line < buffer_->LineCnt());
     if (GetOpt<bool>(kOptWrap)) {
         size_t byte_offset = 0;
         while (true) {
             bool stop;
             size_t b_view_col;
-            byte_offset =
-                ArrangeLine(buffer_->GetLine(state.line), byte_offset, 0,
-                            content_width, GetOpt<int64_t>(kOptTabStop), false,
-                            &b_view_col, &state.byte_offset, &stop);
+            byte_offset = ArrangeLine(buffer_->GetLine(state.line), byte_offset,
+                                      0, content_width, tabstop, false,
+                                      &b_view_col, &state.byte_offset, &stop);
             if (stop) {
                 state.b_view_col_want = b_view_col;
                 break;
@@ -411,9 +412,8 @@ void Frame::MakeSureBColViewWantReady(CursorState& state) {
         }
     } else {
         size_t b_view_col;
-        ArrangeLine(buffer_->GetLine(state.line), 0, 0, content_width,
-                    GetOpt<int64_t>(kOptTabStop), false, &b_view_col,
-                    &state.byte_offset);
+        ArrangeLine(buffer_->GetLine(state.line), 0, 0, content_width, tabstop,
+                    false, &b_view_col, &state.byte_offset);
         state.b_view_col_want = b_view_col;
     }
 }
@@ -487,11 +487,11 @@ void Frame::SetCursorHintWrap(size_t s_row, size_t s_col,
     size_t byte_offset = 0;
     // to the screen row where hint is.
 
+    int tabstop = GetOpt<int64_t>(kOptTabStop);
     // First, we skip some sub lines.
     for (size_t i = 0; i < b_view_->subline; i++) {
         byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
-                                  width_ - sidebar_width,
-                                  GetOpt<int64_t>(kOptTabStop), true);
+                                  width_ - sidebar_width, tabstop, true);
     }
     size_t cur_screen_row = row_;
     for (; cur_screen_row < s_row; cur_screen_row++) {
@@ -499,8 +499,7 @@ void Frame::SetCursorHintWrap(size_t s_row, size_t s_col,
             break;
         }
         byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
-                                  width_ - sidebar_width,
-                                  GetOpt<int64_t>(kOptTabStop), true);
+                                  width_ - sidebar_width, tabstop, true);
         if (byte_offset == buffer_->GetLine(line).size()) {
             line++;
             byte_offset = 0;
@@ -1294,11 +1293,11 @@ Range Frame::CalcWrapRange(size_t content_width) {
     size_t cur_b_view_line = b_view_->line;
     size_t byte_offset = 0;
 
+    int tabstop = GetOpt<int64_t>(kOptTabStop);
     // First, we skip some sub lines.
     for (size_t i = 0; i < b_view_->subline; i++) {
-        byte_offset =
-            ArrangeLine(buffer_->GetLine(cur_b_view_line), byte_offset, 0,
-                        content_width, GetOpt<int64_t>(kOptTabStop), true);
+        byte_offset = ArrangeLine(buffer_->GetLine(cur_b_view_line),
+                                  byte_offset, 0, content_width, tabstop, true);
     }
     size_t start_byte_offset = byte_offset;
 
@@ -1306,9 +1305,8 @@ Range Frame::CalcWrapRange(size_t content_width) {
         if (cur_b_view_line >= buffer_->LineCnt()) {
             break;
         }
-        byte_offset =
-            ArrangeLine(buffer_->GetLine(cur_b_view_line), byte_offset, 0,
-                        content_width, GetOpt<int64_t>(kOptTabStop), true);
+        byte_offset = ArrangeLine(buffer_->GetLine(cur_b_view_line),
+                                  byte_offset, 0, content_width, tabstop, true);
         if (byte_offset == buffer_->GetLine(cur_b_view_line).size()) {
             cur_b_view_line++;
             byte_offset = 0;
