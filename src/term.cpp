@@ -113,8 +113,8 @@ bool Terminal::PollInner(int timeout_ms) {
 bool Terminal::Poll(int timeout_ms) {
     // Try pendding events.
     while (!pendding_events_.empty()) {
-        event_ = pendding_events_[0];
-        pendding_events_.erase(pendding_events_.begin());
+        event_ = pendding_events_.front();
+        pendding_events_.pop_front();
         return true;
     }
 
@@ -144,8 +144,8 @@ void Terminal::HandleEsc() {
     bool res = PollInner(0);
     if (!res) {
         // pop up esc
-        event_ = pendding_events_[0];
-        pendding_events_.erase(pendding_events_.begin());
+        event_ = pendding_events_.front();
+        pendding_events_.pop_front();
         return;
     }
 
@@ -155,8 +155,8 @@ void Terminal::HandleEsc() {
     // will have chars in buffer if we encounter escape sequence.
     if (event_.type != TB_EVENT_KEY) {
         // pop up esc
-        event_ = pendding_events_[0];
-        pendding_events_.erase(pendding_events_.begin());
+        event_ = pendding_events_.front();
+        pendding_events_.pop_front();
         return;
     }
     pendding_events_.push_back(event_);
@@ -167,15 +167,15 @@ void Terminal::HandleEsc() {
         Keyseq* handler;
         if (event_.ch > CHAR_MAX) {
             // pop up esc
-            event_ = pendding_events_[0];
-            pendding_events_.erase(pendding_events_.begin());
+            event_ = pendding_events_.front();
+            pendding_events_.pop_front();
             return;
         }
         Result res = esc_keyseq_manager_->FeedKey(EventKeyInfo(), handler);
         if (res == kKeyseqError) {
             // pop up esc
-            event_ = pendding_events_[0];
-            pendding_events_.erase(pendding_events_.begin());
+            event_ = pendding_events_.front();
+            pendding_events_.pop_front();
             return;
         } else if (res == kKeyseqDone) {
             handler->f();
@@ -190,8 +190,8 @@ void Terminal::HandleEsc() {
         bool poll_res = PollInner(0);
         if (!poll_res) {
             // pop up esc
-            event_ = pendding_events_[0];
-            pendding_events_.erase(pendding_events_.begin());
+            event_ = pendding_events_.front();
+            pendding_events_.pop_front();
             return;
         }
 
@@ -199,8 +199,8 @@ void Terminal::HandleEsc() {
 
         if (event_.type != TB_EVENT_KEY) {
             // pop up esc
-            event_ = pendding_events_[0];
-            pendding_events_.erase(pendding_events_.begin());
+            event_ = pendding_events_.front();
+            pendding_events_.pop_front();
             return;
         }
     }
