@@ -5,7 +5,7 @@
 
 namespace mango {
 
-class Cursor;
+struct Cursor;
 class GlobalOpts;
 enum class Mode;
 

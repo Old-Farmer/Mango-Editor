@@ -35,13 +35,16 @@ This project uses CMake build system.
 
 Requirements:
 
-1. A C++ compiler which supports C++17 (I use gcc, clang is not tested)
+1. A C++ compiler which supports C++17 (GCC >= 8 / Clang >= 7). I prefer clang.
 2. CMake >= 3.22
 3. Git
 4. make or ninja
 
 ```bash
 mkdir build && cd build
+
+# Use Clang(optional)
+cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
 
 # Debug build
 cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j8

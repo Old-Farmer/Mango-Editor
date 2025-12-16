@@ -10,7 +10,7 @@
 namespace mango {
 
 class Window;
-class Selection;
+struct Selection;
 class GlobalOpts;
 class Opts;
 class MangoPeel;

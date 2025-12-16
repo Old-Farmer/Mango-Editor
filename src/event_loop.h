@@ -26,7 +26,7 @@ struct EventInfo {
 
 class GlobalOpts;
 
-// Event loop will not handle handler events.
+// Event loop will handle handler events.
 class EventLoop {
    public:
     EventLoop(GlobalOpts* global_opts);

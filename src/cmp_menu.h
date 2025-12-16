@@ -7,7 +7,7 @@
 namespace mango {
 
 class GlobalOpts;
-class Cursor;
+struct Cursor;
 
 // CmpMenu is a menu that can show some entries. You can select and accept one.
 // CmpMenu when draw itself just below or above the cursor.

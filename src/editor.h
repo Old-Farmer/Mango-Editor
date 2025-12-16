@@ -85,7 +85,6 @@ class Editor {
    private:
     std::unique_ptr<EventLoop> loop_;
 
-    MouseState moust_state_ = MouseState::kReleased;
     Mode mode_;
 
     BufferManager buffer_manager_;
@@ -118,7 +117,6 @@ class Editor {
     std::unique_ptr<MangoPeel> peel_;
     std::unique_ptr<CmpMenu> cmp_menu_;
 
-    bool quit_ = false;
     bool ask_quit_ = false;
     static constexpr const char* kAskQuitStr =
         "Some buffers have not saved, force quit(y/[n])? ";
@@ -126,7 +124,6 @@ class Editor {
     std::unique_ptr<GlobalOpts> global_opts_;
 
     // Cmp context
-    Mode mode_trigger_cmp_;
     Completer* tmp_completer_ = nullptr;
     bool show_cmp_menu_ = false; // if false, hide cmp menu.
 

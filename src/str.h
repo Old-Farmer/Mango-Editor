@@ -7,7 +7,7 @@
 
 namespace mango {
 
-// InBytes work on codepoint.
+// InBytes work on byte.
 // InCharacter work on grapheme.
 // Any others work on codepoint
 

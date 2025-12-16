@@ -85,7 +85,7 @@ class Buffer {
     Result Write();
 
     // Get content operations
-    // Make sure that Range or Pos is valid, otherwise behavir
+    // Make sure that line, Range or Pos is valid, otherwise behavir
     // is undefined.
 
     const std::string& GetLine(size_t line) const {
@@ -229,7 +229,7 @@ class Buffer {
 
     // Just for tree-sitter
     TSInputEdit ts_edit_;
-    bool after_get_edit_modified = false;
+    // bool after_get_edit_modified = false;
 
     // A prefiex offset cache, for fast offset calculation.
     std::vector<size_t> offset_per_line_ = {0};
