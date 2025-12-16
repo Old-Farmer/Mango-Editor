@@ -67,7 +67,7 @@ void Buffer::Load() {
         }
 
         File f(path_.AbsolutePath(), "r", true);
-        MGO_LOG_DEBUG("file path %s", path_.AbsolutePath().c_str());
+        MGO_LOG_DEBUG("file path {}", path_.AbsolutePath());
 
         while (true) {
             std::string buf;
@@ -76,7 +76,7 @@ void Buffer::Load() {
                 lines_.clear();
                 lines_.push_back({});
                 state_ = BufferState::kCodingInvalid;
-                throw CodeingException("%s", "utf8 encoding error");
+                throw CodingException("{}", "utf8 encoding error");
             }
             lines_.emplace_back(std::move(buf));
             if (ret == kEof) {
@@ -134,25 +134,25 @@ Result Buffer::Write() {
             size_t s = fwrite(lines_[i].line_str.c_str(), 1,
                               lines_[i].line_str.size(), swap_file.file());
             if (s < lines_[i].line_str.size()) {
-                throw IOException("fwrite error: %s", strerror(errno));
+                throw IOException("fwrite error: {}", strerror(errno));
             }
         }
         if (i != lines_.size() - 1) {
             size_t s =
                 fwrite(eol_seq_str, 1, eol_seq_str_size, swap_file.file());
             if (s < 1) {
-                throw IOException("fwrite error: %s", strerror(errno));
+                throw IOException("fwrite error: {}", strerror(errno));
             }
         }
     }
 
     if (fflush(swap_file.file()) == EOF) {
-        throw IOException("fflush error: %s", strerror(errno));
+        throw IOException("fflush error: {}", strerror(errno));
     }
     swap_file.Fsync();
     int ret = rename(swap_file_path.c_str(), path_.AbsolutePath().c_str());
     if (ret == -1) {
-        throw IOException("rename error: %s", strerror(errno));
+        throw IOException("rename error: {}", strerror(errno));
     }
 
     state_ = BufferState::kNotModified;

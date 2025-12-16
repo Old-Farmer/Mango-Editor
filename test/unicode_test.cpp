@@ -2,6 +2,7 @@
 
 #include "catch2/catch_test_macros.hpp"
 #include "character.h"
+#include "fmt/core.h"
 
 using namespace mango;
 
@@ -32,14 +33,14 @@ TEST_CASE("grepheme") {
     int byte_len;
     ThisCharacter("🐦‍🔥", 0, c, byte_len);
     for (size_t i = 0; i < c.CodePointCount(); i++) {
-        printf("\\U%08" PRIx32 "\n", c.Codepoints()[i]);
+        fmt::println("\\U{:08X}", c.Codepoints()[i]);
     }
     ThisCharacter("🐦", 0, c, byte_len);
     for (size_t i = 0; i < c.CodePointCount(); i++) {
-        printf("\\U%08" PRIx32 "\n", c.Codepoints()[i]);
+        fmt::println("\\U{:08X}", c.Codepoints()[i]);
     }
     ThisCharacter("🔥", 0, c, byte_len);
     for (size_t i = 0; i < c.CodePointCount(); i++) {
-        printf("\\U%08" PRIx32 "\n", c.Codepoints()[i]);
+        fmt::println("\\U{:08X}", c.Codepoints()[i]);
     }
 }

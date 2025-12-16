@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "subprocess.h"
 
 #include <gsl/util>
 
@@ -8,16 +8,15 @@
 using namespace mango;
 
 TEST_CASE("test Exec") {
-    LogInit("utils_test.log");
+    LogInit("subprocess_test.log");
     auto _ = gsl::finally([] { LogDeinit(); });
 
     SECTION("Normal echo, test stdout") {
         Result res;
         std::string stdout_data;
         int exit_code;
-        char* const argv[] = {const_cast<char*>("echo"),
-                              const_cast<char*>("hello,world!"), NULL};
-        res = Exec(argv[0], argv, nullptr, &stdout_data, nullptr, exit_code);
+        const char* const argv[] = {"echo", "hello,world!", nullptr};
+        res = Exec(argv, nullptr, &stdout_data, nullptr, exit_code);
         REQUIRE(res == kOk);
         REQUIRE(exit_code == 0);
         REQUIRE(stdout_data == "hello,world!\n");
@@ -27,9 +26,8 @@ TEST_CASE("test Exec") {
         std::string stdout_data;
         std::string stdin_data = "hello, world!";
         int exit_code;
-        char* const argv[] = {const_cast<char*>("cat"), NULL};
-        res =
-            Exec(argv[0], argv, &stdin_data, &stdout_data, nullptr, exit_code);
+        const char* const argv[] = {"cat", nullptr};
+        res = Exec(argv, &stdin_data, &stdout_data, nullptr, exit_code);
         REQUIRE(res == kOk);
         REQUIRE(exit_code == 0);
         REQUIRE(stdout_data == stdin_data);
@@ -38,9 +36,8 @@ TEST_CASE("test Exec") {
         Result res;
         std::string stderr_data;
         int exit_code;
-        char* const argv[] = {const_cast<char*>("ls"),
-                              const_cast<char*>("not_exist_file"), NULL};
-        res = Exec(argv[0], argv, nullptr, nullptr, &stderr_data, exit_code);
+        const char* const argv[] = {"ls", "not_exist_file", nullptr};
+        res = Exec(argv, nullptr, nullptr, &stderr_data, exit_code);
         REQUIRE(res == kOk);
         REQUIRE(exit_code == 2);
         REQUIRE(
@@ -50,8 +47,8 @@ TEST_CASE("test Exec") {
     SECTION("test not exit command") {
         Result res;
         int exit_code;
-        char* const argv[] = {const_cast<char*>("abcdefg"), NULL};
-        res = Exec(argv[0], argv, nullptr, nullptr, nullptr, exit_code, true);
+        const char* const argv[] = {"abcdefg", nullptr};
+        res = Exec(argv, nullptr, nullptr, nullptr, exit_code, true);
         REQUIRE(res == mango::kOuterCommandExecuteFail);
     }
 }

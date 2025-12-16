@@ -1,17 +1,14 @@
 #include "editor.h"
 
-#include <inttypes.h>
-
 #include "character.h"
 #include "clipboard.h"
 #include "constants.h"
 #include "fs.h"
+#include "inttypes.h"
 #include "options.h"
 #include "term.h"
 
 namespace mango {
-
-using namespace std::chrono_literals;
 
 static constexpr int kScreenMinWidth = 10;
 static constexpr int kScreenMinHeight = 3;
@@ -47,7 +44,7 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
     } else {
         buf = buffer_manager_.AddBuffer({global_opts_.get()});
     }
-    MGO_LOG_DEBUG("buffer %s", zstring_view_c_str(buf->Name()));
+    MGO_LOG_DEBUG("buffer {}", buf->Name());
     window_ = std::make_unique<Window>(&cursor_, global_opts_.get(),
                                        syntax_parser_.get(), clipboard_.get(),
                                        &buffer_manager_);
@@ -122,7 +119,7 @@ void Editor::Loop() {
         (void)e;
         MGO_ASSERT(e & kEventRead);
         if (e & (kEventClose | kEventError)) {
-            throw TermException("%s", "Poll event close or event error");
+            throw TermException("{}", "Poll event close or event error");
         }
 
         // We use a while to eat all events.
@@ -328,7 +325,7 @@ void Editor::InitKeymaps() {
         "<pgup>", {[this] {
             cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
         }});
-    MGO_KEYMAP("<c-g>", {[this] {
+    MGO_KEYMAP("<c-k><c-g>", {[this] {
                    GotoPeel();
                    peel_->AddStringAtCursor("g ");
                }});
@@ -381,8 +378,7 @@ void Editor::InitCommands() {
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 MGO_LOG_DEBUG("search %s",
-                               std::get<std::string>(args[0]).c_str());
+                 MGO_LOG_DEBUG("search {}", std::get<std::string>(args[0]));
                  cursor_.in_window->BuildSearchContext(
                      std::get<std::string>(args[0]));
                  SearchNext();
@@ -400,16 +396,17 @@ void Editor::InitCommands() {
 void Editor::InitCommandsVi() {}
 
 void Editor::PrintKey(const Terminal::KeyInfo& key_info) {
-    bool ctrl = key_info.mod & Terminal::Mod::kCtrl;
-    bool shift = key_info.mod & Terminal::Mod::kShift;
-    bool alt = key_info.mod & Terminal::Mod::kAlt;
-    bool motion = key_info.mod & Terminal::Mod::kMotion;
+    bool ctrl = key_info.mod & Terminal::kCtrl;
+    bool shift = key_info.mod & Terminal::kShift;
+    bool alt = key_info.mod & Terminal::kAlt;
+    bool motion = key_info.mod & Terminal::kMotion;
+    (void)ctrl, (void)shift, (void)alt, (void)motion;
     char c[5];
     int len = UnicodeToUtf8(key_info.codepoint, c);
     c[len] = '\0';
     MGO_LOG_DEBUG(
-        "ctrl %d shift %d alt %d motion %d special key %d codepoint "
-        "\\U%08" PRIx32 " char %s",
+        "ctrl {} shift {} alt {} motion {} special key {} codepoint "
+        "\\U{:08X} char {}",
         ctrl, shift, alt, motion, static_cast<int>(key_info.special_key),
         key_info.codepoint, c);
 }
@@ -666,8 +663,7 @@ void Editor::PreProcess() {
             // TODO: Not init if file is too big.
             syntax_parser_->SyntaxInit(window_->frame_.buffer_);
         } catch (Exception& e) {
-            MGO_LOG_ERROR("buffer %s : %s",
-                          zstring_view_c_str(window_->frame_.buffer_->Name()),
+            MGO_LOG_ERROR("buffer {} : {}", window_->frame_.buffer_->Name(),
                           e.what());
             // TODO: Maybe Notify the user
         }
@@ -945,7 +941,7 @@ void Editor::SaveCurrentBuffer() {
             peel_->SetContent("Buffer read only");
         }
     } catch (IOException& e) {
-        MGO_LOG_ERROR("%s", e.what());
+        MGO_LOG_ERROR("{}", e.what());
         std::stringstream ss;
         ss << "Buffer can't save: " << e.what();
         peel_->SetContent(ss.str());

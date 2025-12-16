@@ -37,10 +37,10 @@ int main(int argc, char* argv[]) {
     Path::GetCwdSys();
     Path::GetAppRootSys();
 
-    LogInit(kloggingFilePath);
+    LogInit();
 
-    MGO_LOG_DEBUG("cwd %s", Path::GetCwd().c_str());
-    MGO_LOG_DEBUG("app root %s", Path::GetAppRoot().c_str());
+    MGO_LOG_DEBUG("cwd {}", Path::GetCwd());
+    MGO_LOG_DEBUG("app root {}", Path::GetAppRoot());
 
     auto global_opts = std::make_unique<GlobalOpts>();
     auto init_opts = std::make_unique<InitOpts>();

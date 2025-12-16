@@ -4,13 +4,15 @@
 #include <cstdlib>
 #include <string_view>
 
+#include "fmt/core.h"
+
 namespace mango {
 
 enum Result {
     kOk = 0,
     kError,
-    kFail, // A failure is not an error
-    kNotExist, // sth. not exist
+    kFail,      // A failure is not an error. A failure means we can't do sth.
+    kNotExist,  // sth. not exist
     kInvalidCoding,
     kEof,
     kBufferNoBackupFile,
@@ -31,11 +33,11 @@ constexpr const char* kResultString[] = {"Ok", "Error"};
 inline const char* ResultString(Result result) { return kResultString[result]; }
 
 inline void PrintError(std::string_view context, std::string_view result) {
-    fprintf(stderr, "%s: %s\n", context.data(), result.data());
+    fmt::println(stderr, "{}: {}", context, result);
 }
 
 inline void PrintResult(std::string_view context, Result result) {
-    fprintf(stderr, "%s: %s\n", context.data(), ResultString(result));
+    fmt::println(stderr, "{}: {}", context, ResultString(result));
 }
 
 inline void PrintResultExit(std::string_view context, Result result) {

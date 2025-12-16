@@ -54,7 +54,7 @@ void EventLoop::Loop() {
             if (errno == EAGAIN || errno == EINTR) {
                 continue;
             }
-            throw OSException(errno, "poll error: %s", strerror(errno));
+            throw OSException(errno, "poll error: {}", strerror(errno));
         }
 
         if (rc == 0) {
@@ -83,7 +83,7 @@ void EventLoop::Loop() {
             e |= (poll_fd.revents & POLLHUP ? kEventClose : 0);
             e |= (poll_fd.revents & POLLERR ? kEventError : 0);
             if (poll_fd.revents & POLLNVAL) {
-                throw OSException(errno, "fd not opened: %s", strerror(errno));
+                throw OSException(errno, "fd not opened: {}", strerror(errno));
             }
             // TODO: POLL_PRI
             iter->second.handler(e);

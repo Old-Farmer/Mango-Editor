@@ -2,56 +2,55 @@
 
 #include <chrono>
 #include <cstdio>
-#include <iomanip>
-#include <sstream>
 #include <string>
+
+#include "fmt/chrono.h"  // IWYU pragma: keep
 
 namespace mango {
 
 extern FILE* logging_file;
 
-extern const std::string kloggingFilePath;
+std::string GetLoggingFilePath();
 
 // throws LoggingException
-void LogInit(const std::string& file);
+void LogInit(const std::string& file = GetLoggingFilePath());
 
 // Deinit the resource, normally shouldn't be called
 void LogDeinit();
-
-inline std::string GetTime(const char* format = "%Y-%m-%d %H:%M:%S") {
-    std::stringstream ss;
-    auto t =
-        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    ss << std::put_time(std::localtime(&t), format);
-    return ss.str();
-}
 
 constexpr std::string_view kDebugPrefix = "[DEBUG]";
 constexpr std::string_view kInfoPrefix = "[INFO]";
 constexpr std::string_view kWarnPrefix = "[WARN]";
 constexpr std::string_view kErrorPrefix = "[ERROR]";
-constexpr std::string_view kUnknownPrefix = "[UNKNOWN]";
 
 enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
-#define MGO_LOG_PREFIX(level, prefix_str)                                   \
-    do {                                                                    \
-        std::stringstream ss;                                               \
-        if constexpr ((level) == LogLevel::kDebug) {                        \
-            ss << kDebugPrefix;                                             \
-        } else if constexpr ((level) == LogLevel::kInfo) {                  \
-            ss << kInfoPrefix;                                              \
-        } else if constexpr ((level) == LogLevel::kWarn) {                  \
-            ss << kWarnPrefix;                                              \
-        } else if constexpr ((level) == LogLevel::kError) {                 \
-            ss << kErrorPrefix;                                             \
-        } else {                                                            \
-            ss << kUnknownPrefix;                                           \
-        }                                                                   \
-        ss << "(" << __builtin_FILE() << ":" << __LINE__ << ":" << __func__ \
-           << ")" << " " << GetTime() << ": ";                              \
-        prefix_str = ss.str();                                              \
-    } while (0)
+#define MGO_LOG_FILE __builtin_FILE()
+#define MGO_LOG_LINE __LINE__
+#define MGO_LOG_FUNC __func__
+
+template <LogLevel level, typename... Args>
+void Log(const char* file, unsigned int line, const char* func,
+         const char* format, Args&&... args) {
+    std::string_view level_prefix;
+    if constexpr (level == LogLevel::kDebug) {
+        level_prefix = kDebugPrefix;
+    } else if constexpr (level == LogLevel::kInfo) {
+        level_prefix = kInfoPrefix;
+    } else if constexpr (level == LogLevel::kWarn) {
+        level_prefix = kWarnPrefix;
+    } else {  // level == LogLevel::kError
+        level_prefix = kErrorPrefix;
+    }
+    auto t =
+        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    fmt::println(logging_file, "{}({}:{}:{}) {:%Y-%m-%d %H:%M:%S}: {}",
+                 level_prefix, file, line, func, *std::localtime(&t),
+                 fmt::format(format, std::forward<Args>(args)...));
+    if constexpr (level != LogLevel::kInfo) {
+        fflush(logging_file);
+    }
+}
 
 #ifdef NDEBUG
 
@@ -61,43 +60,24 @@ enum class LogLevel { kDebug, kInfo, kWarn, kError };
 
 #else
 
-#define MGO_LOG_DEBUG(format, ...)                              \
-    do {                                                        \
-        std::string prefix;                                     \
-        MGO_LOG_PREFIX(LogLevel::kDebug, prefix);               \
-        fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
-                ##__VA_ARGS__);                                 \
-        fflush(logging_file);                                   \
-    } while (0)
+#define MGO_LOG_DEBUG(format, ...)                                          \
+    Log<LogLevel::kDebug>(MGO_LOG_FILE, MGO_LOG_LINE, MGO_LOG_FUNC, format, \
+                          ##__VA_ARGS__)
 
 #endif  // NDEBUG
 
-#define MGO_LOG_INFO(format, ...)                               \
-    do {                                                        \
-        std::string prefix;                                     \
-        MGO_LOG_PREFIX(LogLevel::kInfo, prefix);                \
-        fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
-                ##__VA_ARGS__);                                 \
-    } while (0)
+#define MGO_LOG_INFO(format, ...)                                          \
+    Log<LogLevel::kInfo>(MGO_LOG_FILE, MGO_LOG_LINE, MGO_LOG_FUNC, format, \
+                         ##__VA_ARGS__)
 
-#define MGO_LOG(format, ...) MGO_LOG_INFO(format, ##__VA_ARGS__)
+#define MGO_LOG MGO_LOG_INFO
 
-#define MGO_LOG_WARN(format, ...)                               \
-    do {                                                        \
-        std::string prefix;                                     \
-        MGO_LOG_PREFIX(LogLevel::kWarn, prefix);                \
-        fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
-                ##__VA_ARGS__);                                 \
-        fflush(logging_file);                                   \
-    } while (0)
+#define MGO_LOG_WARN(format, ...)                                          \
+    Log<LogLevel::kWarn>(MGO_LOG_FILE, MGO_LOG_LINE, MGO_LOG_FUNC, format, \
+                         ##__VA_ARGS__)
 
-#define MGO_LOG_ERROR(format, ...)                              \
-    do {                                                        \
-        std::string prefix;                                     \
-        MGO_LOG_PREFIX(LogLevel::kError, prefix);               \
-        fprintf(logging_file, "%s" format "\n", prefix.c_str(), \
-                ##__VA_ARGS__);                                 \
-        fflush(logging_file);                                   \
-    } while (0)
+#define MGO_LOG_ERROR(format, ...)                                          \
+    Log<LogLevel::kError>(MGO_LOG_FILE, MGO_LOG_LINE, MGO_LOG_FUNC, format, \
+                          ##__VA_ARGS__)
 
 }  // namespace mango

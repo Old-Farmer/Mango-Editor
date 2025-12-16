@@ -28,13 +28,12 @@ File::File(const std::string& path, const char* mode,
     }
 
     if (!create_if_not_exist || errno != ENOENT) {
-        throw IOException("File %s can't open: %s", path.c_str(),
-                          strerror(errno));
+        throw IOException("File {} can't open: {}", path, strerror(errno));
     }
 
     file_ = fopen(path.c_str(), "w+");
     if (file_ == nullptr) {
-        throw FileCreateException("File %s can't create: %s", path.c_str(),
+        throw FileCreateException("File {} can't create: {}", path,
                                   strerror(errno));
     }
 }
@@ -71,7 +70,7 @@ Result File::ReadLine(std::string& buf, EOLSeq& eol_seq) {
                 res = kEof;
                 break;
             }
-            throw IOException("%s", strerror(errno));
+            throw IOException("{}", strerror(errno));
         }
         if (c == '\n') {
             res = kOk;
@@ -100,7 +99,7 @@ std::string File::ReadAll() {
             if (feof(file_)) {
                 break;
             } else if (feof(file_)) {
-                throw IOException("%s", strerror(errno));
+                throw IOException("{}", strerror(errno));
             } else {
                 MGO_ASSERT(false);
             }
@@ -135,14 +134,14 @@ std::string File::ReadAll() {
 void File::Truncate(size_t size) {
     int ret = ftruncate64(fileno(file_), size);
     if (ret == -1) {
-        throw IOException("ftruncate64 error: %s", strerror(errno));
+        throw IOException("ftruncate64 error: {}", strerror(errno));
     }
 }
 
 void File::Fsync() {
     int ret = fsync(fileno(file_));
     if (ret == -1) {
-        throw IOException("fsync error: %s", strerror(errno));
+        throw IOException("fsync error: {}", strerror(errno));
     }
 }
 

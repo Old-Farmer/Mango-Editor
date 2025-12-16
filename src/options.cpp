@@ -52,9 +52,9 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptCmpMenuMaxHeight] = {OptScope::kGlobal,
                                                  Type::kInteger};
         static_opt_info[kOptMaxEditHistory] = {OptScope::kGlobal,
-                                                   Type::kInteger};
+                                               Type::kInteger};
         static_opt_info[kOptMaxJumpHistory] = {OptScope::kGlobal,
-                                                   Type::kInteger};
+                                               Type::kInteger};
 
         static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,
                                                     Type::kBool};
@@ -152,16 +152,16 @@ static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
             auto iter_attr = v.find(attr_loc);
             if (iter_attr == v.end()) {
                 throw OptionLoadException(
-                    "Option colorscheme%s/%s/%s not "
+                    "Option colorscheme{}/{}/{} not "
                     "exist",
-                    truecolor ? "_truecolor" : "", k.c_str(), attr_loc.data());
+                    truecolor ? "_truecolor" : "", k, attr_loc);
             }
 
             if (!iter_attr->is_array()) {
                 throw OptionLoadException(
-                    "Option colorscheme%s/%s/%s is not "
+                    "Option colorscheme{}/{}/{} is not "
                     "array",
-                    truecolor ? "_truecolor" : "", k.c_str(), attr_loc.data());
+                    truecolor ? "_truecolor" : "", k, attr_loc);
             }
 
             int colors_cnt = 0;
@@ -201,12 +201,12 @@ static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
             }
             if (colors_cnt != 1) {
                 throw OptionLoadException(
-                    "%s", "In colorscheme, Color cnt wrong, expect one");
+                    "{}", "In colorscheme, Color cnt wrong, expect one");
             }
         }
     }
     if (colorscheme_type_cnt != __kColorSchemeTypeCount) {
-        throw OptionLoadException("%s", "Colorscheme type cnt wrong");
+        throw OptionLoadException("{}", "Colorscheme type cnt wrong");
     }
 }
 
@@ -235,10 +235,11 @@ void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
                         reinterpret_cast<void*>(inner_v.get<int64_t>());
                 } else {
                     throw OptionLoadException(
-                        "value type wrong: key: %s, v type: %d %d",
-                        ("/" + std::string(filetype) + "/" + inner_k).c_str(),
-                        opt_info.type,
-                        inner_v.type());  // flatten rep of key
+                        "value type wrong: key: {}, v type: {} {}",
+                        "/" + std::string(filetype) + "/" + inner_k,
+                        static_cast<int>(opt_info.type),
+                        static_cast<int>(
+                            inner_v.type()));  // flatten rep of key
                 }
             }
             continue;
@@ -255,7 +256,7 @@ void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
         } else if (opt_info.type == Type::kInteger && v.is_number_integer()) {
             opts_[opt_key] = reinterpret_cast<void*>(v.get<int64_t>());
         } else {
-            throw OptionLoadException("value type wrong: key %s", k.c_str());
+            throw OptionLoadException("value type wrong: key {}", k);
         }
     }
 

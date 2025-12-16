@@ -34,6 +34,7 @@ struct Fd {
         other.fd = -1;
         return *this;
     }
+    // throw OSException
     ssize_t Read(void* buf, size_t size) {
         MGO_ASSERT(fd != -1);
         while (true) {
@@ -44,9 +45,11 @@ struct Fd {
             if (errno == EINTR) {
                 continue;
             }
-            throw OSException(errno, "read error: %s", strerror(errno));
+            throw OSException(errno, "read error: {}", strerror(errno));
         }
     }
+
+    // throw OSException
     void Write(const void* buf, size_t size) {
         MGO_ASSERT(fd != -1);
         while (true) {
@@ -57,7 +60,7 @@ struct Fd {
             if (errno == EINTR) {
                 continue;
             }
-            throw OSException(errno, "read error: %s", strerror(errno));
+            throw OSException(errno, "write error: {}", strerror(errno));
         }
     }
     void Close() {
@@ -69,21 +72,24 @@ struct Fd {
     ~Fd() { Close(); }
 };
 
+// throw OSException
 inline void Pipe(Fd pipe_fd[2]) {
     int rc = pipe(reinterpret_cast<int*>(pipe_fd));
     if (rc == -1) {
-        throw OSException(errno, "pipe error: %s", strerror(errno));
+        throw OSException(errno, "pipe error: {}", strerror(errno));
     }
 }
 
+// throw OSException
 inline int Fork() {
     int pid = fork();
     if (pid == -1) {
-        throw OSException(errno, "fork error: %s", strerror(errno));
+        throw OSException(errno, "fork error: {}", strerror(errno));
     }
     return pid;
 }
 
+// throw OSException
 inline void Dup2(const Fd& old_fd, int new_fd) {
     MGO_ASSERT(new_fd == STDIN_FILENO || new_fd == STDOUT_FILENO ||
                new_fd == STDERR_FILENO);
@@ -93,12 +99,13 @@ inline void Dup2(const Fd& old_fd, int new_fd) {
             if (errno == EINTR) {
                 continue;
             }
-            throw OSException(errno, "dup2 error: %s", strerror(errno));
+            throw OSException(errno, "dup2 error: {}", strerror(errno));
         }
         break;
     }
 }
 
+// throw OSException
 inline Fd Open(const char* file, int oflags = O_RDWR, mode_t mode = 0644) {
     Fd fd;
     while (true) {
@@ -113,7 +120,7 @@ inline Fd Open(const char* file, int oflags = O_RDWR, mode_t mode = 0644) {
         if (errno == EINTR) {
             continue;
         }
-        throw OSException(errno, "open error: %s", strerror(errno));
+        throw OSException(errno, "open error: {}", strerror(errno));
     }
 }
 

@@ -11,26 +11,27 @@ void PrintException(const std::exception* e) {
     if (e) {
         int status = 0;
         const char* mangled = typeid(*e).name();
-        char* demangled =
+        const char* demangled =
             abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
 
-        fprintf(stderr,
-                "Caught an instance of '%s'\n"
-                "  what(): %s\n",
-                (status == 0 && demangled) ? demangled : mangled, e->what());
+        fmt::println(stderr,
+                     "Caught an instance of '{}'\n"
+                     "  what(): {}",
+                     (status == 0 && demangled) ? demangled : mangled,
+                     e->what());
 
-        free(demangled);
+        free(const_cast<char*>(demangled));
     } else {
         int status = 0;
         const char* mangled =
             __cxxabiv1::__cxa_current_exception_type()->name();
-        char* demangled =
+        const char* demangled =
             abi::__cxa_demangle(mangled, nullptr, nullptr, &status);
 
-        fprintf(stderr, "Caught an instance of '%s'\n",
-                (status == 0 && demangled) ? demangled : mangled);
+        fmt::println(stderr, "Caught an instance of '{}'",
+                     (status == 0 && demangled) ? demangled : mangled);
 
-        free(demangled);
+        free(const_cast<char*>(demangled));
     }
 }
 

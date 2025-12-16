@@ -1,7 +1,5 @@
 #include "syntax.h"
 
-#include <cinttypes>
-
 #include "constants.h"
 #include "exception.h"
 #include "options.h"
@@ -178,11 +176,11 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
     bool set_range_ret =
         ts_query_cursor_set_point_range(query_cursor_, query_start, query_end);
     if (!set_range_ret) {
-        MGO_LOG_INFO("ts_query_cursor_set_point_range error: start row %" PRIu32
-                     ", start col %" PRIu32 ", end row %" PRIu32
-                     ", end col %" PRIu32,
-                     query_start.row, query_start.column, query_end.row,
-                     query_end.column);
+        MGO_LOG_INFO(
+            "ts_query_cursor_set_point_range error: start row {}, start col "
+            "{}, end row {}, end col {}",
+            query_start.row, query_start.column, query_end.row,
+            query_end.column);
         return;
     }
 
@@ -206,11 +204,10 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
                 query_context.query, match.captures[i].index, &len);
             TSPoint start = ts_node_start_point(match.captures[i].node);
             TSPoint end = ts_node_end_point(match.captures[i].node);
-            // MGO_LOG_DEBUG("capture name: %s, index: %" PRIu32
-            //               ", range: [(%" PRIu32 ", %" PRIu32 "), (%" PRIu32
-            //               ", %" PRIu32 "))",
-            //               name, match.captures[i].index, start.row,
-            //               start.column, end.row, end.column);
+            // MGO_LOG_DEBUG(
+            //     "capture name: {}, index: {}, range: [({}, {}), ({}, {}))",
+            //     name, match.captures[i].index, start.row, start.column,
+            //     end.row, end.column);
 
             Range range = {{start.row, start.column}, {end.row, end.column}};
             MGO_ASSERT(buffer->LineCnt() > range.end.line);
@@ -276,8 +273,8 @@ void SyntaxParser::SyntaxInit(const Buffer* buffer) {
 
     if (!ts_parser_set_language(parser_,
                                 filetype_to_language_.at(buffer->filetype()))) {
-        MGO_LOG_ERROR("ts_parser_set_language error: filetype %s",
-                      zstring_view_c_str(buffer->filetype()));
+        MGO_LOG_ERROR("ts_parser_set_language error: filetype {}",
+                      buffer->filetype());
         return;
     }
 
@@ -285,8 +282,7 @@ void SyntaxParser::SyntaxInit(const Buffer* buffer) {
                      TSInputEncodingUTF8, nullptr};
     TSTree* tree = ts_parser_parse(parser_, nullptr, input);
     if (tree == nullptr) {
-        MGO_LOG_ERROR("ts_parser_parse error: filetype %s",
-                      zstring_view_c_str(buffer->filetype()));
+        MGO_LOG_ERROR("ts_parser_parse error: filetype {}", buffer->filetype());
         return;
     }
     buffer_context_[buffer->id()].tree = tree;
@@ -304,8 +300,7 @@ void SyntaxParser::ParseSyntaxAfterEdit(Buffer* buffer) {
                      TSInputEncodingUTF8, nullptr};
     context.tree = ts_parser_parse(parser_, context.tree, input);
     if (context.tree == nullptr) {
-        MGO_LOG_ERROR("ts_parser_parse error: filetype %s",
-                      zstring_view_c_str(buffer->filetype()));
+        MGO_LOG_ERROR("ts_parser_parse error: filetype {}", buffer->filetype());
     }
 }
 
@@ -363,18 +358,17 @@ void SyntaxParser::InitQueryContex(TSQueryContext& query_context) {
                 int ret = regcomp(&query_context.pattern_context[i]->match,
                                   regex_pattern, REG_EXTENDED | REG_NOSUB);
                 if (ret != 0) {
-                    std::vector<char> buf(128);
-                    regerror(ret, &query_context.pattern_context[i]->match,
-                             buf.data(), 128);
+                    char buf[128];
+                    regerror(ret, &query_context.pattern_context[i]->match, buf,
+                             128);
                     query_context.pattern_context[i].reset();
-                    throw RegexCompileException("regex compile error %s",
-                                                buf.data());
+                    throw RegexCompileException("regex compile error {}", buf);
                 }
                 MGO_ASSERT(j + 4 == predicates_steps);
                 j += 4;
             } else {
                 throw TSQueryPredicateDirectiveNotSupportException(
-                    "TS Query predicate/directive %s is not "
+                    "TS Query predicate/directive {} is not "
                     "suppored",
                     predicate);
             }
@@ -407,9 +401,8 @@ const SyntaxParser::TSQueryContext* SyntaxParser::GetQueryContext(
                                           query_str.c_str(), query_str.size(),
                                           &error_offset, &error_type);
             if (query == nullptr) {
-                MGO_LOG_ERROR("ts query create error: offset %" PRIu32
-                              " error %d",
-                              error_offset, error_type);
+                MGO_LOG_ERROR("ts query create error: offset {}, error {}",
+                              error_offset, static_cast<int>(error_type));
                 return nullptr;
             }
             TSQueryContext query_context;
@@ -418,8 +411,8 @@ const SyntaxParser::TSQueryContext* SyntaxParser::GetQueryContext(
             filetype_to_query_[filetype] = std::move(query_context);
             return &filetype_to_query_[filetype];
         } catch (IOException& e) {
-            MGO_LOG_ERROR("TS query file %s cannot read: %s",
-                          query_file_path.c_str(), e.what());
+            MGO_LOG_ERROR("TS query file {} cannot read: {}", query_file_path,
+                          e.what());
             filetype_to_query_[filetype] = {nullptr, {}};
             return nullptr;
         } catch (std::out_of_range& e) {

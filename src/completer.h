@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "pos.h"
+#include "result.h"
 #include "utils.h"
 
 namespace mango {
@@ -44,10 +45,7 @@ class PeelCompleter : public Completer {
     std::vector<std::string> suggestions_;
     size_t this_arg_offset_;
 
-    enum class SuggestType {
-        kBuffer,
-        kPath
-    };
+    enum class SuggestType { kBuffer, kPath };
     SuggestType type_;
 };
 

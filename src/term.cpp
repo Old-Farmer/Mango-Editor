@@ -35,8 +35,8 @@ void Terminal::Init(GlobalOpts* global_opts) {
 
     int ret = tb_init();
     if (ret != TB_OK) {
-        MGO_LOG_ERROR("%s", tb_strerror(ret));
-        throw TermException("%s", tb_strerror(ret));
+        MGO_LOG_ERROR("{}", tb_strerror(ret));
+        throw TermException("{}", tb_strerror(ret));
     }
     init_ = true;
 
@@ -44,8 +44,8 @@ void Terminal::Init(GlobalOpts* global_opts) {
     // And enable mouse.
     ret = tb_set_input_mode(TB_INPUT_ESC | TB_INPUT_MOUSE);
     if (ret != TB_OK) {
-        MGO_LOG_ERROR("%s", tb_strerror(ret));
-        throw TermException("%s", tb_strerror(ret));
+        MGO_LOG_ERROR("{}", tb_strerror(ret));
+        throw TermException("{}", tb_strerror(ret));
     }
 
     tb_set_wcswidth_fn(my_tb_wcswidth_fn);
@@ -56,8 +56,8 @@ void Terminal::Init(GlobalOpts* global_opts) {
         ret = tb_set_output_mode(TB_OUTPUT_NORMAL);
     }
     if (ret != TB_OK) {
-        MGO_LOG_ERROR("%s", tb_strerror(ret));
-        throw TermException("%s", tb_strerror(ret));
+        MGO_LOG_ERROR("{}", tb_strerror(ret));
+        throw TermException("{}", tb_strerror(ret));
     }
     SetClearAttr(global_opts->GetOpt<ColorScheme>(kOptColorScheme)[kNormal]);
 
@@ -89,7 +89,7 @@ void Terminal::Shutdown() {
 void Terminal::SetClearAttr(const AttrPair& attr) {
     int ret;
     if ((ret = tb_set_clear_attrs(attr.fg, attr.bg) != TB_OK)) {
-        throw TermException("Terminal::SetDefaultAttr error: %s",
+        throw TermException("Terminal::SetDefaultAttr error: {}",
                             tb_strerror(ret));
     }
 }
@@ -103,8 +103,8 @@ bool Terminal::PollInner(int timeout_ms) {
         } else if (ret == TB_ERR_POLL && tb_last_errno() == EINTR) {
             continue;
         } else if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
         return true;
     }

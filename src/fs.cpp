@@ -91,7 +91,7 @@ std::string Path::GetHome() {
     const char* env = getenv("HOME");
     // TODO: better home detection?
     if (env == nullptr) {
-        throw Exception("%s", "HOME detection fail");
+        throw Exception("{}", "HOME detection fail");
     }
     return env;
 }
@@ -101,7 +101,7 @@ const std::string& Path::GetCwdSys() {
     char buf[PATH_MAX + 1];
     char* ret = getcwd(buf, PATH_MAX + 1);
     if (ret == nullptr) {
-        throw FSException("Getcwd Error: %s", strerror(errno));
+        throw FSException("Getcwd Error: {}", strerror(errno));
     }
     cwd_ = std::string(buf) + kPathSeperator;
     return cwd_;
@@ -111,19 +111,19 @@ const std::string& Path::GetAppRootSys() {
     char buf[PATH_MAX + 1];
     ssize_t len = readlink("/proc/self/exe", buf, PATH_MAX + 1);
     if (len == -1) {
-        throw FSException("GetAppRootSys Error: %s", strerror(errno));
+        throw FSException("GetAppRootSys Error: {}", strerror(errno));
     }
     buf[len] = '\0';
     app_root_ = std::string(buf);
     auto pos = app_root_.find_last_of(kPathSeperator, app_root_.size() - 1);
     if (pos == std::string::npos) {
-        throw FSException("%",
+        throw FSException("{}",
                           "GetAppRootSys Error: find_last_of can't find a /");
     }
     pos = app_root_.find_last_of(kPathSeperator, pos - 1);
     if (pos == std::string::npos) {
         throw FSException(
-            "%", "GetAppRootSys Error: find_last_of can't find another /");
+            "{}", "GetAppRootSys Error: find_last_of can't find another /");
     }
     app_root_.resize(pos + 1);
     return app_root_;
@@ -142,7 +142,7 @@ std::vector<std::string> Path::ListUnderPath(const std::string& path) {
         if (errno == ENOTDIR) {
             return {};
         }
-        throw FSException("opendir error: %s", strerror(errno));
+        throw FSException("opendir error: {}", strerror(errno));
     }
     struct dirent* ent;
     errno = 0;
@@ -163,7 +163,7 @@ std::vector<std::string> Path::ListUnderPath(const std::string& path) {
     closedir(dir);  // If dir is not bad, closedir will never fail, so it will
                     // not effect errno.
     if (errno != 0) {
-        throw FSException("readdir error: %s", strerror(errno));
+        throw FSException("readdir error: {}", strerror(errno));
     }
     return ret;
 }

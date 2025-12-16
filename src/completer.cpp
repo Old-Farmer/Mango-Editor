@@ -91,7 +91,7 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
                     suggestions_ = SuggestFilePath(arg_hint);
                 } catch (FSException& e) {
                     // TODO: maybe we can throw catch the outer?
-                    MGO_LOG_ERROR("%s", e.what());
+                    MGO_LOG_ERROR("{}", e.what());
                 }
                 type_ = SuggestType::kPath;
             }
@@ -195,7 +195,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
     }
     // auto end = std::chrono::steady_clock::now();
     // MGO_LOG_INFO(
-    //     "time %ld ms",
+    //     "time {} ms",
     //     std::chrono::duration_cast<std::chrono::microseconds>(end - now)
     //         .count());
 

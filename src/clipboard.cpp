@@ -3,6 +3,7 @@
 #include "character.h"
 #include "constants.h"
 #include "exception.h"
+#include "subprocess.h"
 #include "utils.h"
 
 namespace mango {
@@ -36,11 +37,10 @@ void DefaultClipBoard::SetContent(std::string&& content, bool lines) {
 }
 
 bool XClipBoard::DetectUsable() {
-    const char* const argv[] = {"xsel", "--help", NULL};
+    const char* const argv[] = {"xsel", "--help", nullptr};
     int exit_code;
     try {
-        Result res = Exec(argv[0], const_cast<char* const*>(argv), nullptr,
-                          nullptr, nullptr, exit_code);
+        Result res = Exec(argv, nullptr, nullptr, nullptr, exit_code);
         return exit_code == 0 && res == kOk;
     } catch (OSException& e) {
         return false;
@@ -54,12 +54,11 @@ XClipBoard::XClipBoard() {
 
 std::string XClipBoard::GetContent(bool& lines) const {
     lines = lines_;
-    const char* const argv[] = {"xsel", "--clipboard", NULL};
+    const char* const argv[] = {"xsel", "--clipboard", nullptr};
     std::string content;
     int exit_code;
     try {
-        Result res = Exec(argv[0], const_cast<char* const*>(argv), nullptr,
-                          &content, nullptr, exit_code);
+        Result res = Exec(argv, nullptr, &content, nullptr, exit_code);
         if (exit_code != 0 || res != kOk) {
             return "";
         }
@@ -88,11 +87,10 @@ std::string XClipBoard::GetContent(bool& lines) const {
 void XClipBoard::SetContent(const std::string& content, bool lines) {
     MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
-    const char* const argv[] = {"xsel", "--clipboard", NULL};
+    const char* const argv[] = {"xsel", "--clipboard", nullptr};
     int exit_code;
     try {
-        Result res = Exec(argv[0], const_cast<char* const*>(argv), &content,
-                          nullptr, nullptr, exit_code);
+        Result res = Exec(argv, &content, nullptr, nullptr, exit_code);
         if (exit_code != 0 || res != kOk) {
             return;
         }

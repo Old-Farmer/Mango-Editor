@@ -3,7 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
-#include <memory>
+#include <utility>
+
+#include "fmt/format.h"
 
 namespace mango {
 
@@ -17,114 +19,48 @@ class Exception : public std::exception {
    public:
     Exception() = default;
     template <typename... Args>
-    Exception(const char* format, Args... args) {
-        int size = snprintf(nullptr, 0, format, args...);
-        if (size > 0) {
-            msg_ = std::make_unique<char[]>(size + 1);
-            snprintf(msg_.get(), size + 1, format, args...);
-        }
+    Exception(const char* format, Args&&... args) {
+        msg_ = fmt::format(format, std::forward<Args>(args)...);
     }
 
-    virtual const char* what() const noexcept override { return msg_.get(); }
+    virtual const char* what() const noexcept override { return msg_.c_str(); }
 
    protected:
-    std::unique_ptr<char[]> msg_;
+    std::string msg_;
 };
 
-class TermException : public Exception {
-   public:
-    template <typename... Args>
-    TermException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
+#define MGO_NORMAL_EXCEPTION(exception)                         \
+    class exception : public Exception {                        \
+       public:                                                  \
+        template <typename... Args>                             \
+        exception(const char* format, Args&&... args)           \
+            : Exception(format, std::forward<Args>(args)...) {} \
+    };
 
-class IOException : public Exception {
-   public:
-    template <typename... Args>
-    IOException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class FileCreateException : public IOException {
-   public:
-    template <typename... Args>
-    FileCreateException(const char* format, Args... args)
-        : IOException(format, args...) {}
-};
-
-class CodeingException : public Exception {
-   public:
-    template <typename... Args>
-    CodeingException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class FSException : public Exception {
-   public:
-    template <typename... Args>
-    FSException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class LogInitException : public Exception {
-   public:
-    template <typename... Args>
-    LogInitException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class SignalRegisterException : public Exception {
-   public:
-    template <typename... Args>
-    SignalRegisterException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class KeyNotPredefinedException : public Exception {
-   public:
-    template <typename... Args>
-    KeyNotPredefinedException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class TSQueryPredicateDirectiveNotSupportException : public Exception {
-   public:
-    template <typename... Args>
-    TSQueryPredicateDirectiveNotSupportException(const char* format,
-                                                 Args... args)
-        : Exception(format, args...) {}
-};
-
-class RegexCompileException : public Exception {
-   public:
-    template <typename... Args>
-    RegexCompileException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
+MGO_NORMAL_EXCEPTION(TermException)
+MGO_NORMAL_EXCEPTION(IOException)
+MGO_NORMAL_EXCEPTION(FileCreateException)
+MGO_NORMAL_EXCEPTION(CodingException)
+MGO_NORMAL_EXCEPTION(FSException)
+MGO_NORMAL_EXCEPTION(LogInitException)
+MGO_NORMAL_EXCEPTION(SignalRegisterException)
+MGO_NORMAL_EXCEPTION(KeyNotPredefinedException)
+MGO_NORMAL_EXCEPTION(TSQueryPredicateDirectiveNotSupportException)
+MGO_NORMAL_EXCEPTION(RegexCompileException)
 
 class OSException : public Exception {
    public:
     template <typename... Args>
-    OSException(int error_code, const char* format, Args... args)
-        : Exception(format, args...), error_code_(error_code) {}
+    OSException(int error_code, const char* format, Args&&... args)
+        : Exception(format, std::forward<Args>(args)...),
+          error_code_(error_code) {}
     int error_code() { return error_code_; }
 
    private:
     int error_code_;
 };
 
-class TypeMismatchException : public Exception {
-   public:
-    template <typename... Args>
-    TypeMismatchException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
-class OptionLoadException : public Exception {
-   public:
-    template <typename... Args>
-    OptionLoadException(const char* format, Args... args)
-        : Exception(format, args...) {}
-};
-
+MGO_NORMAL_EXCEPTION(TypeMismatchException)
+MGO_NORMAL_EXCEPTION(OptionLoadException)
+MGO_NORMAL_EXCEPTION(ParseMsgException)
 }  // namespace mango

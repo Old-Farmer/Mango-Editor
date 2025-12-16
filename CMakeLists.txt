@@ -144,6 +144,18 @@ foreach(LANG IN LISTS TS_GRAMMAR_LANGS)
     FetchContent_Populate(${NAME})
 endforeach()
 
+# fmt
+# ref https://fmt.dev/12.0/get-started/
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt
+    GIT_TAG        e69e5f977d458f2650bb346dadf2ad30c5320281 # 10.2.1
+    GIT_SHALLOW TRUE
+    GIT_PROGRESS TRUE
+    SOURCE_DIR "${THIRD_PARTY_DIR}/fmt"
+)
+FetchContent_MakeAvailable(fmt)
+
 # TODO: use ICU and support grapheme cluster
 # # ICU
 # find_package(ICU REQUIRED COMPONENTS uc i18n data)
@@ -208,6 +220,8 @@ target_sources(
   "${SRC_DIR}/signal_handler.cpp"
   "${SRC_DIR}/str.h"
   "${SRC_DIR}/str.cpp"
+  "${SRC_DIR}/subprocess.h"
+  "${SRC_DIR}/subprocess.cpp"
   "${SRC_DIR}/syntax.h"
   "${SRC_DIR}/syntax.cpp"
   "${SRC_DIR}/os.h"
@@ -250,6 +264,7 @@ target_link_libraries(
     nlohmann_json::nlohmann_json
     ${TREESITTER_LIB}
     ${UTF8PROC_LIB}
+    fmt::fmt
 )
 target_include_directories(
   mango_lib 

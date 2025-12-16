@@ -100,7 +100,7 @@ using ColorSchemeElement = Terminal::AttrPair;
 class Opts;
 
 #define MGO_IF_TYPE_MISMATCH_THROW(expr) \
-    if (!(expr)) throw TypeMismatchException("%s", #expr)
+    if (!(expr)) throw TypeMismatchException("{}", #expr)
 
 // GlobalOpts is a class that represents all opts.
 class GlobalOpts {
@@ -123,8 +123,9 @@ class GlobalOpts {
         return std::move(user_config_error_reason_);
     }
 
+    // We can use key as template parameter to eliminate runtime type checking.
     template <typename T>
-    T GetOpt(OptKey key) const {
+    constexpr T GetOpt(OptKey key) const {
         if constexpr (std::is_same_v<T, bool>) {
             MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kBool);
         } else if constexpr (std::is_same_v<T, int64_t>) {

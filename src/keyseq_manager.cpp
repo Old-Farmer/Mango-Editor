@@ -96,7 +96,7 @@ Result KeyseqManager::ParseKeyseq(const std::string& seq,
             auto iter = kKeyStrToKeyInfo.find(key);
             if (iter == kKeyStrToKeyInfo.end()) {
                 std::string key_copy(key);
-                throw KeyNotPredefinedException("Didn't predefine %s",
+                throw KeyNotPredefinedException("Didn't predefine {}",
                                                 key_copy.c_str());
             }
             keys.push_back(iter->second);

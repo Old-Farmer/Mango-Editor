@@ -1,5 +1,6 @@
 #pragma once
 
+#include "result.h"
 #include "utils.h"
 
 namespace mango {

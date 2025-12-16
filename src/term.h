@@ -106,8 +106,8 @@ class Terminal {
             const_cast<uint32_t*>(reinterpret_cast<const uint32_t*>(codepoint)),
             n_codepoint, attr.fg, attr.bg);
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -115,8 +115,8 @@ class Terminal {
     void Print(int col, int row, const AttrPair& attr, const char* str) {
         int ret = tb_print(col, row, attr.fg, attr.bg, str);
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -124,8 +124,8 @@ class Terminal {
     void SetCursor(int col, int row) {
         int ret = tb_set_cursor(col, row);
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -133,8 +133,8 @@ class Terminal {
     void HideCursor() {
         int ret = tb_hide_cursor();
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -142,8 +142,8 @@ class Terminal {
     size_t Height() {
         int ret = tb_height();
         if (ret < 0) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
         return ret;
     }
@@ -152,8 +152,8 @@ class Terminal {
     size_t Width() {
         int ret = tb_width();
         if (ret < 0) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
         return ret;
     }
@@ -162,8 +162,8 @@ class Terminal {
     void Clear() {
         int ret = tb_clear();
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -171,8 +171,8 @@ class Terminal {
     void Present() {
         int ret = tb_present();
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 
@@ -180,8 +180,8 @@ class Terminal {
     void GetFDs(int& tty_fd, int& resize_fd) {
         int ret = tb_get_fds(&tty_fd, &resize_fd);
         if (ret != TB_OK) {
-            MGO_LOG_ERROR("%s", tb_strerror(ret));
-            throw TermException("%s", tb_strerror(ret));
+            MGO_LOG_ERROR("{}", tb_strerror(ret));
+            throw TermException("{}", tb_strerror(ret));
         }
     }
 

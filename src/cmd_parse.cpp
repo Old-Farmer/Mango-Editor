@@ -50,7 +50,7 @@ void ParseCmdArgs(int argc, char* argv[], GlobalOpts* options,
         init_options->begin_files.push_back(argv[optind++]);
     }
     for (auto file : init_options->begin_files) {
-        MGO_LOG_DEBUG("cmd args: file name: %s", file);
+        MGO_LOG_DEBUG("cmd args: file name: {}", file);
     }
     (void)options;
 }
