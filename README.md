@@ -35,7 +35,7 @@ This project uses CMake build system.
 
 Requirements:
 
-1. A C++ compiler which supports C++17 (GCC >= 8 / Clang >= 7). I prefer clang.
+1. A C++ compiler which supports C++17 (GCC >= 8 / Clang >= 7). I prefer Clang.
 2. CMake >= 3.22
 3. Git
 4. make or ninja
