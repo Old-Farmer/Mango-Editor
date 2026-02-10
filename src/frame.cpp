@@ -1235,15 +1235,17 @@ Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
 }
 
 size_t Frame::SidebarWidth() {
-    auto line_number = GetOpt<int64_t>(kOptLineNumber);
-    if (line_number == static_cast<int64_t>(LineNumberType::kNone)) {
+    auto line_number =
+        static_cast<LineNumberType>(GetOpt<int64_t>(kOptLineNumber));
+    if (line_number == LineNumberType::kNone) {
         return 0;
     }
 
     // Now we only have line number in no wrap, or a <<< addition may in wrap.
     // We calc width according to the line cnt of the buffer to avoid ui
     // debounce.
-    size_t max_line_number = buffer_->LineCnt() + 1;
+    size_t max_line_number =
+        buffer_->LineCnt() + (line_number == LineNumberType::kRelative ? 0 : 1);
     bool wrap = GetOpt<bool>(kOptWrap);
     return (wrap ? std::max<size_t>(NumberWidth(max_line_number),
                                     kSublineIndicator.size())
