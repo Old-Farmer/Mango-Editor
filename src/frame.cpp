@@ -1244,8 +1244,7 @@ size_t Frame::SidebarWidth() {
     // Now we only have line number in no wrap, or a <<< addition may in wrap.
     // We calc width according to the line cnt of the buffer to avoid ui
     // debounce.
-    size_t max_line_number =
-        buffer_->LineCnt() + (line_number == LineNumberType::kRelative ? 0 : 1);
+    size_t max_line_number = buffer_->LineCnt();
     bool wrap = GetOpt<bool>(kOptWrap);
     return (wrap ? std::max<size_t>(NumberWidth(max_line_number),
                                     kSublineIndicator.size())
