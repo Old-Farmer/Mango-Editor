@@ -1,7 +1,5 @@
 #include "status_line.h"
 
-#include <sstream>
-
 #include "buffer.h"
 #include "character.h"
 #include "cursor.h"
@@ -36,7 +34,6 @@ void StatusLine::Draw() {
 
     term_->Print(sep_width, row_, scheme[t], cursor_in_info.c_str());
 
-    std::stringstream ss;
     int64_t line, character_in_line;
     if (IsPeel(*mode_)) {
         line = cursor_->restore_from_peel->frame_.b_view_->cursor_state.line;
@@ -48,13 +45,14 @@ void StatusLine::Draw() {
     }
 
     std::string sep(sep_width, kSpaceChar);
-    ss << sep << (line + 1) << "," << (character_in_line + 1) << sep
-       << FiletypeStrRep(b->filetype()) << sep
-       << (b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:")
-       << b->opts().GetOpt<int64_t>(kOptTabStop) << sep << b->eol_seq();
+    std::string right_str = fmt::format(
+        "{}{},{}{}{}{}{}{}{}{}", sep, line + 1, character_in_line + 1, sep,
+        FiletypeStrRep(b->filetype()), sep,
+        b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:",
+        b->opts().GetOpt<int64_t>(kOptTabStop), sep, b->eol_seq());
     // all is ascii character, so str len == width
-    term_->Print(width_ - ss.str().length() - sep_width, row_, scheme[t],
-                       ss.str().c_str());
+    term_->Print(width_ - right_str.length() - sep_width, row_, scheme[t],
+                 right_str.c_str());
 }
 
 }  // namespace mango

@@ -3,21 +3,21 @@
 #include <unistd.h>
 
 #include <cstring>
-#include <ostream>
 
 #include "exception.h"
 
 namespace mango {
 
-std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq) {
+std::string_view format_as(EOLSeq eol_seq) {
+    std::string_view str;
     if (eol_seq == EOLSeq::kLF) {
-        os << kEOLSeqLFReqStr;
+        str = kEOLSeqLFReqStr;
     } else if (eol_seq == EOLSeq::kCRLF) {
-        os << kEOLSeqCRLFReqStr;
+        str = kEOLSeqCRLFReqStr;
     } else {
         MGO_ASSERT(false);
     }
-    return os;
+    return str;
 }
 
 File::File(const std::string& path, const char* mode,

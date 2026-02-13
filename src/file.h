@@ -13,7 +13,7 @@ constexpr const char* kEOLSeqCRLFReqStr = "CRLF";
 
 enum class EOLSeq { kLF, kCRLF };
 
-std::ostream& operator<<(std::ostream& os, EOLSeq eol_seq);
+std::string_view format_as(EOLSeq eol_seq);
 
 // A File class, just simple wraps a FILE* handler.
 class File {
