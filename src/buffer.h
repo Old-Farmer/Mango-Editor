@@ -65,8 +65,10 @@ class Buffer {
     // if new_file == true, will alloc a new_file_id to this buffer, else just a
     // no file-backup buffer.
     Buffer(GlobalOpts* options, bool new_file = true);
+    // A new file backup buffer
     Buffer(GlobalOpts* options, const std::string& path,
            bool read_only = false);
+    // A new file backup buffer
     Buffer(GlobalOpts* options, const Path& path, bool read_only = false);
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
@@ -83,7 +85,19 @@ class Buffer {
     // kok
     // kBufferNoBackupFile
     // kBufferCannotRead
+    // kBufferReadOnly
     Result Write();
+
+    // Save the buffer content to a new path.
+    // path shouldn't be empty.
+    // If success, the buffer will use the new path.
+    // else, no effect occur.
+    // throws IOException
+    // return
+    // kok
+    // kBufferCannotRead
+    // kBufferReadOnly
+    Result SaveAs(const Path& path);
 
     // Get content operations
     // Make sure that line, Range or Pos is valid, otherwise behavir
@@ -185,7 +199,7 @@ class Buffer {
     zstring_view Name() noexcept {
         return path_.Empty() ? new_file_info_->name : path_.ThisPath();
     }
-    const Path& path() noexcept { return path_; }
+    Path& path() noexcept { return path_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;

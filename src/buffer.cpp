@@ -159,6 +159,32 @@ Result Buffer::Write() {
     return kOk;
 }
 
+Result Buffer::SaveAs(const Path& path) {
+    MGO_ASSERT(!path.Empty());
+    Path old_p = path_;
+    path_ = path;
+    try {
+        Result res = Write();
+        if (res != kOk) {
+            return res;
+        }
+    } catch (IOException& e) {
+        path_ = old_p;
+        throw;
+    }
+    if (old_p.Empty()) {
+        if (new_file_info_) {
+            new_file_alloced_ids_[new_file_info_->id - 1] = false;
+            new_file_info_.reset();
+        }
+    }
+
+    // Reload ft stuff
+    filetype_ = DecideFiletype(path_.FileName());
+    opts_.InitAfterBufferLoad(this);
+    return kOk;
+}
+
 std::string Buffer::GetContent(const Range& range) const {
     MGO_ASSERT(LineCnt() > range.end.line);
     Pos begin = range.begin;

@@ -61,6 +61,7 @@ class Editor {
 
     void RemoveCurrentBuffer();
     void SaveCurrentBuffer();
+    void SaveCurrentBufferAs(const Path& path);
 
    private:
     void InitKeymaps();

@@ -5,6 +5,9 @@ Commands are instructions you can execute in the Mango Peel.
 - "s `<search-pattern>`"
     search string
 
+- "sa `<path>`"
+    save the current content as a file
+
 - "h `[<doc-name>]`"
     goto help
 

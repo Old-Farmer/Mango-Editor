@@ -341,6 +341,7 @@ void Editor::InitKeymapsVi() {}
 #define MGO_CMD command_manager_.AddCommand
 
 void Editor::InitCommands() {
+#define MGO_ENSURE_ARGEXITS(v) MGO_ASSERT(args[v].has_value())
     MGO_CMD({"h",
              "",
              {Type::kString},
@@ -357,7 +358,7 @@ void Editor::InitCommands() {
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 MGO_ASSERT(args[0].has_value());
+                 MGO_ENSURE_ARGEXITS(0);
                  const std::string& name_str =
                      std::get<std::string>(args[0].value());
                  Path p = Path(name_str);
@@ -374,7 +375,7 @@ void Editor::InitCommands() {
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 MGO_ASSERT(args[0].has_value());
+                 MGO_ENSURE_ARGEXITS(0);
                  const std::string& name_str =
                      std::get<std::string>(args[0].value());
                  Buffer* b = buffer_manager_.FindBuffer(name_str);
@@ -387,7 +388,7 @@ void Editor::InitCommands() {
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 MGO_ASSERT(args[0].has_value());
+                 MGO_ENSURE_ARGEXITS(0);
                  MGO_LOG_DEBUG("search {}",
                                std::get<std::string>(args[0].value()));
                  cursor_.in_window->BuildSearchContext(
@@ -399,11 +400,21 @@ void Editor::InitCommands() {
              "",
              {Type::kInteger},
              [this](CommandArgs args) {
-                 MGO_ASSERT(args[0].has_value());
+                 MGO_ENSURE_ARGEXITS(0);
                  cursor_.in_window->CursorGoLine(
                      std::get<int64_t>(args[0].value()));
              },
              1});
+    MGO_CMD({"sa",
+             "",
+             {Type::kString},
+             [this](CommandArgs args) {
+                 MGO_ENSURE_ARGEXITS(0);
+                 Path p(std::get<std::string>(args[0].value()));
+                 SaveCurrentBufferAs(p);
+             },
+             1});
+#undef MGO_ENSURE_ARGEXITS
 }
 
 void Editor::InitCommandsVi() {}
@@ -970,10 +981,25 @@ void Editor::SaveCurrentBuffer() {
             peel_->SetContent("Buffer read only");
         }
     } catch (IOException& e) {
-        MGO_LOG_ERROR("{}", e.what());
-        std::stringstream ss;
-        ss << "Buffer can't save: " << e.what();
-        peel_->SetContent(ss.str());
+        std::string err_str = fmt::format("Buffer can't save: {}", e.what());
+        MGO_LOG_ERROR("{}", err_str);
+        peel_->SetContent(err_str);
+    }
+}
+
+void Editor::SaveCurrentBufferAs(const Path& path) {
+    Buffer* cur_b = cursor_.in_window->frame_.buffer_;
+    try {
+        Result res = cur_b->SaveAs(path);
+        if (res == kBufferCannotLoad) {
+            peel_->SetContent("Buffer can't load");
+        } else if (res == kBufferReadOnly) {
+            peel_->SetContent("Buffer read only");
+        }
+    } catch (IOException& e) {
+        std::string err_str = fmt::format("Buffer can't save: {}", e.what());
+        MGO_LOG_ERROR("{}", err_str);
+        peel_->SetContent(err_str);
     }
 }
 

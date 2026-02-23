@@ -86,7 +86,7 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
     if (arg_index == 0) {
         // TODO: suggest commands
     } else {
-        if (args[0] == "e") {
+        if (args[0] == "e" || args[0] == "sa") {
             if (arg_index == 1) {
                 try {
                     suggestions_ = SuggestFilePath(arg_hint);
