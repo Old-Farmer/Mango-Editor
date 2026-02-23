@@ -164,6 +164,7 @@ Result Buffer::SaveAs(const Path& path) {
     Path old_p = path_;
     path_ = path;
     try {
+        // TODO: Should we remove read only in this case?
         Result res = Write();
         if (res != kOk) {
             return res;
