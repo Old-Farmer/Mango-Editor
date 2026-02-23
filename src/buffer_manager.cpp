@@ -31,7 +31,8 @@ void BufferManager::RemoveBuffer(Buffer* buffer) {
     buffers_.erase(id);
 }
 
-BufferManager::HandlerID BufferManager::AddOnBufferRemoveHandler(OnBufferRemove handler) {
+BufferManager::HandlerID BufferManager::AddOnBufferRemoveHandler(
+    OnBufferRemove handler) {
     for (size_t i = 0; i < on_buffer_removes_.size(); i++) {
         if (on_buffer_removes_[i].handler == nullptr) {
             on_buffer_removes_[i].handler = std::move(handler);
@@ -65,6 +66,15 @@ Buffer* BufferManager::Begin() {
 }
 
 Buffer* BufferManager::End() { return &list_tail_; }
+
+Buffer* BufferManager::FindBuffer(const Path& path) {
+    for (auto b = Begin(); b != End(); b = b->next_) {
+        if (b->path() == path) {
+            return b;
+        }
+    }
+    return nullptr;
+}
 
 Buffer* BufferManager::FindBuffer(const std::string& name) {
     for (auto b = Begin(); b != End(); b = b->next_) {

@@ -65,7 +65,8 @@ class Buffer {
     // if new_file == true, will alloc a new_file_id to this buffer, else just a
     // no file-backup buffer.
     Buffer(GlobalOpts* options, bool new_file = true);
-    Buffer(GlobalOpts* options, const std::string& path, bool read_only = false);
+    Buffer(GlobalOpts* options, const std::string& path,
+           bool read_only = false);
     Buffer(GlobalOpts* options, const Path& path, bool read_only = false);
     MGO_DELETE_COPY(Buffer);
     MGO_DEFAULT_MOVE(Buffer);
@@ -184,6 +185,7 @@ class Buffer {
     zstring_view Name() noexcept {
         return path_.Empty() ? new_file_info_->name : path_.ThisPath();
     }
+    const Path& path() noexcept { return path_; }
 
     // Buffer list op
     void AppendToList(Buffer* tail) noexcept;

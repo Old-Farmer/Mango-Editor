@@ -1,5 +1,4 @@
 {
-    "scroll_rows": 3,
     "cursor_start_holding_interval": 500,
     "status_line_sep_width": 2,
 
@@ -14,6 +13,7 @@
     "logverbose": false,
     "max_edit_history": 100,
     "max_jump_history": 100,
+    "scroll_rows": 3,
     "truecolor": true,
     "vi": false,
 

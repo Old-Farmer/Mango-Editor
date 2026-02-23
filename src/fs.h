@@ -15,6 +15,10 @@ class Path {
     // relative or absolute path as str
     explicit Path(const std::string& str);
 
+    friend inline bool operator==(const Path& p1, const Path& p2) {
+        return p1.AbsolutePath() == p2.AbsolutePath();
+    }
+
     bool Empty() const noexcept { return absolute_path_.empty(); }
 
     zstring_view FileName() const noexcept;

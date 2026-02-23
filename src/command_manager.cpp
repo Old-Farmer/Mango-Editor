@@ -1,5 +1,7 @@
 #include "command_manager.h"
 
+#include <charconv>
+
 #include "str.h"
 
 namespace mango {
@@ -8,7 +10,7 @@ constexpr std::string_view kBoolTrue = "true";
 constexpr std::string_view kBoolFalse = "false";
 
 void CommandManager::AddCommand(const Command& command) {
-    std::string name = command.name;
+    const std::string& name = command.name;
     commands_[name] = command;
 }
 void CommandManager::RemoveCommand(const std::string& name) {
@@ -27,40 +29,36 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
     }
 
     Command& c = iter->second;
-    if (c.argc != static_cast<int8_t>(splitted_str.size() - 1)) {
+    const auto real_argc = static_cast<int8_t>(splitted_str.size() - 1);
+    if (real_argc + c.optional_argc < c.argc) {
         return kCommandInvalidArgs;
     }
 
-    for (int i = 0; i < c.argc; i++) {
+    for (int8_t i = 0; i < real_argc; i++) {
+        std::string_view substr = splitted_str[i + 1];
         if (c.types[i] == Type::kBool) {
-            if (splitted_str[i + 1] == kBoolTrue) {
+            if (substr == kBoolTrue) {
                 args[i] = true;
-            } else if (splitted_str[i + 1] == kBoolFalse) {
+            } else if (substr == kBoolFalse) {
                 args[i] = false;
             } else {
                 return kCommandInvalidArgs;
             }
         } else if (c.types[i] == Type::kInteger) {
-            errno = 0;
-            char* endptr;
-            int64_t n = strtoll(splitted_str[i + 1].data(), &endptr, 10);
-            if (errno != 0) {
+            int64_t v;
+            auto [ptr, errc] = std::from_chars(
+                substr.data(), substr.data() + substr.size(), v);
+            if (errc != std::errc() || ptr != substr.data() + substr.size()) {
                 return kCommandInvalidArgs;
             }
-            // Linux strtoll doesn't set errno when encounter other character
-            // at the beginning. Also, we need to ensure that between two spaces
-            // is a valid number.
-            if (endptr !=
-                splitted_str[i + 1].data() + splitted_str[i + 1].size()) {
-                return kCommandInvalidArgs;
-            }
-            args[i] = n;
+            args[i] = v;
         } else if (c.types[i] == Type::kString) {
-            args[i] = std::string(splitted_str[i + 1]);
+            args[i] = std::string(substr);
         } else {
             MGO_ASSERT(false);
         }
     }
+    // Other optional args(if have) will be default init to std::nullopt
     command = &c;
     return kOk;
 }

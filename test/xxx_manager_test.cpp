@@ -109,9 +109,9 @@ TEST_CASE("command_manager test") {
                   "",
                   {Type::kBool, Type::kInteger, Type::kString},
                   [&a, &b, &c](CommandArgs args) {
-                      a = std::get<bool>(args[0]);
-                      b = std::get<int64_t>(args[1]);
-                      c = std::get<std::string>(args[2]);
+                      a = std::get<bool>(args[0].value());
+                      b = std::get<int64_t>(args[1].value());
+                      c = std::get<std::string>(args[2].value());
                   },
                   3});
 

@@ -32,9 +32,12 @@ class BufferManager {
 
     Buffer* Begin();
     Buffer* End();  // exclusive
+    // By path.
+    Buffer* FindBuffer(const Path& path);
+    // By buffer name.
     Buffer* FindBuffer(const std::string& name);
+    // By id.
     Buffer* FindBuffer(int64_t id);
-
 
    private:
     std::unordered_map<int64_t, Buffer> buffers_;

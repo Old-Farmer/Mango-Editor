@@ -45,7 +45,7 @@ class PeelCompleter : public Completer {
     std::vector<std::string> suggestions_;
     size_t this_arg_offset_;
 
-    enum class SuggestType { kBuffer, kPath };
+    enum class SuggestType { kPath, kOther };
     SuggestType type_;
 };
 

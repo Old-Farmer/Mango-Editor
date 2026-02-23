@@ -4,7 +4,7 @@
 #include "clipboard.h"
 #include "constants.h"
 #include "fs.h"
-#include "inttypes.h"
+#include "inttypes.h"  // IWYU pragma: keep
 #include "options.h"
 #include "term.h"
 
@@ -343,31 +343,40 @@ void Editor::InitKeymapsVi() {}
 void Editor::InitCommands() {
     MGO_CMD({"h",
              "",
-             {},
+             {Type::kString},
              [this](CommandArgs args) {
-                 (void)args;
-                 Help();
+                 if (!args[0].has_value()) {
+                     Help(kHelpDoc);
+                 } else {
+                     Help(std::get<std::string>(args[0].value()));
+                 }
              },
-             0});
+             1,
+             1});
     MGO_CMD({"e",
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 const std::string& name_str = std::get<std::string>(args[0]);
-                 Buffer* b = buffer_manager_.FindBuffer(name_str);
+                 MGO_ASSERT(args[0].has_value());
+                 const std::string& name_str =
+                     std::get<std::string>(args[0].value());
+                 Path p = Path(name_str);
+                 Buffer* b = buffer_manager_.FindBuffer(p);
                  if (b) {
                      cursor_.in_window->AttachBuffer(b);
                      return;
                  }
                  cursor_.in_window->AttachBuffer(buffer_manager_.AddBuffer(
-                     Buffer(global_opts_.get(), Path(std::move(name_str)))));
+                     Buffer(global_opts_.get(), std::move(p))));
              },
              1});
     MGO_CMD({"b",
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 const std::string& name_str = std::get<std::string>(args[0]);
+                 MGO_ASSERT(args[0].has_value());
+                 const std::string& name_str =
+                     std::get<std::string>(args[0].value());
                  Buffer* b = buffer_manager_.FindBuffer(name_str);
                  if (b) {
                      cursor_.in_window->AttachBuffer(b);
@@ -378,9 +387,11 @@ void Editor::InitCommands() {
              "",
              {Type::kString},
              [this](CommandArgs args) {
-                 MGO_LOG_DEBUG("search {}", std::get<std::string>(args[0]));
+                 MGO_ASSERT(args[0].has_value());
+                 MGO_LOG_DEBUG("search {}",
+                               std::get<std::string>(args[0].value()));
                  cursor_.in_window->BuildSearchContext(
-                     std::get<std::string>(args[0]));
+                     std::get<std::string>(args[0].value()));
                  SearchNext();
              },
              1});
@@ -388,7 +399,9 @@ void Editor::InitCommands() {
              "",
              {Type::kInteger},
              [this](CommandArgs args) {
-                 cursor_.in_window->CursorGoLine(std::get<int64_t>(args[0]));
+                 MGO_ASSERT(args[0].has_value());
+                 cursor_.in_window->CursorGoLine(
+                     std::get<int64_t>(args[0].value()));
              },
              1});
 }
@@ -690,14 +703,30 @@ Editor& Editor::GetInstance() {
     return editor;
 }
 
-void Editor::Help() {
-    auto p = Path(Path::GetAppRoot() + kHelpPath);
-    Buffer* b = buffer_manager_.FindBuffer(Path::GetAppRoot() + kHelpPath);
-    if (b) {
-        cursor_.in_window->AttachBuffer(b);
-        return;
+void Editor::Help(const std::string& doc_name) {
+    auto p = Path(Path::GetAppRoot() + kDocsPath + doc_name);
+    Buffer* b = buffer_manager_.FindBuffer(p);
+    if (b == nullptr) {
+        try {
+            std::vector<std::string> all_docs =
+                Path::ListUnderPath(Path::GetAppRoot() + kDocsPath);
+            bool found = false;
+            for (const auto& doc : all_docs) {
+                if (doc == doc_name) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                peel_->SetContent(fmt::format("Can't found doc: {}", doc_name));
+                return;
+            }
+            b = buffer_manager_.AddBuffer(Buffer(global_opts_.get(), p, true));
+        } catch (FSException& e) {
+            MGO_LOG_ERROR("AllDocs error: {}", e.what());
+            return;
+        }
     }
-    b = buffer_manager_.AddBuffer(Buffer(global_opts_.get(), p, true));
     cursor_.in_window->AttachBuffer(b);
 }
 

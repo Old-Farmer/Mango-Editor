@@ -39,8 +39,10 @@ void Log(const char* file, unsigned int line, const char* func,
         level_prefix = kInfoPrefix;
     } else if constexpr (level == LogLevel::kWarn) {
         level_prefix = kWarnPrefix;
-    } else {  // level == LogLevel::kError
+    } else if constexpr (level == LogLevel::kError) {
         level_prefix = kErrorPrefix;
+    } else {
+        static_assert(false, "Only four LogLevel, an error one");
     }
     auto t =
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

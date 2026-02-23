@@ -40,7 +40,7 @@ class Editor {
 
     static Editor& GetInstance();
 
-    void Help();
+    void Help(const std::string& doc_name);
     void Quit();
 
     void GotoPeel();
@@ -125,7 +125,7 @@ class Editor {
 
     // Cmp context
     Completer* tmp_completer_ = nullptr;
-    bool show_cmp_menu_ = false; // if false, hide cmp menu.
+    bool show_cmp_menu_ = false;  // if false, hide cmp menu.
 
     std::unique_ptr<SingleTimer> autocmp_trigger_timer_;
 

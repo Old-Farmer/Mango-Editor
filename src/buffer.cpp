@@ -380,7 +380,6 @@ std::string Buffer::ReplaceInner(const Range& range, std::string_view str,
     return old_str;
 }
 
-
 bool Buffer::TryRecordMerge(const BufferEditHistoryItem& item) {
     MGO_ASSERT(edit_history_->size() > 0);
     BufferEditHistoryItem& last_item = edit_history_->back();

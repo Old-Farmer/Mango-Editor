@@ -1,5 +1,7 @@
 build*/
 .cache/
+.zed/
+.vscode/
 compile_commands.json
 
 third-party/

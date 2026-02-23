@@ -212,7 +212,7 @@ Result Window::TryAutoIndent() {
     const std::string& line = frame_.buffer_->GetLine(cursor_->line);
     std::string indent = "";
     std::string str = "\n";
-    // keep with this line's indent
+    // Same as this line's indent
     size_t i = 0;
     size_t cur_indent = 0;
     auto tabstop = GetOpt<int64_t>(kOptTabStop);

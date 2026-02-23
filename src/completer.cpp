@@ -10,6 +10,7 @@
 #include "buffer.h"
 #include "buffer_manager.h"
 #include "character.h"
+#include "constants.h"
 #include "cursor.h"
 #include "mango_peel.h"
 #include "str.h"
@@ -98,8 +99,20 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
         } else if (args[0] == "b") {
             if (arg_index == 1) {
                 suggestions_ = SuggestBuffers(arg_hint, buffer_manager_);
-                type_ = SuggestType::kBuffer;
+                type_ = SuggestType::kOther;
             }
+        } else if (args[0] == "h") {
+            if (arg_index == 1) {
+                try {
+                    suggestions_ =
+                        Path::ListUnderPath(Path::GetAppRoot() + kDocsPath);
+                    type_ = SuggestType::kOther;
+                } catch (FSException& e) {
+                    MGO_LOG_ERROR("{}", e.what());
+                }
+            }
+        } else {
+            MGO_ASSERT("Shouldn't reach here");
         }
     }
     menu_entries = suggestions_;
@@ -107,11 +120,11 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
 Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     Pos pos;
     peel_->frame_.b_view_->make_cursor_visible = true;
-    if (type_ == SuggestType::kBuffer) {
+    if (type_ == SuggestType::kOther) {
         peel_->frame_.buffer_->Replace(
             {{0, this_arg_offset_}, {0, cursor->byte_offset}},
             suggestions_[index], nullptr, false, pos);
-    } else {
+    } else if (type_ == SuggestType::kPath) {
         std::string_view hint = {peel_->GetContent().c_str() + this_arg_offset_,
                                  cursor->byte_offset - this_arg_offset_};
         int64_t sep_index = Path::LastPathSeperator(hint);
@@ -125,6 +138,8 @@ Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
                  {0, cursor->byte_offset}},
                 suggestions_[index], nullptr, false, pos);
         }
+    } else {
+        MGO_ASSERT("Shouldn't reach here");
     }
     cursor->SetPos(pos);
     Result res;
