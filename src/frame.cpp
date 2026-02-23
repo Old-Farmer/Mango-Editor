@@ -84,8 +84,13 @@ void Frame::Draw() {
         MGO_ASSERT(line < buffer_->LineCnt());
         for (size_t i = 0; i < height_; i++) {
             if (line >= buffer_->LineCnt()) {
-                break;
+                Codepoint codepoint = '~';
+                term_->SetCell(content_s_col, i + row_, &codepoint, 1,
+                               scheme[kNormal]);
+                line++;
+                continue;
             }
+
             if (byte_offset == 0) {
                 DrawSidebar(row_ + i, line, sidebar_width);
             } else {
