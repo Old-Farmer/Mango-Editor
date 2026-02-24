@@ -989,6 +989,12 @@ void Editor::SaveCurrentBuffer() {
 
 void Editor::SaveCurrentBufferAs(const Path& path) {
     Buffer* cur_b = cursor_.in_window->frame_.buffer_;
+    // We don't allow saving to the path of another buffer in order to avoid
+    // some chaos.
+    if (buffer_manager_.FindBuffer(path)) {
+        peel_->SetContent("Same path buffer exists.");
+        return;
+    }
     try {
         Result res = cur_b->SaveAs(path);
         if (res == kBufferCannotLoad) {

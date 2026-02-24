@@ -163,14 +163,23 @@ Result Buffer::SaveAs(const Path& path) {
     MGO_ASSERT(!path.Empty());
     Path old_p = path_;
     path_ = path;
+
+    // Allow write if the buffer was saved as another path.
+    bool old_read_only = read_only_;
+    if (old_p != path) {
+        read_only_ = false;
+    }
+
     try {
-        // TODO: Should we remove read only in this case?
         Result res = Write();
         if (res != kOk) {
+            path_ = old_p;
+            read_only_ = old_read_only;
             return res;
         }
     } catch (IOException& e) {
         path_ = old_p;
+        read_only_ = old_read_only;
         throw;
     }
     if (old_p.Empty()) {
@@ -179,6 +188,7 @@ Result Buffer::SaveAs(const Path& path) {
             new_file_info_.reset();
         }
     }
+    read_only_ = old_read_only;
 
     // Reload ft stuff
     filetype_ = DecideFiletype(path_.FileName());

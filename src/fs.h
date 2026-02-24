@@ -18,6 +18,9 @@ class Path {
     friend inline bool operator==(const Path& p1, const Path& p2) {
         return p1.AbsolutePath() == p2.AbsolutePath();
     }
+    friend inline bool operator!=(const Path& p1, const Path& p2) {
+        return p1.AbsolutePath() != p2.AbsolutePath();
+    }
 
     bool Empty() const noexcept { return absolute_path_.empty(); }
 
