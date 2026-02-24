@@ -27,9 +27,11 @@ void PrintUsage(int status = EXIT_SUCCESS) {
 void ParseCmdArgs(int argc, char* argv[], GlobalOpts* options,
                   InitOpts* init_options) {
     const char* short_opts = "h";
-    const option long_opts[] = {
+    option long_opts[] = {
         {"help", no_argument, nullptr, 'h'},
+        {},
     };
+    bzero(&long_opts[sizeof(long_opts) / sizeof(option) - 1], sizeof(option));
 
     int c;
     while ((c = getopt_long(argc, argv, short_opts, long_opts, nullptr)) !=
