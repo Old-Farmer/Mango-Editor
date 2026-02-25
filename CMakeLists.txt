@@ -162,10 +162,15 @@ FetchContent_MakeAvailable(fmt)
 
 # Mango library
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
+set(SRC_LSP_DIR "${CMAKE_SOURCE_DIR}/src/lsp")
 add_library(mango_lib STATIC)
 add_dependencies(mango_lib build_termbox2 build_treesitter build_utf8proc)
 target_sources(
   mango_lib PUBLIC
+  "${SRC_LSP_DIR}/client.h"
+  "${SRC_LSP_DIR}/client.cpp"
+  "${SRC_LSP_DIR}/rpc.h"
+  "${SRC_LSP_DIR}/rpc.cpp"
   "${SRC_DIR}/buffer_manager.h"
   "${SRC_DIR}/buffer_manager.cpp"
   "${SRC_DIR}/buffer_view.h"
@@ -294,9 +299,10 @@ target_sources(
   "${TEST_DIR}/data_structure_test.cpp"
   "${TEST_DIR}/json_test.cpp"
   "${TEST_DIR}/logging_test.cpp"
+  "${TEST_DIR}/lsp_test.cpp"
+  "${TEST_DIR}/subprocess_test.cpp"
   "${TEST_DIR}/term_test.cpp"
   "${TEST_DIR}/unicode_test.cpp"
-  "${TEST_DIR}/utils_test.cpp"
   "${TEST_DIR}/xxx_manager_test.cpp"
 )
 target_link_libraries(test PUBLIC mango_lib Catch2::Catch2WithMain)
