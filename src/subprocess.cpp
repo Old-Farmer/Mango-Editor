@@ -142,14 +142,14 @@ Result Exec(const char* const argv[], const std::string* stdin_data,
             bool check) {
     Subprocess subprocess(argv, check, stdin_data, stdout_data, stderr_data);
     if (stdin_data) {
-        subprocess.GetStdin().Write(stdin_data->data(), stdin_data->size());
-        subprocess.GetStdin().Close();  // Some apps need close to commit, we
+        subprocess.stdin().Write(stdin_data->data(), stdin_data->size());
+        subprocess.stdin().Close();  // Some apps need close to commit, we
                                         // unconditinally add this.
     }
     if (stdout_data) {
         char buf[4096];
         while (true) {
-            ssize_t n = subprocess.GetStdout().Read(buf, 4096);
+            ssize_t n = subprocess.stdout().Read(buf, 4096);
             if (n == 0) {
                 break;
             }
@@ -159,7 +159,7 @@ Result Exec(const char* const argv[], const std::string* stdin_data,
     if (stderr_data) {
         char buf[4096];
         while (true) {
-            ssize_t n = subprocess.GetStderr().Read(buf, 4096);
+            ssize_t n = subprocess.stderr().Read(buf, 4096);
             if (n == 0) {
                 break;
             }

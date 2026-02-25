@@ -24,9 +24,6 @@ struct Cursor {
     // this is synced with line & byte_offset after Preprocess
     int s_row = -1;
     int s_col = -1;
-    // last row and col in screen
-    int s_row_last = -1;
-    int s_col_last = -1;
 
     // this is synced with line & byte_offset after Preprocess
     size_t character_in_line = 0;
@@ -48,9 +45,6 @@ struct Cursor {
     Window* in_window;  // nullptr means in MangoPeel
     Window* restore_from_peel = nullptr;
 
-    bool show = true;
-    std::unique_ptr<LoopTimer> blinking_timer_ = nullptr;
-
     // TODO: other info
 
     void DontHoldColWant() { b_view_col_want.reset(); }
@@ -61,8 +55,6 @@ struct Cursor {
     Pos ToPos() { return {line, byte_offset}; }
 
     void SetScreenPos(int screen_col, int screen_row) {
-        s_col_last = s_col;
-        s_row_last = s_row;
         s_col = screen_col;
         s_row = screen_row;
     }

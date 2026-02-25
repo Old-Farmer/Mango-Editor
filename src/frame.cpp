@@ -1085,9 +1085,7 @@ Result Frame::Redo() {
     if (Result res; (res = buffer_->Redo(pos)) != kOk) {
         return res;
     }
-    cursor_->SetPos(pos);
-    cursor_->DontHoldColWant();
-    UpdateSyntax();
+    AfterModify(pos);
     return kOk;
 }
 
@@ -1099,9 +1097,7 @@ Result Frame::Undo() {
     if (Result res; (res = buffer_->Undo(pos)) != kOk) {
         return res;
     }
-    cursor_->SetPos(pos);
-    cursor_->DontHoldColWant();
-    UpdateSyntax();
+    AfterModify(pos);
     return kOk;
 }
 

@@ -72,15 +72,6 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
             global_opts_->GetUserConfigErrorReportStrAndReleaseIt());
     }
 
-    if (global_opts_->GetOpt<bool>(kOptCursorBlinking)) {
-        cursor_.blinking_timer_ = std::make_unique<LoopTimer>(
-            std::vector<std::chrono::milliseconds>{
-                std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
-                    kOptCursorBlinkingShowInterval)),
-                std::chrono::milliseconds(global_opts_->GetOpt<int64_t>(
-                    kOptCursorBlinkingHideInterval))},
-            [this] { cursor_.show = !cursor_.show; });
-    }
     autocmp_trigger_timer_ = std::make_unique<SingleTimer>(
         std::chrono::milliseconds(
             global_opts_->GetOpt<int64_t>(kOptAutoCmpTimeout)),
@@ -189,10 +180,6 @@ void Editor::Loop() {
     loop_->BeforePoll(std::move(before_poll));
     loop_->AddEventHandler(std::move(term_tty));
     loop_->AddEventHandler(std::move(term_resize));
-
-    if (cursor_.blinking_timer_) {
-        loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
-    }
 
     loop_->Loop();
 }
@@ -647,6 +634,7 @@ void Editor::HandleResize() {
 
 void Editor::Draw() {
     // TODO: do not redraw not modified part
+    // TODO: should we redraw if any events trigger?
 
     // First clear the screen so we don't need to print spaces for blank
     // screen parts
@@ -663,17 +651,8 @@ void Editor::Draw() {
     if (cursor_.s_col == -1 && cursor_.s_row == -1) {
         // when not make visible
         term_.HideCursor();
-    } else if (cursor_.s_row != cursor_.s_row_last ||
-               cursor_.s_col != cursor_.s_col_last) {
-        term_.SetCursor(cursor_.s_col, cursor_.s_row);
-        if (cursor_.blinking_timer_) {
-            loop_->timer_manager_.StartTimer(cursor_.blinking_timer_.get());
-            cursor_.show = true;
-        }
-    } else if (cursor_.show) {
-        term_.SetCursor(cursor_.s_col, cursor_.s_row);
     } else {
-        term_.HideCursor();
+        term_.SetCursor(cursor_.s_col, cursor_.s_row);
     }
 
     term_.Present();

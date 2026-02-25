@@ -78,21 +78,6 @@ Global Scope:
     default: "default",
     desc: A colorscheme. When truecolor not enabled, default is a clean 8 color colorscheme; Otherwise, Default is a Catpuccin-like colorscheme(See [Colorscheme](./colorscheme.md) for more info).
 
-- cursor_blinking:  
-    type: bool,
-    default: true,
-    desc: Is cursor blinking?
-
-- cursor_blinking_hide_interval:  
-    type: integer,
-    default: 600,
-    desc: When cursor_blinking is enabled, this option controls how long the cursor will hide in a blinking loop(unit: ms).
-
-- cursor_blinking_show_interval:  
-    type: integer,
-    default: 600,
-    desc: When cursor_blinking is enabled, this option controls how long the cursor will show in a blinking loop(unit: ms).
-
 - logverbose:  
     type: bool,
     default: false,

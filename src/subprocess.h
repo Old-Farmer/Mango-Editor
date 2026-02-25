@@ -22,9 +22,9 @@ class Subprocess {
 
     // If need_xxx == false, Getxxx will get a invalid fd.
     // Don't use a invalid fd.
-    Fd& GetStdin() { return stdin_; }
-    Fd& GetStdout() { return stdout_; }
-    Fd& GetStderr() { return stderr_; }
+    Fd& stdin() { return stdin_; }
+    Fd& stdout() { return stdout_; }
+    Fd& stderr() { return stderr_; }
 
     // Wait the subprocess.
     // exit_code will be set to the exit code.
