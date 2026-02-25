@@ -20,13 +20,13 @@ Buffer* BufferManager::AddBuffer(Buffer&& buffer) {
 
 void BufferManager::RemoveBuffer(Buffer* buffer) {
     MGO_ASSERT(buffer);
-    buffer->RemoveFromList();
     int64_t id = buffer->id();
     for (const auto& callback_store : on_buffer_removes_) {
         if (callback_store.handler != nullptr) {
             callback_store.handler(buffer);
         }
     }
+    buffer->RemoveFromList();
     MGO_ASSERT(buffers_.count(id) == 1);
     buffers_.erase(id);
 }
