@@ -35,9 +35,9 @@ class KeyseqManager {
     // this is always considered a bug and should fixed emidiately
     // return kError if keymap is not well formed
     Result AddKeyseq(const std::string& seq, const Keyseq& handler,
-                     const std::vector<Mode>& modes = kDefaultsModes);
+                     const std::vector<Mode>& modes = {MGO_DEFAULT_MODES});
     Result RemoveKeyseq(const std::string& seq,
-                        const std::vector<Mode>& modes = kDefaultsModes);
+                        const std::vector<Mode>& modes = {MGO_DEFAULT_MODES});
 
     // return kKeyseqError, kKeyseqDone, kKeyseqMatched
     // if kKeyseqDone return, handler will be set to the related handler

@@ -72,17 +72,26 @@ void Terminal::Shutdown() {
     }
 
     if (init_) {
-        tb_shutdown();
-
         // Restore cursor
         // NOTE: only work on some terminals
-        printf("\e[0 q");
+        SetCursorStyle(CursorStyle::kDefault);
         // Disable Bracketed Paste
-        printf("\e[?2004l");
-        fflush(stdout);
+        tb_sendf("\e[?2004l");
+        tb_present();
+
+        tb_shutdown();
 
         init_ = false;
         esc_keyseq_manager_ = nullptr;
+    }
+}
+
+// TODO: Detect Terminal ability.
+void Terminal::SetCursorStyle(CursorStyle style) {
+    int ret = tb_sendf("\e[%d q", static_cast<int>(style));
+    if (ret != TB_OK) {
+        MGO_LOG_ERROR("{}", tb_strerror(ret));
+        throw TermException("{}", tb_strerror(ret));
     }
 }
 

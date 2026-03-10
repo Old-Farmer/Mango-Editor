@@ -95,6 +95,16 @@ class Terminal {
         kInvisible = TB_INVISIBLE,
     };
 
+    enum class CursorStyle : int {
+        kDefault = 0,
+        kBlock,
+        kBlockSteady,
+        kUnderline,
+        kUnderlineSteady,
+        kLine,
+        kLineSteady
+    };
+
     // throws TermException
     void SetClearAttr(const AttrPair& attr);
 
@@ -137,6 +147,9 @@ class Terminal {
             throw TermException("{}", tb_strerror(ret));
         }
     }
+
+    // throws TermException
+    void SetCursorStyle(CursorStyle style);
 
     // throws TermException
     size_t Height() {

@@ -18,31 +18,6 @@ Window::Window(Cursor* cursor, GlobalOpts* global_opts, SyntaxParser* parser,
       buffer_manager_(buffer_manager),
       frame_(cursor, &opts_, parser, clipboard) {}
 
-void Window::CursorGoUp(size_t count) {
-    MGO_ASSERT(count != 0);
-    frame_.b_view_->make_cursor_visible = true;
-    CursorState state(cursor_);
-    if (frame_.CursorGoUpState(count, state)) {
-        if (SetJumpPointIfFarEnough(state)) {
-            MoveJumpHistoryCursorForwardAndTruncate();
-        }
-        state.SetCursor(cursor_);
-        frame_.SelectionFollowCursor();
-    }
-}
-
-void Window::CursorGoDown(size_t count) {
-    frame_.b_view_->make_cursor_visible = true;
-    CursorState state(cursor_);
-    if (frame_.CursorGoDownState(count, state)) {
-        if (SetJumpPointIfFarEnough(state)) {
-            MoveJumpHistoryCursorForwardAndTruncate();
-        }
-        state.SetCursor(cursor_);
-        frame_.SelectionFollowCursor();
-    }
-}
-
 void Window::CursorGoLine(size_t line) {
     frame_.b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
@@ -56,7 +31,7 @@ void Window::CursorGoLine(size_t line) {
 }
 
 Result Window::DeleteAtCursor() {
-    if (frame_.selection_.active) {
+    if (frame_.IsSelectionActive()) {
         return frame_.DeleteSelection();
     }
 
@@ -89,9 +64,7 @@ Result Window::DeleteAtCursor() {
         const std::string& cur_line = frame_.buffer_->GetLine(cursor_->line);
         Character character;
         int len;
-        Result ret =
-            PrevCharacter(cur_line, cursor_->byte_offset, character, len);
-        MGO_ASSERT(ret == kOk);
+        PrevCharacter(cur_line, cursor_->byte_offset, character, len);
 
         char c = -1;
         character.Ascii(c);
@@ -129,7 +102,7 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     }
 
     // TODO: better support autopair autoindent when selection
-    if (frame_.selection_.active) {
+    if (frame_.IsSelectionActive()) {
         return frame_.AddStringAtCursor(str);
     }
 
@@ -143,16 +116,32 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     }
 
     if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
-        TryAutoIndent();
+        return TryAutoIndent(cursor_->ToPos());
     } else if (GetOpt<bool>(kOptAutoPair)) {
         if (IsPair(c)) {
-            TryAutoPair(str);
+            return TryAutoPair(str);
         } else {
             return frame_.AddStringAtCursor(str);
         }
     }
     // Will not reach here.
     return kOk;
+}
+
+Result Window::NewLineAboveCursorline() {
+    MGO_ASSERT(!frame_.IsSelectionActive());
+    if (cursor_->line == 0) {
+        Pos cursor_pos = cursor_->ToPos();
+        return frame_.AddStringAtPos({0, 0}, "\n", &cursor_pos);
+    }
+    return TryAutoIndent(
+        {cursor_->line - 1, frame_.buffer_->GetLine(cursor_->line - 1).size()});
+}
+
+Result Window::NewLineUnderCursorline() {
+    MGO_ASSERT(!frame_.IsSelectionActive());
+    return TryAutoIndent(
+        {cursor_->line, frame_.buffer_->GetLine(cursor_->line).size()});
 }
 
 Result Window::Replace(const Range& range, std::string_view str) {
@@ -208,21 +197,22 @@ Result Window::TryAutoPair(std::string_view str) {
     return frame_.AddStringAtCursor(str);
 }
 
-Result Window::TryAutoIndent() {
-    const std::string& line = frame_.buffer_->GetLine(cursor_->line);
+Result Window::TryAutoIndent(Pos pos) {
+    MGO_ASSERT(!frame_.IsSelectionActive());
+
+    const std::string& line = frame_.buffer_->GetLine(pos.line);
     std::string indent = "";
-    std::string str = "\n";
+    size_t cur_indent = 0;
     // Same as this line's indent
     size_t i = 0;
-    size_t cur_indent = 0;
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
     for (; i < line.size(); i++) {
         if (line[i] == kSpaceChar) {
             cur_indent++;
-            indent.push_back(line[i]);
+            indent.push_back(kSpaceChar);
         } else if (line[i] == '\t') {
             cur_indent = (cur_indent / tabstop + 1) * tabstop;
-            indent.push_back(line[i]);
+            indent.push_back('\t');
         } else {
             break;
         }
@@ -230,54 +220,52 @@ Result Window::TryAutoIndent() {
 
     // When encounter some syntax blocks, We want one more indentation and sth.
     // else.
+    // TODO: better language support
     Pos cursor_pos;
     bool maunally_set_cursor_pos = false;
-    str += indent;
-    zstring_view ft = frame_.buffer_->filetype();
+    std::string str = "\n" + indent;
     auto tabspace = GetOpt<bool>(kOptTabSpace);
-    if (ft == "c" || ft == "cpp" || ft == "java") {  // TODO: more languages
-        // traditional languages, try to check () {} []
-        // e.g.
-        // {<cursor>}
-        // ->
-        // {
-        // <indent><cursor>
-        // }
-        for (int64_t i = cursor_->byte_offset - 1; i >= 0; i--) {
-            auto [is_open, want_right] = IsPairOpen(line[i]);
-            if (!is_open) {
-                if (line[i] == kSpaceChar) {
-                    continue;
-                }
-                break;
-            }
-
-            if (tabspace) {
-                int need_space =
-                    (cur_indent / tabstop + 1) * tabstop - cur_indent;
-                str += std::string(need_space, kSpaceChar);
-            } else {
-                str += "\t";
-            }
-            for (i = cursor_->byte_offset;
-                 i < static_cast<int64_t>(line.size()); i++) {
-                if (line[i] == want_right) {
-                    cursor_pos.line = cursor_->line + 1;
-                    cursor_pos.byte_offset = str.size() - 1;
-                    maunally_set_cursor_pos = true;
-                    str += "\n" + indent;
-                    break;
-                } else if (line[i] != kSpaceChar) {
-                    break;
-                }
+    // Try to check () {} [].
+    // e.g.
+    // {<cursor>}
+    // ->
+    // {
+    // <indent><cursor>
+    // }
+    for (int64_t i = pos.byte_offset - 1; i >= 0; i--) {
+        auto [is_open, want_right] = IsPairOpen(line[i]);
+        if (!is_open) {
+            if (line[i] == kSpaceChar || line[i] == '\t') {
+                continue;
             }
             break;
         }
+
+        if (tabspace) {
+            int need_space = (cur_indent / tabstop + 1) * tabstop - cur_indent;
+            str += std::string(need_space, kSpaceChar);
+        } else {
+            str += "\t";
+        }
+        for (i = pos.byte_offset; i < static_cast<int64_t>(line.size());
+             i++) {
+            if (line[i] == want_right) {
+                cursor_pos.line = pos.line + 1;
+                cursor_pos.byte_offset = str.size() - 1;
+                maunally_set_cursor_pos = true;
+                str += "\n" + indent;
+                break;
+            } else if (line[i] != kSpaceChar && line[i] != '\t') {
+                break;
+            }
+        }
+        break;
     }
+
     if (maunally_set_cursor_pos) {
-        return frame_.AddStringAtCursor(str, &cursor_pos);
+        return frame_.AddStringAtPos(pos, str, &cursor_pos);
     } else {
-        return frame_.AddStringAtCursor(str);
+        return frame_.AddStringAtPos(pos, str);
     }
 }
 
@@ -318,7 +306,7 @@ void Window::DetachBuffer() {
         SetJumpPoint();
         frame_.b_view_ = nullptr;
         frame_.buffer_ = nullptr;
-        frame_.selection_.active = false;
+        frame_.StopSelection();
     }
 }
 

@@ -59,7 +59,6 @@ enum OptKey {
     kOptAutoPair,
     kOptWrap,
     kOptLineNumber,
-    kOptStatusLineSepWidth,
     kOptCmpMenuMaxHeight,
     kOptCmpMenuMaxWidth,
     kOptMaxEditHistory,

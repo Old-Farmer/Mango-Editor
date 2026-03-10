@@ -26,6 +26,7 @@ This project is far from mature, so:
 - syntax highlighting with tree-sitter(only a few languages now)
 - basic word-based auto completion
 - colorscheme
+- home-like Vi mode
 
 See docs/help.md for more infomation
 
@@ -47,9 +48,9 @@ mkdir build && cd build
 cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ ..
 
 # Debug build
-cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j8
+cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . -j$(nproc)
 # Release build
-cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j8
+cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j$(nproc)
 
 # Execute app
 ./mgo
@@ -57,7 +58,7 @@ cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . -j8
 ./test
 
 # Package
-cmake --build . --target package -j8
+cmake --build . --target package -j$(nproc)
 
 # This project agressively use FetchConent.
 # Set FETCHCONTENT_FULLY_DISCONNECTED=ON to disable checking

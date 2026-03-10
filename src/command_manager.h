@@ -21,7 +21,7 @@ struct Command {
     std::string description;
     CommandArgTypes types;  // Types of arguments
     std::function<void(CommandArgs)> f;
-    int8_t argc;
+    int8_t argc = 0;
     int8_t optional_argc = 0;  // optional argument count, optional args must
                                // all be the righmost ones.
 };

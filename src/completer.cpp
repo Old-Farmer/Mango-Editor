@@ -166,8 +166,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
     Character character;
     int byte_len;
     while (byte_offset > 0) {
-        Result res = PrevCharacter(cur_line, byte_offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        PrevCharacter(cur_line, byte_offset, character, byte_len);
         char c;
         if (character.Ascii(c) && IsWordSeperator(c)) {
             break;

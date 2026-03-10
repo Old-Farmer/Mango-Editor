@@ -26,13 +26,19 @@ void StatusLine::Draw() {
     } else {
         b = cursor_->in_window->frame_.buffer_;
     }
-    std::string cursor_in_info =
-        std::string(b->Name()) +
-        BufferStateString[static_cast<int>(b->state())];
+    std::string left_str;
+    if (global_opts_->GetOpt<bool>(kOptVi)) {
+        left_str =
+            fmt::format("{:<" MGO_VI_MODE_WIDTH "} {}{}",
+                        kViModeString[static_cast<int>(*mode_)], b->Name(),
+                        kBufferStateString[static_cast<int>(b->state())]);
+    } else {
+        left_str =
+            fmt::format("{}{}", b->Name(),
+                        kBufferStateString[static_cast<int>(b->state())]);
+    }
 
-    auto sep_width = global_opts_->GetOpt<int64_t>(kOptStatusLineSepWidth);
-
-    term_->Print(sep_width, row_, scheme[t], cursor_in_info.c_str());
+    term_->Print(0, row_, scheme[t], left_str.c_str());
 
     int64_t line, character_in_line;
     if (IsPeel(*mode_)) {
@@ -44,14 +50,13 @@ void StatusLine::Draw() {
         character_in_line = cursor_->character_in_line;
     }
 
-    std::string sep(sep_width, kSpaceChar);
-    std::string right_str = fmt::format(
-        "{}{},{}{}{}{}{}{}{}{}", sep, line + 1, character_in_line + 1, sep,
-        FiletypeStrRep(b->filetype()), sep,
-        b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:",
-        b->opts().GetOpt<int64_t>(kOptTabStop), sep, b->eol_seq());
+    std::string right_str =
+        fmt::format("  {},{}  {}  {}{}  {}", line + 1, character_in_line + 1,
+                    FiletypeStrRep(b->filetype()),
+                    b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:",
+                    b->opts().GetOpt<int64_t>(kOptTabStop), b->eol_seq());
     // all is ascii character, so str len == width
-    term_->Print(width_ - right_str.length() - sep_width, row_, scheme[t],
+    term_->Print(width_ - right_str.length(), row_, scheme[t],
                  right_str.c_str());
 }
 

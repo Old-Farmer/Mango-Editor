@@ -181,15 +181,16 @@ bool IsWordSeperator(char c);
 Result NextWordBegin(const std::string& str, size_t offset,
                      size_t& next_word_offset);
 
-// next word offset will set to the this/next word end
+// next word offset will set to the this/next word end.
+// one_more_character means it will stop one character after the end.
 // Current only return kOk
-Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
+Result NextWordEnd(const std::string& str, size_t offset, bool one_more_character,
                size_t& next_word_end_offset);
 
-// next word offset will set to the this/prev word end
+// prev word offset will set to the this/prev word end
 // on success, return kOk;
 // if Not found, retrun kNotExist and set prev_word_offset to 0
-Result WordBegin(const std::string& str, size_t offset,
+Result PrevWordBegin(const std::string& str, size_t offset,
                  size_t& prev_word_offset);
 
 // If c is the open part of a pair, return true and the close part.

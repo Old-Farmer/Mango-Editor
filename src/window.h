@@ -26,16 +26,22 @@ class Window {
     void ScrollRows(int64_t count) { frame_.ScrollRows(count); }
     void ScrollCols(int64_t count) { frame_.ScrollCols(count); }
 
-    void CursorGoRight() { frame_.CursorGoRight(); }
-    void CursorGoLeft() { frame_.CursorGoLeft(); }
-    void CursorGoUp(size_t count);
-    void CursorGoDown(size_t count);
+    void CursorGoRight(size_t count) { frame_.CursorGoRight(count); }
+    void CursorGoLeft(size_t count) { frame_.CursorGoLeft(count); }
+    void CursorGoUp(size_t count) { frame_.CursorGoUp(count); }
+    void CursorGoDown(size_t count) { frame_.CursorGoDown(count); }
     void CursorGoHome() { frame_.CursorGoHome(); }
+    void CursorGoFirstNonBlank() { frame_.CursorGoFirstNonBlank(); }
     void CursorGoEnd() { frame_.CursorGoEnd(); }
-    void CursorGoWordEnd(bool one_more_character) {
-        frame_.CursorGoWordEnd(one_more_character);
+    void CursorGoNextWordEnd(size_t count, bool one_more_character) {
+        frame_.CursorGoNextWordEnd(count, one_more_character);
     }
-    void CursorGoWordBegin() { frame_.CursorGoWordBegin(); }
+    void CursorGoWordBegin(size_t count) {
+        frame_.CursorGoPrevWordBegin(count);
+    }
+    void CursorGoNextWordBegin(size_t count) {
+        frame_.CursorGoNextWordBegin(count);
+    }
     void CursorGoLine(size_t line);
 
     void SelectAll() { frame_.SelectAll(); }
@@ -44,6 +50,11 @@ class Window {
     Result DeleteWordBeforeCursor() { return frame_.DeleteWordBeforeCursor(); }
     // raw means do not treat it as keystroke
     Result AddStringAtCursor(std::string_view str, bool raw = false);
+    // Create a new line after or under the cursor line.
+    // And make the cursor at the first non-blank character.
+    // Selection should be off.
+    Result NewLineAboveCursorline();
+    Result NewLineUnderCursorline();
     // See Frame::Replace
     Result Replace(const Range& range, std::string_view str);
     Result TabAtCursor() { return frame_.TabAtCursor(); }
@@ -88,7 +99,9 @@ class Window {
     static int64_t AllocId() noexcept;
     Window() {}  // only for list head
 
-    Result TryAutoIndent();
+    // We try to auto indent from pos.
+    // We still use the cursor pos for history.
+    Result TryAutoIndent(Pos pos);
     Result TryAutoPair(std::string_view str);
 
     template <typename T>

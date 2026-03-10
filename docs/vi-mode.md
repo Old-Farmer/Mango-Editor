@@ -8,4 +8,4 @@ Vi-Mode is implemented corresponding to:
 
 ## NOTE
 
-Not support now.
+Vi-Mode is implemented at best effort. Some behaviors is not the same as those in Vim/Neovim.

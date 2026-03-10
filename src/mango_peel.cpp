@@ -29,7 +29,7 @@ void MangoPeel::MakeCursorVisible() {
 }
 
 Result MangoPeel::Paste() {
-    MGO_ASSERT(!frame_.selection_.active);
+    MGO_ASSERT(!frame_.IsSelectionActive());
     bool lines;
     std::string content = frame_.clipboard_->GetContent(lines);
     if (content.empty()) {

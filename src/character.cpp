@@ -305,8 +305,7 @@ Result NextWordBegin(const std::string& str, size_t offset,
     int byte_len;
     bool found_non_word_character = false;
     while (offset < str.size()) {
-        Result res = ThisCharacter(str, offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(str, offset, character, byte_len);
         char c;
         if (character.Ascii(c) && IsWordSeperator(c)) {
             found_non_word_character = true;
@@ -322,7 +321,7 @@ Result NextWordBegin(const std::string& str, size_t offset,
     return kOk;
 }
 
-Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
+Result NextWordEnd(const std::string& str, size_t offset, bool one_more_character,
                size_t& next_word_end_offset) {
     if (offset == str.size()) {
         return kOk;
@@ -331,13 +330,11 @@ Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
     Character character;
     int byte_len;
     bool found_word_character = false;
-    Result res = ThisCharacter(str, offset, character, byte_len);
-    MGO_ASSERT(res == kOk);
+    ThisCharacter(str, offset, character, byte_len);
     size_t prev_offset = offset;
     offset += byte_len;
     while (offset < str.size()) {
-        Result res = ThisCharacter(str, offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(str, offset, character, byte_len);
         char c;
         if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
@@ -366,7 +363,7 @@ Result WordEnd(const std::string& str, size_t offset, bool one_more_character,
     return kOk;
 }
 
-Result WordBegin(const std::string& str, size_t offset,
+Result PrevWordBegin(const std::string& str, size_t offset,
                  size_t& prev_word_offset) {
     if (offset == 0) {
         prev_word_offset = 0;
@@ -378,8 +375,7 @@ Result WordBegin(const std::string& str, size_t offset,
     int byte_len;
     bool found_word_character = false;
     while (inner_offset > 0) {
-        Result res = PrevCharacter(str, inner_offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        PrevCharacter(str, inner_offset, character, byte_len);
         char c;
         if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
@@ -407,8 +403,7 @@ size_t StringWidth(const std::string& str) {
     size_t width = 0;
     while (offset < str.size()) {
         int len;
-        Result res = ThisCharacter(str, offset, character, len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(str, offset, character, len);
         int character_width = character.Width();
         if (character_width <= 0) {
             character_width = kReplacementCharWidth;

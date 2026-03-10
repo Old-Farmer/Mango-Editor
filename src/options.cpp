@@ -24,7 +24,6 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"auto_pair", kOptAutoPair},
     {"wrap", kOptWrap},
     {"line_number", kOptLineNumber},
-    {"status_line_sep_width", kOptStatusLineSepWidth},
     {"cmp_menu_max_height", kOptCmpMenuMaxHeight},
     {"cmp_menu_max_width", kOptCmpMenuMaxWidth},
     {"max_edit_history", kOptMaxEditHistory},
@@ -42,8 +41,6 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
                                                            Type::kInteger};
-        static_opt_info[kOptStatusLineSepWidth] = {OptScope::kGlobal,
-                                                   Type::kInteger};
         static_opt_info[kOptCmpMenuMaxWidth] = {OptScope::kGlobal,
                                                 Type::kInteger};
         static_opt_info[kOptCmpMenuMaxHeight] = {OptScope::kGlobal,

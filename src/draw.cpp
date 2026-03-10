@@ -42,8 +42,7 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
         int character_width;
         int byte_len;
         bool is_tab = false;
-        Result res = ThisCharacter(line, byte_offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(line, byte_offset, character, byte_len);
         character_width = character.Width();
         if (character_width == 0) {
             char c;
@@ -128,8 +127,7 @@ size_t ArrangeLine(std::string_view line, size_t begin_byte_offset,
     while (byte_offset < line.size()) {
         int character_width;
         int byte_len;
-        Result res = ThisCharacter(line, byte_offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(line, byte_offset, character, byte_len);
         character_width = character.Width();
         if (character_width == 0) {
             char c;

@@ -87,9 +87,8 @@ void CmpMenu::Draw() {
         // content
         while (offset < str.size()) {
             int byte_len;
-            Result res = ThisCharacter(str, offset, character, byte_len);
+            ThisCharacter(str, offset, character, byte_len);
             int character_width = character.Width();
-            MGO_ASSERT(res == kOk);
             if (character_width <= 0) {
                 character.Clear();
                 character.Push(kReplacementChar);

@@ -46,6 +46,9 @@ class Editor {
     void GotoPeel();
     void ExitFromMode();
     void ExitFromModeVi();
+    std::function<void()>
+        exit_from_mode_;  // init to call ExitFromMode or ExitFromModeVi.
+    void GotoModeVi(Mode mode);
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
     void StartAutoCompletionTimer();
@@ -79,6 +82,9 @@ class Editor {
     void Draw();
     void PreProcess();
     void Resize(int width, int height);
+
+    // Count is at least 1.
+    size_t Count() { return count_ == 0 ? 1 : count_; }
 
     // helper methods
     Window* LocateWindow(int s_col, int s_row);
@@ -130,7 +136,13 @@ class Editor {
 
     std::unique_ptr<SingleTimer> autocmp_trigger_timer_;
 
-    size_t count_ = 1;
+    enum class InputState {
+        kNone,
+        kCount,  // count
+    };
+    InputState input_state_vi_ = InputState::kNone;
+
+    size_t count_ = 0;
 
     Terminal& term_ = Terminal::GetInstance();
 };

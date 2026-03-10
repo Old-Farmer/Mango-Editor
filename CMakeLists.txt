@@ -265,14 +265,14 @@ target_link_libraries(
   mango_lib
   PUBLIC
     ${TERMBOX2_LIB}
-    Microsoft.GSL::GSL 
+    Microsoft.GSL::GSL
     nlohmann_json::nlohmann_json
     ${TREESITTER_LIB}
     ${UTF8PROC_LIB}
     fmt::fmt
 )
 target_include_directories(
-  mango_lib 
+  mango_lib
   PUBLIC
   "${SRC_DIR}"
   "${TERMBOX2_INCLUDE_DIR}"

@@ -45,30 +45,41 @@ class Frame {
 
     void SetCursorHint(size_t s_row, size_t s_col);
 
+    // NOTE: all count shouldn't be 0, otherwise behavior is undefined.
+
     // count > 0 for down
     // < 0 for up
     void ScrollRows(int64_t count);
     void ScrollCols(int64_t count);
 
-    bool CursorGoRightState(CursorState& state);
-    bool CursorGoLeftState(CursorState& state);
+    bool CursorGoRightState(size_t count, CursorState& state);
+    bool CursorGoLeftState(size_t count, CursorState& state);
     bool CursorGoUpState(size_t count, CursorState& state);
     bool CursorGoDownState(size_t count, CursorState& state);
     bool CursorGoHomeState(CursorState& state);
+    bool CursorGoFirstNonBlankState(CursorState& state);
     bool CursorGoEndState(CursorState& state);
-    bool CursorGoWordEndState(bool one_more_character, CursorState& state);
-    bool CursorGoWordBeginState(CursorState& state);
+    bool CursorGoNextWordEndState(size_t count, bool one_more_character,
+                                  CursorState& state);
+    bool CursorGoPrevWordBeginState(size_t count, CursorState& state);
+    bool CursorGoNextWordBeginState(size_t count, CursorState& state);
     bool CursorGoLineState(size_t line, CursorState& state);
 
-    void CursorGoRight();
-    void CursorGoLeft();
+    void CursorGoRight(size_t count);
+    void CursorGoLeft(size_t count);
     void CursorGoUp(size_t count);
     void CursorGoDown(size_t count);
     void CursorGoHome();
+    void CursorGoFirstNonBlank();
     void CursorGoEnd();
-    void CursorGoWordEnd(bool one_more_character);
-    void CursorGoWordBegin();
+    void CursorGoNextWordEnd(size_t count, bool one_more_character);
+    void CursorGoPrevWordBegin(size_t count);
+    void CursorGoNextWordBegin(size_t count);
     void CursorGoLine(size_t line);
+
+    void StartSelection(Pos anchor);
+    void StopSelection();
+    bool IsSelectionActive();
 
     void SelectAll();
 
@@ -77,6 +88,10 @@ class Frame {
     // if cursor_pos != nullptr then cursor will set to cursor_pos
     Result AddStringAtCursor(std::string_view str,
                              const Pos* cursor_pos = nullptr);
+    // if cursor_pos != nullptr then cursor will set to cursor_pos
+    // Selection shouldn't be active.
+    Result AddStringAtPos(Pos pos, std::string_view str,
+                          const Pos* cursor_pos = nullptr);
     // kOk for truely done
     Result Replace(const Range& range, std::string_view str,
                    const Pos* cursor_pos = nullptr);
@@ -93,7 +108,8 @@ class Frame {
 
     Result AddStringAtCursorNoSelection(std::string_view str,
                                         const Pos* cursor_pos = nullptr);
-    Result ReplaceSelection(std::string_view str, const Pos* cursor_pos = nullptr);
+    Result ReplaceSelection(std::string_view str,
+                            const Pos* cursor_pos = nullptr);
 
     void SelectionFollowCursor();
 
@@ -133,7 +149,6 @@ class Frame {
     bool SizeValid(size_t sidebar_width);
 
     void UpdateSyntax();
-    void SelectionCancell() { selection_.active = false; }
     void AfterModify(const Pos& cursor_pos);
 
     template <typename T>
