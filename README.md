@@ -26,7 +26,7 @@ This project is far from mature, so:
 - syntax highlighting with tree-sitter(only a few languages now)
 - basic word-based auto completion
 - colorscheme
-- home-like Vi mode
+- home-like Vim mode
 
 See docs/help.md for more infomation
 

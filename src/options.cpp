@@ -31,7 +31,7 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"basic_word_completion", kOptBasicWordCompletion},
     {"truecolor", kOptTrueColor},
     {"logverbose", kOptLogVerbose},
-    {"vi", kOptVi},
+    {"vim", kOptVim},
     {"auto_cmp_timeout", kOptAutoCmpTimeout},
 };
 
@@ -54,7 +54,7 @@ static void OptStaticInit(const OptInfo*& opt_info) {
                                                     Type::kBool};
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptVi] = {OptScope::kGlobal, Type::kBool};
+        static_opt_info[kOptVim] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptAutoCmpTimeout] = {OptScope::kGlobal,
                                                Type::kInteger};
 

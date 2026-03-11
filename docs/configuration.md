@@ -102,3 +102,8 @@ Global Scope:
     type: bool,
     default: true,
     desc: Truecolor support. If enabled, all ui will use the terminal truecolor ability, otherwise all ui use the terminal 8 color.
+
+- vim  
+    type: bool,
+    default: false,
+    desc: Vim mode support. If enabled, Mango will switch to Vim mode.

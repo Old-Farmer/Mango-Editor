@@ -45,10 +45,10 @@ class Editor {
 
     void GotoPeel();
     void ExitFromMode();
-    void ExitFromModeVi();
+    void ExitFromModeVim();
     std::function<void()>
-        exit_from_mode_;  // init to call ExitFromMode or ExitFromModeVi.
-    void GotoModeVi(Mode mode);
+        exit_from_mode_;  // init to call ExitFromMode or ExitFromModeVim.
+    void GotoModeVim(Mode mode);
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
     void StartAutoCompletionTimer();
@@ -68,9 +68,9 @@ class Editor {
 
    private:
     void InitKeymaps();
-    void InitKeymapsVi();
+    void InitKeymapsVim();
     void InitCommands();
-    void InitCommandsVi();
+    void InitCommandsVim();
     void PrintKey(const Terminal::KeyInfo& key_info);
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
     void HandleKey();
@@ -140,7 +140,7 @@ class Editor {
         kNone,
         kCount,  // count
     };
-    InputState input_state_vi_ = InputState::kNone;
+    InputState input_state_vim_ = InputState::kNone;
 
     size_t count_ = 0;
 

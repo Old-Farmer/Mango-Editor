@@ -27,9 +27,9 @@ void StatusLine::Draw() {
         b = cursor_->in_window->frame_.buffer_;
     }
     std::string left_str;
-    if (global_opts_->GetOpt<bool>(kOptVi)) {
+    if (global_opts_->GetOpt<bool>(kOptVim)) {
         left_str =
-            fmt::format("{:<" MGO_VI_MODE_WIDTH "} {}{}",
+            fmt::format("{:<" MGO_VIM_MODE_WIDTH "} {}{}",
                         kViModeString[static_cast<int>(*mode_)], b->Name(),
                         kBufferStateString[static_cast<int>(b->state())]);
     } else {

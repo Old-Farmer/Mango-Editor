@@ -12,7 +12,7 @@
     "max_jump_history": 100,
     "scroll_rows": 3,
     "truecolor": true,
-    "vi": false,
+    "vim": false,
 
     "line_number": 1,
 
