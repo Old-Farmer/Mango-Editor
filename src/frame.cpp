@@ -43,7 +43,7 @@ void Frame::Draw() {
     std::vector<Highlight> selection_hl;
     if (IsSelectionActive()) {
         selection_hl.resize(1);
-        selection_hl[0].range = selection_.ToRange();
+        selection_hl[0].range = selection_->ToRange(buffer_);
         selection_hl[0].attr = scheme[kSelection];
         highlights.push_back(&selection_hl);
     }
@@ -1058,28 +1058,38 @@ void Frame::CursorGoLine(size_t line) {
 
 void Frame::StartSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
-    selection_.active = true;
-    selection_.anchor = anchor;
-    selection_.head = cursor_->ToPos();
+    selection_ = std::make_unique<EditSelection>(anchor, cursor_->ToPos());
 }
 
-void Frame::StopSelection() { selection_.active = false; }
+void Frame::StartVimSelection(Pos anchor) {
+    b_view_->make_cursor_visible = true;
+    selection_ = std::make_unique<VimSelection>(anchor, cursor_->ToPos());
+}
 
-bool Frame::IsSelectionActive() { return selection_.active; }
+void Frame::StartVimLineSelection(Pos anchor) {
+    b_view_->make_cursor_visible = true;
+    selection_ = std::make_unique<VimLineSelection>(anchor, cursor_->ToPos());
+}
 
 void Frame::SelectAll() {
     b_view_->make_cursor_visible = true;
-    selection_.active = true;
-    selection_.anchor = {0, 0};
-    selection_.head = {buffer_->LineCnt() - 1,
-                       buffer_->GetLine(buffer_->LineCnt() - 1).size()};
-    cursor_->SetPos(selection_.head);
+    selection_ = std::make_unique<EditSelection>();
+    selection_->anchor = {0, 0};
+    selection_->head = {buffer_->LineCnt() - 1,
+                        buffer_->GetLine(buffer_->LineCnt() - 1).size()};
+    cursor_->SetPos(selection_->head);
     cursor_->DontHoldColWant();
+}
+
+void Frame::SelectionFollowCursor() {
+    if (IsSelectionActive()) {
+        selection_->head = cursor_->ToPos();
+    }
 }
 
 Result Frame::DeleteAtCursor() {
     b_view_->make_cursor_visible = true;
-    if (selection_.active) {
+    if (IsSelectionActive()) {
         return DeleteSelection();
     } else {
         return DeleteCharacterBeforeCursor();
@@ -1087,7 +1097,7 @@ Result Frame::DeleteAtCursor() {
 }
 
 Result Frame::DeleteWordBeforeCursor() {
-    MGO_ASSERT(!selection_.active);
+    MGO_ASSERT(!IsSelectionActive());
     MGO_ASSERT(buffer_);
     b_view_->make_cursor_visible = true;
     Pos deleted_until;
@@ -1162,7 +1172,7 @@ Result Frame::Replace(const Range& range, std::string_view str,
 Result Frame::TabAtCursor() {
     b_view_->make_cursor_visible = true;
     // TODO: support tab when selection
-    selection_.active = false;
+    StopSelection();
 
     if (!GetOpt<bool>(kOptTabSpace)) {
         return AddStringAtCursor("\t");
@@ -1196,7 +1206,7 @@ Result Frame::TabAtCursor() {
 
 Result Frame::Redo() {
     b_view_->make_cursor_visible = true;
-    selection_.active = false;
+    StopSelection();
 
     Pos pos;
     if (Result res; (res = buffer_->Redo(pos)) != kOk) {
@@ -1208,7 +1218,7 @@ Result Frame::Redo() {
 
 Result Frame::Undo() {
     b_view_->make_cursor_visible = true;
-    selection_.active = false;
+    StopSelection();
 
     Pos pos;
     if (Result res; (res = buffer_->Undo(pos)) != kOk) {
@@ -1220,8 +1230,8 @@ Result Frame::Undo() {
 
 void Frame::Copy() {
     b_view_->make_cursor_visible = true;
-    if (selection_.active) {
-        Range range = selection_.ToRange();
+    if (IsSelectionActive()) {
+        Range range = selection_->ToRange(buffer_);
         clipboard_->SetContent(buffer_->GetContent(range), false);
         StopSelection();
     } else {
@@ -1241,7 +1251,7 @@ Result Frame::Paste() {
         // content will also be empty, maybe a notification mechansim?
         return kFail;
     }
-    if (selection_.active) {
+    if (IsSelectionActive()) {
         return ReplaceSelection(std::move(content));
     } else {
         Pos pos;
@@ -1261,8 +1271,8 @@ Result Frame::Paste() {
 
 void Frame::Cut() {
     b_view_->make_cursor_visible = true;
-    if (selection_.active) {
-        Range range = selection_.ToRange();
+    if (IsSelectionActive()) {
+        Range range = selection_->ToRange(buffer_);
         clipboard_->SetContent(buffer_->GetContent(range), false);
         DeleteSelection();
     } else {
@@ -1316,7 +1326,7 @@ Result Frame::DeleteCharacterBeforeCursor() {
 Result Frame::DeleteSelection() {
     Pos pos;
     Pos cursor_pos = {cursor_->line, cursor_->byte_offset};
-    if (Result res; (res = buffer_->Delete(selection_.ToRange(), &cursor_pos,
+    if (Result res; (res = buffer_->Delete(selection_->ToRange(buffer_), &cursor_pos,
                                            pos)) != kOk) {
         return res;
     }
@@ -1327,7 +1337,7 @@ Result Frame::DeleteSelection() {
 
 Result Frame::AddStringAtCursorNoSelection(std::string_view str,
                                            const Pos* cursor_pos) {
-    MGO_ASSERT(!selection_.active);
+    MGO_ASSERT(!IsSelectionActive());
 
     Pos pos;
     if (cursor_pos != nullptr) {
@@ -1345,7 +1355,7 @@ Result Frame::AddStringAtCursorNoSelection(std::string_view str,
 Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
     MGO_ASSERT(IsSelectionActive());
     if (Result res;
-        (res = Replace(selection_.ToRange(), str, cursor_pos)) != kOk) {
+        (res = Replace(selection_->ToRange(buffer_), str, cursor_pos)) != kOk) {
         return res;
     }
     StopSelection();
@@ -1359,9 +1369,9 @@ size_t Frame::SidebarWidth() {
         return 0;
     }
 
-    // Now we only have line number in no wrap, or a <<< addition may in wrap.
-    // We calc width according to the line cnt of the buffer to avoid ui
-    // debounce.
+    // Now we only have line number in no wrap, or a <<< addition may in
+    // wrap. We calc width according to the line cnt of the buffer to avoid
+    // ui debounce.
     size_t max_line_number = buffer_->LineCnt();
     bool wrap = GetOpt<bool>(kOptWrap);
     return (wrap ? std::max<size_t>(NumberWidth(max_line_number),
@@ -1436,12 +1446,6 @@ Range Frame::CalcWrapRange(size_t content_width) {
 
 void Frame::UpdateSyntax() {
     if (parser_) parser_->ParseSyntaxAfterEdit(buffer_);
-}
-
-void Frame::SelectionFollowCursor() {
-    if (selection_.active) {
-        selection_.head = cursor_->ToPos();
-    }
 }
 
 void Frame::AfterModify(const Pos& cursor_pos) {

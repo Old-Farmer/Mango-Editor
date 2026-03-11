@@ -269,7 +269,7 @@ void Editor::InitKeymaps() {
     // edit
     MGO_KEYMAP("<bs>", {[this] {
                    if (cursor_.in_window->DeleteAtCursor() == kOk &&
-                       !cursor_.in_window->frame_.selection_.active) {
+                       !cursor_.in_window->frame_.IsSelectionActive()) {
                        StartAutoCompletionTimer();
                    }
                }});
@@ -456,7 +456,8 @@ void Editor::InitKeymapsVim() {
                    }
                }},
                {Mode::kEdit});
-    MGO_KEYMAP("u", {[this] { cursor_.in_window->Undo(); }}, {Mode::kVimNormal});
+    MGO_KEYMAP("u", {[this] { cursor_.in_window->Undo(); }},
+               {Mode::kVimNormal});
     MGO_KEYMAP("<c-r>", {[this] { cursor_.in_window->Redo(); }},
                {Mode::kVimNormal});
     MGO_KEYMAP("y", {[this] {
@@ -561,13 +562,13 @@ void Editor::InitKeymapsVim() {
 
     // Selection
     MGO_KEYMAP("v", {[this] {
-                   cursor_.in_window->frame_.StartSelection(cursor_.ToPos());
+                   cursor_.in_window->frame_.StartVimSelection(cursor_.ToPos());
                    GotoModeVim(Mode::kVimVisual);
                }},
                {Mode::kVimNormal});
     MGO_KEYMAP("V", {[this] {
-                   // TODO
-                   (void)this;
+                   cursor_.in_window->frame_.StartVimLineSelection(cursor_.ToPos());
+                   GotoModeVim(Mode::kVimVisualLine);
                }},
                {Mode::kVimNormal});
     MGO_KEYMAP("<c-v>", {[this] {
@@ -912,8 +913,7 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
     } else if (mouse_.state == MouseState::kLeftHolding) {
         if (cursor_.in_window->frame_.IsSelectionActive()) {
             if (win) {
-                cursor_.in_window->frame_.selection_.head = {
-                    cursor_.line, cursor_.byte_offset};
+                cursor_.in_window->frame_.SelectionFollowCursor();
             }
             return;
         }

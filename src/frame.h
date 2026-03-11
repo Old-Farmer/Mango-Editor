@@ -78,9 +78,13 @@ class Frame {
     void CursorGoLine(size_t line);
 
     void StartSelection(Pos anchor);
-    void StopSelection();
-    bool IsSelectionActive();
+    void StartVimSelection(Pos anchor);
+    void StartVimLineSelection(Pos anchor);
+    void StopSelection() { selection_.reset(); }
+    bool IsSelectionActive() { return selection_.get() != nullptr; }
+    void SelectionFollowCursor();
 
+    // Shouldn't be called in vim mode
     void SelectAll();
 
     Result DeleteAtCursor();
@@ -110,8 +114,6 @@ class Frame {
                                         const Pos* cursor_pos = nullptr);
     Result ReplaceSelection(std::string_view str,
                             const Pos* cursor_pos = nullptr);
-
-    void SelectionFollowCursor();
 
    private:
     size_t SidebarWidth();
@@ -177,7 +179,7 @@ class Frame {
 
     BufferView* b_view_;
 
-    Selection selection_;
+    std::unique_ptr<Selection> selection_;
     ClipBoard* clipboard_;
 
    private:
