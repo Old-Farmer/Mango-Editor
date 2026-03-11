@@ -811,7 +811,7 @@ void Editor::HandleKey() {
     if (global_opts_->GetOpt<bool>(kOptVim) &&
         input_state_vim_ == InputState::kCount && !key_info.IsSpecialKey() &&
         key_info.codepoint >= '0' && key_info.codepoint <= '9') {
-        count_ *= count_ * 10 + key_info.codepoint - '0';
+        count_ = count_ * 10 + key_info.codepoint - '0';
         return;
     }
 
@@ -863,7 +863,7 @@ void Editor::HandleKey() {
         } else if (global_opts_->GetOpt<bool>(kOptVim) &&
                    key_info.codepoint >= '0' && key_info.codepoint <= '9' &&
                    input_state_vim_ == InputState::kNone) {
-            count_ *= count_ * 10 + key_info.codepoint - '0';
+            count_ = count_ * 10 + key_info.codepoint - '0';
             input_state_vim_ = InputState::kCount;
         }
     }
