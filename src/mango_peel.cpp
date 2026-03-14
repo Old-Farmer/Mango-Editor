@@ -28,8 +28,9 @@ void MangoPeel::MakeCursorVisible() {
     frame_.MakeCursorVisible();
 }
 
-Result MangoPeel::Paste() {
+Result MangoPeel::Paste(size_t count) {
     MGO_ASSERT(!frame_.IsSelectionActive());
+    MGO_ASSERT(count != 0);
     bool lines;
     std::string content = frame_.clipboard_->GetContent(lines);
     if (content.empty()) {
@@ -39,6 +40,18 @@ Result MangoPeel::Paste() {
     for (char& c : content) {
         if (c == '\n') {
             c = ' ';
+        }
+    }
+    if (count != 1) {
+        // High potential oom
+        try {
+            std::string tmp_content = content;
+            content.reserve(content.size() * count);
+            for (size_t i = 0; i < count - 1; i++) {
+                content += tmp_content;
+            }
+        } catch (std::bad_alloc) {
+            return kError;  // TODO: more specific Result?
         }
     }
     return frame_.AddStringAtCursor(std::move(content));

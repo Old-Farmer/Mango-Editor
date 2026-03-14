@@ -40,8 +40,8 @@ class MangoPeel {
         return frame_.AddStringAtCursor(std::move(str));
     }
 
-    void Copy() { frame_.Paste(); }
-    Result Paste();
+    void Copy() { frame_.Copy(false); }
+    Result Paste(size_t count);
 
     void SetContent(std::string content);
     const std::string& GetContent();

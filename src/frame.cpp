@@ -43,7 +43,7 @@ void Frame::Draw() {
     std::vector<Highlight> selection_hl;
     if (IsSelectionActive()) {
         selection_hl.resize(1);
-        selection_hl[0].range = selection_->ToRange(buffer_);
+        selection_hl[0].range = selection_->ToSelectRange(buffer_);
         selection_hl[0].attr = scheme[kSelection];
         highlights.push_back(&selection_hl);
     }
@@ -1228,20 +1228,22 @@ Result Frame::Undo() {
     return kOk;
 }
 
-void Frame::Copy() {
+void Frame::Copy(bool lines) {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
-        Range range = selection_->ToRange(buffer_);
-        clipboard_->SetContent(buffer_->GetContent(range), false);
+        Range range = selection_->ToSelectRange(buffer_);
+        clipboard_->SetContent(buffer_->GetContent(range), lines);
         StopSelection();
     } else {
         Range range = {{cursor_->line, 0},
                        {cursor_->line, buffer_->GetLine(cursor_->line).size()}};
-        clipboard_->SetContent("\n" + buffer_->GetContent(range), true);
+        clipboard_->SetContent(buffer_->GetContent(range),
+                               true);  // always lines
     }
 }
 
-Result Frame::Paste() {
+Result Frame::Paste(size_t count) {
+    MGO_ASSERT(count != 0);
     b_view_->make_cursor_visible = true;
     bool lines;
     std::string content = clipboard_->GetContent(lines);
@@ -1250,6 +1252,18 @@ Result Frame::Paste() {
         // TODO: when error codition occur,
         // content will also be empty, maybe a notification mechansim?
         return kFail;
+    }
+    if (count != 1) {
+        // High potential oom
+        try {
+            std::string tmp_content = content;
+            content.reserve(content.size() * count);
+            for (size_t i = 0; i < count - 1; i++) {
+                content += tmp_content;
+            }
+        } catch (std::bad_alloc) {
+            return kError;  // TODO: more specific Result?
+        }
     }
     if (IsSelectionActive()) {
         return ReplaceSelection(std::move(content));
@@ -1269,16 +1283,17 @@ Result Frame::Paste() {
     }
 }
 
-void Frame::Cut() {
+void Frame::Cut(bool lines) {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
-        Range range = selection_->ToRange(buffer_);
-        clipboard_->SetContent(buffer_->GetContent(range), false);
+        Range range = selection_->ToSelectRange(buffer_);
+        clipboard_->SetContent(buffer_->GetContent(range), lines);
         DeleteSelection();
     } else {
         Range range = {{cursor_->line, 0},
                        {cursor_->line, buffer_->GetLine(cursor_->line).size()}};
-        clipboard_->SetContent("\n" + buffer_->GetContent(range), true);
+        clipboard_->SetContent(buffer_->GetContent(range),
+                               true);  // always lines
 
         // We try to delete a line where cursor is located.
         Pos pos;
@@ -1326,8 +1341,8 @@ Result Frame::DeleteCharacterBeforeCursor() {
 Result Frame::DeleteSelection() {
     Pos pos;
     Pos cursor_pos = {cursor_->line, cursor_->byte_offset};
-    if (Result res; (res = buffer_->Delete(selection_->ToRange(buffer_), &cursor_pos,
-                                           pos)) != kOk) {
+    if (Result res; (res = buffer_->Delete(selection_->ToDeleteRange(buffer_),
+                                           &cursor_pos, pos)) != kOk) {
         return res;
     }
     AfterModify(pos);
@@ -1355,7 +1370,7 @@ Result Frame::AddStringAtCursorNoSelection(std::string_view str,
 Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
     MGO_ASSERT(IsSelectionActive());
     if (Result res;
-        (res = Replace(selection_->ToRange(buffer_), str, cursor_pos)) != kOk) {
+        (res = Replace(selection_->ToSelectRange(buffer_), str, cursor_pos)) != kOk) {
         return res;
     }
     StopSelection();

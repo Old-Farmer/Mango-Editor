@@ -13,8 +13,11 @@ struct Selection {
     Selection() {}
     Selection(Pos _anchor, Pos _head) : anchor(_anchor), head(_head) {}
 
-    virtual Range ToRange(const Buffer* buffer) const = 0;
-    virtual ~Selection() {} // Just quiet compiler warning
+    virtual Range ToSelectRange(const Buffer* buffer) const = 0;
+    virtual Range ToDeleteRange(const Buffer* buffer) const {
+        return ToSelectRange(buffer);
+    }
+    virtual ~Selection() {}  // Just quiet compiler warning
 };
 
 // normal selection
@@ -22,7 +25,7 @@ struct EditSelection : Selection {
     EditSelection() {}
     EditSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
 
-    Range ToRange(const Buffer* buffer) const override {
+    Range ToSelectRange(const Buffer* buffer) const override {
         (void)buffer;
         return anchor < head ? Range{anchor, head} : Range{head, anchor};
     }
@@ -32,14 +35,15 @@ struct EditSelection : Selection {
 struct VimSelection : Selection {
     VimSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
 
-    Range ToRange(const Buffer* buffer) const override;
+    Range ToSelectRange(const Buffer* buffer) const override;
 };
 
 // vim visual-line mode selection
 struct VimLineSelection : Selection {
     VimLineSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
 
-    Range ToRange(const Buffer* buffer) const override;
+    Range ToSelectRange(const Buffer* buffer) const override;
+    Range ToDeleteRange(const Buffer* buffer) const override;
 };
 
 }  // namespace mango

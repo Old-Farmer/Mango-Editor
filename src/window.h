@@ -61,9 +61,9 @@ class Window {
     Result Redo() { return frame_.Redo(); }
     Result Undo() { return frame_.Undo(); }
 
-    void Copy() { frame_.Copy(); }
-    Result Paste() { return frame_.Paste(); }
-    void Cut() { frame_.Cut(); }
+    void Copy(bool lines) { frame_.Copy(lines); }
+    Result Paste(size_t count) { return frame_.Paste(count); }
+    void Cut(bool lines) { frame_.Cut(lines); }
 
     void NextBuffer();
     void PrevBuffer();

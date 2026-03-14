@@ -1,6 +1,5 @@
 {
     "cursor_start_holding_interval": 500,
-    "status_line_sep_width": 2,
 
     "auto_cmp_timeout": 125,
     "basic_word_completion": true,

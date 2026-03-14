@@ -234,7 +234,8 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<end>", {[this] { peel_->CursorGoEnd(); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<c-c>", {[this] { peel_->Copy(); }}, {Mode::kPeelCommand});
-    MGO_KEYMAP("<c-v>", {[this] { peel_->Paste(); }}, {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-v>", {[this] { peel_->Paste(Count()); }},
+               {Mode::kPeelCommand});
 
     // Buffer manangement
     MGO_KEYMAP("<c-b><c-b>", {[this] { PickBuffers(); }});
@@ -292,9 +293,9 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<c-s>", {[this] { SaveCurrentBuffer(); }});
     MGO_KEYMAP("<c-z>", {[this] { cursor_.in_window->Undo(); }});
     MGO_KEYMAP("<c-y>", {[this] { cursor_.in_window->Redo(); }});
-    MGO_KEYMAP("<c-c>", {[this] { cursor_.in_window->Copy(); }});
-    MGO_KEYMAP("<c-v>", {[this] { cursor_.in_window->Paste(); }});
-    MGO_KEYMAP("<c-x>", {[this] { cursor_.in_window->Cut(); }});
+    MGO_KEYMAP("<c-c>", {[this] { cursor_.in_window->Copy(false); }});
+    MGO_KEYMAP("<c-v>", {[this] { cursor_.in_window->Paste(Count()); }});
+    MGO_KEYMAP("<c-x>", {[this] { cursor_.in_window->Cut(false); }});
     MGO_KEYMAP("<c-a>", {[this] { cursor_.in_window->SelectAll(); }});
     MGO_KEYMAP("<c-k><c-l>", {[this] { cursor_.in_window->SelectAll(); }});
 
@@ -364,7 +365,8 @@ void Editor::InitKeymapsVim() {
                {Mode::kPeelCommand});
     MGO_KEYMAP("<end>", {[this] { peel_->CursorGoEnd(); }},
                {Mode::kPeelCommand});
-    MGO_KEYMAP("<c-r>\"", {[this] { peel_->Paste(); }}, {Mode::kPeelCommand});
+    MGO_KEYMAP("<c-r>\"", {[this] { peel_->Paste(Count()); }},
+               {Mode::kPeelCommand});
 
     // Buffer manangement
     MGO_KEYMAP("]b", {[this] { cursor_.in_window->NextBuffer(); }},
@@ -461,20 +463,30 @@ void Editor::InitKeymapsVim() {
     MGO_KEYMAP("<c-r>", {[this] { cursor_.in_window->Redo(); }},
                {Mode::kVimNormal});
     MGO_KEYMAP("y", {[this] {
-                   cursor_.in_window->Copy();
+                   cursor_.in_window->Copy(false);
                    ExitFromModeVim();
                }},
-               {MGO_VIM_VISUAL_MODES});
+               {Mode::kVimVisual});
+    MGO_KEYMAP("y", {[this] {
+                   cursor_.in_window->Copy(true);
+                   ExitFromModeVim();
+               }},
+               {Mode::kVimVisualLine, Mode::kVimVisualBlock});
     MGO_KEYMAP("p", {[this] {
-                   cursor_.in_window->Paste();
+                   cursor_.in_window->Paste(Count());
                    ExitFromModeVim();
                }},
                {Mode::kVimNormal});
     MGO_KEYMAP("d", {[this] {
-                   cursor_.in_window->Cut();
+                   cursor_.in_window->Cut(false);
                    ExitFromModeVim();
                }},
-               {MGO_VIM_VISUAL_MODES});
+               {Mode::kVimVisual});
+    MGO_KEYMAP("d", {[this] {
+                   cursor_.in_window->Cut(true);
+                   ExitFromModeVim();
+               }},
+               {Mode::kVimVisualLine, Mode::kVimVisualBlock});
 
     // naviagtion
     MGO_KEYMAP("<left>", {[this] { cursor_.in_window->CursorGoLeft(Count()); }},
@@ -566,11 +578,12 @@ void Editor::InitKeymapsVim() {
                    GotoModeVim(Mode::kVimVisual);
                }},
                {Mode::kVimNormal});
-    MGO_KEYMAP("V", {[this] {
-                   cursor_.in_window->frame_.StartVimLineSelection(cursor_.ToPos());
-                   GotoModeVim(Mode::kVimVisualLine);
-               }},
-               {Mode::kVimNormal});
+    MGO_KEYMAP(
+        "V", {[this] {
+            cursor_.in_window->frame_.StartVimLineSelection(cursor_.ToPos());
+            GotoModeVim(Mode::kVimVisualLine);
+        }},
+        {Mode::kVimNormal});
     MGO_KEYMAP("<c-v>", {[this] {
                    // TODO
                    (void)this;

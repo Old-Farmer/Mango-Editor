@@ -103,9 +103,11 @@ class Frame {
     Result Redo();
     Result Undo();
 
-    void Copy();
-    Result Paste();
-    void Cut();
+    // If lines == true, clipboard content will be line semantic.
+    void Copy(bool lines);
+    Result Paste(size_t count);
+    // If lines == true, clipboard content will be line semantic.
+    void Cut(bool lines);
 
     Result DeleteCharacterBeforeCursor();
     Result DeleteSelection();

@@ -25,14 +25,15 @@ std::string DefaultClipBoard::GetContent(bool& lines) const {
 }
 
 void DefaultClipBoard::SetContent(const std::string& content, bool lines) {
-    MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
-    content_ = content;
+    content_ = lines_ ? "\n" + content : content;
 }
 
 void DefaultClipBoard::SetContent(std::string&& content, bool lines) {
-    MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
+    if (lines) {
+        content.insert(0, 1, '\n');
+    }
     content_ = std::move(content);
 }
 
@@ -85,8 +86,32 @@ std::string XClipBoard::GetContent(bool& lines) const {
 }
 
 void XClipBoard::SetContent(const std::string& content, bool lines) {
-    MGO_ASSERT(!lines || (lines && content[0] == '\n'));
     lines_ = lines;
+    const std::string* final_content;
+    std::string lines_content;
+    if (lines) {
+        lines_content = "\n" + content;
+        final_content = &lines_content;
+    } else {
+        final_content = &content;
+    }
+    const char* const argv[] = {"xsel", "--clipboard", nullptr};
+    int exit_code;
+    try {
+        Result res = Exec(argv, final_content, nullptr, nullptr, exit_code);
+        if (exit_code != 0 || res != kOk) {
+            return;
+        }
+    } catch (OSException& e) {
+        return;
+    }
+}
+
+void XClipBoard::SetContent(std::string&& content, bool lines) {
+    lines_ = lines;
+    if (lines) {
+        content.insert(0, 1, '\n');
+    }
     const char* const argv[] = {"xsel", "--clipboard", nullptr};
     int exit_code;
     try {
@@ -97,10 +122,6 @@ void XClipBoard::SetContent(const std::string& content, bool lines) {
     } catch (OSException& e) {
         return;
     }
-}
-
-void XClipBoard::SetContent(std::string&& content, bool lines) {
-    SetContent(content, lines);
 }
 
 void XClipBoard::WslFilterCharacter(std::string& content) {

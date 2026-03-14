@@ -31,7 +31,7 @@ class DefaultClipBoard : public ClipBoard {
     virtual void SetContent(std::string&& content, bool lines) override;
 
    private:
-    bool lines_;
+    bool lines_;  // line semantic, means that the content is copied in lines.
     std::string content_;
 };
 
@@ -51,7 +51,7 @@ class XClipBoard : public ClipBoard {
     static void WslFilterCharacter(std::string& content);
 
    private:
-    bool lines_;
+    bool lines_;  // Same in DefaultClipBoard
     bool in_wsl;
 };
 
