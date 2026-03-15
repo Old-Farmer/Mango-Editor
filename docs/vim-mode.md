@@ -11,3 +11,13 @@ Vim-Mode is implemented corresponding to:
 WORKING IN PROGRESS!!! A LOT OF FEATURES HAVEN't BEEN IMPLEMENTED YET.
 
 Vim-Mode is implemented at best effort. Some behaviors is not the same as those in Vim/Neovim.
+
+## Enabling
+
+In `$XDG_CONFIG_HOME/mango-editor/config.json`:
+
+```json
+{
+    "vim": true
+}
+```
