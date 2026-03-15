@@ -44,10 +44,14 @@ Range VimLineSelection::ToSelectRange(const Buffer* buffer) const {
 }
 
 Range VimLineSelection::ToDeleteRange(const Buffer* buffer) const {
+    // Add a '\n' after or before the range if possible
     Range r = ToSelectRange(buffer);
     if (r.end.line < buffer->LineCnt() - 1) {
         r.end.line++;
         r.end.byte_offset = 0;
+    } else if (r.begin.line != 0) {
+        r.begin.line--;
+        r.begin.byte_offset = buffer->GetLine(r.begin.line).size();
     }
     return r;
 }
