@@ -1184,6 +1184,9 @@ void Editor::ExitFromModeVim() {
 }
 
 void Editor::GotoModeVim(Mode mode) {
+    if (mode != Mode::kVimNormal) {
+        ExitFromModeVim();
+    }
     if (mode == Mode::kEdit) {
         term_.SetCursorStyle(Terminal::CursorStyle::kLine);
     }
