@@ -59,4 +59,8 @@ inline size_t NumberWidth(size_t num) {
     return width;
 }
 
+// Useful for old compilers like gcc 9.3.0 when using static_assert
+template <typename... T>
+inline constexpr bool kAlwaysFalseV = false;
+
 }  // namespace mango

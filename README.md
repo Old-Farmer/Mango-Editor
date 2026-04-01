@@ -23,7 +23,7 @@ This project is far from mature, so:
 
 - rich unicode support(utf-8)
 - mouse support
-- syntax highlighting with tree-sitter(only a few languages now)
+- syntax highlighting with tree-sitter(c, c++, json)
 - basic word-based auto completion
 - colorscheme
 - home-like Vim mode

@@ -129,7 +129,7 @@ class GlobalOpts {
         } else if constexpr (std::is_pointer_v<T>) {
             MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kPtr);
         } else {
-            static_assert(false,
+            static_assert(kAlwaysFalseV<>,
                           "GetOpt<T> only supports T = bool, int64_t, or "
                           "pointer types");
         }
@@ -150,7 +150,7 @@ class GlobalOpts {
         } else if constexpr (std::is_pointer_v<T>) {
             MGO_IF_TYPE_MISMATCH_THROW(opt_info_[key].type == Type::kPtr);
         } else {
-            static_assert(false,
+            static_assert(kAlwaysFalseV<>,
                           "GetOpt<T> only supports T = bool, int64_t, or "
                           "pointer types");
         }
@@ -200,7 +200,7 @@ class Opts {
             MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
                                        Type::kPtr);
         } else {
-            static_assert(false,
+            static_assert(kAlwaysFalseV<>,
                           "GetOpt<T> only supports T = bool, int64_t, or "
                           "pointer types");
         }
@@ -231,7 +231,7 @@ class Opts {
             MGO_IF_TYPE_MISMATCH_THROW(global_opts_->opt_info_[key].type ==
                                        Type::kPtr);
         } else {
-            static_assert(false,
+            static_assert(kAlwaysFalseV<>,
                           "SetOpt<T> only supports T = bool, int64_t, or "
                           "pointer types");
         }

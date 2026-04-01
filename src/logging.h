@@ -5,6 +5,7 @@
 #include <string>
 
 #include "fmt/chrono.h"  // IWYU pragma: keep
+#include "utils.h"
 
 namespace mango {
 
@@ -42,7 +43,7 @@ void Log(const char* file, unsigned int line, const char* func,
     } else if constexpr (level == LogLevel::kError) {
         level_prefix = kErrorPrefix;
     } else {
-        static_assert(false, "Only four LogLevel, an error one");
+        static_assert(kAlwaysFalseV<>, "Only four LogLevel, an error one");
     }
     auto t =
         std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
