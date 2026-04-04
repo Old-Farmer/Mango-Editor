@@ -23,7 +23,7 @@ enum ColorSchemeType : int {
     kNormal = 0,
     kSelection,
     kMenu,
-    kLineNumber,
+    kSidebar,
     kStatusLine,
     kSearch,
 

@@ -116,9 +116,9 @@ void Frame::Draw(bool highlight_search) {
                                                     kSublineIndicator.size(),
                                                 kSpaceChar) +
                                     std::string(kSublineIndicator) + kSpace);
-                    term_->Print(0, row_ + i, scheme[kLineNumber], buf.data());
+                    term_->Print(0, row_ + i, scheme[kSidebar], buf.data());
                 } else {
-                    term_->Print(0, row_ + i, scheme[kLineNumber], sidebar_buf);
+                    term_->Print(0, row_ + i, scheme[kSidebar], sidebar_buf);
                 }
             }
             byte_offset =
@@ -1551,7 +1551,7 @@ void Frame::DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width) {
            line_number_str.size());
     sidebar_buf[left_space + line_number_str.size()] = kSpaceChar;
     sidebar_buf[left_space + line_number_str.size() + 1] = '\0';
-    term_->Print(col_, s_row, scheme[kLineNumber], sidebar_buf);
+    term_->Print(col_, s_row, scheme[kSidebar], sidebar_buf);
 }
 
 Range Frame::CalcWrapRange(size_t content_width) {

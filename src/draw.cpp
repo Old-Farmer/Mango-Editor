@@ -63,7 +63,9 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
                 break;
             }
             // Decide attr
-            Terminal::AttrPair attr = fallback_attr;
+            Terminal::AttrPair attr;
+            attr.fg_exist = false;
+            attr.bg_exist = false;
             if (highlights) {
                 for (size_t i = 0; i < highlights->size(); i++) {
                     int64_t highlight_i = highlights_i[i];
@@ -71,10 +73,29 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
                     if (highlight_i != static_cast<int64_t>(highlight.size()) &&
                         highlight[highlight_i].range.PosInMe(
                             {begin_pos.line, byte_offset})) {
-                        attr = highlight[highlight_i].attr;
-                        break;
+                        if (!attr.fg_exist &&
+                            highlight[highlight_i].attr.fg_exist) {
+                            attr.fg = highlight[highlight_i].attr.fg;
+                            attr.fg_exist = true;
+                        }
+                        if (!attr.bg_exist &&
+                            highlight[highlight_i].attr.bg_exist) {
+                            attr.bg = highlight[highlight_i].attr.bg;
+                            attr.bg_exist = true;
+                        }
+                        if (attr.bg_exist && attr.fg_exist) {
+                            break;
+                        }
                     }
                 }
+            }
+            if (!attr.fg_exist) {
+                attr.fg = fallback_attr.fg;
+                attr.fg_exist = true;
+            }
+            if (!attr.bg_exist) {
+                attr.bg = fallback_attr.bg;
+                attr.bg_exist = true;
             }
 
             int cur_screen_col = view_col - begin_view_col + screen_col;

@@ -63,9 +63,10 @@ class Terminal {
     struct AttrPair {
         Attr fg;
         Attr bg;
+        bool fg_exist;
+        bool bg_exist;
 
         AttrPair() = default;
-        AttrPair(Attr _fg, Attr _bg) : fg(_fg), bg(_bg) {}
     };
 
     enum Color : Attr {

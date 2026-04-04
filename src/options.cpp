@@ -1,5 +1,7 @@
 #include "options.h"
 
+#include <unordered_set>
+
 #include "buffer.h"
 #include "file.h"
 #include "filetype.h"
@@ -84,7 +86,7 @@ static std::unordered_map<std::string_view, ColorSchemeType>
         {"normal", kNormal},
         {"selection", kSelection},
         {"menu", kMenu},
-        {"linenumber", kLineNumber},
+        {"sidebar", kSidebar},
         {"statusline", kStatusLine},
         {"search", kSearch},
 
@@ -125,6 +127,14 @@ static const std::unordered_map<std::string_view, Terminal::Effect> kEffects = {
     {"invisible", Terminal::kInvisible},
 };
 
+static const std::unordered_set<ColorSchemeType>
+    kColorSchemeTypeFgBgMustAllExist = {
+        kNormal,
+        kStatusLine,
+        kMenu,
+        kSidebar,
+};
+
 const Terminal::Attr kTruecolorBegin = 0x000000;
 const Terminal::Attr kTruecolorEnd = 0xFFFFFF;
 
@@ -147,10 +157,8 @@ static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
         for (std::string_view attr_loc : attr_locs) {
             auto iter_attr = v.find(attr_loc);
             if (iter_attr == v.end()) {
-                throw OptionLoadException(
-                    "Option colorscheme{}/{}/{} not "
-                    "exist",
-                    truecolor ? "_truecolor" : "", k, attr_loc);
+                // allow don't have fg or bg in some colorscheme type
+                continue;
             }
 
             if (!iter_attr->is_array()) {
@@ -198,6 +206,21 @@ static void GetColorScheme(bool truecolor, const Json& colorscheme_json,
             if (colors_cnt != 1) {
                 throw OptionLoadException(
                     "{}", "In colorscheme, Color cnt wrong, expect one");
+            }
+            if (attr_loc == "fg") {
+                colorscheme[type].fg_exist = true;
+            } else {
+                colorscheme[type].bg_exist = true;
+            }
+        }
+
+        if (kColorSchemeTypeFgBgMustAllExist.find(type) !=
+            kColorSchemeTypeFgBgMustAllExist.end()) {
+            if (!colorscheme[type].bg_exist || !colorscheme[type].fg_exist) {
+                throw OptionLoadException(
+                    "Option colorscheme{}/{} must both has \"bg\" and \"fg\" "
+                    "color",
+                    truecolor ? "_truecolor" : "", k);
             }
         }
     }
@@ -268,7 +291,8 @@ void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
     }
 
     auto colorscheme = new ColorSchemeElement[__kColorSchemeTypeCount];
-    bzero(colorscheme, sizeof(ColorSchemeElement) * __kColorSchemeTypeCount);
+    bzero(colorscheme, sizeof(ColorSchemeElement) *
+                           __kColorSchemeTypeCount);  // For attr bit wise or
     GetColorScheme(truecolor, *colorscheme_json, colorscheme);
     opts_[kOptColorScheme] = colorscheme;
 }
