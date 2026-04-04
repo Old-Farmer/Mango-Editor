@@ -80,7 +80,7 @@ Global Scope:
 
 - input_indle_timeout:  
     type: integer,
-    default: 150,
+    default: 100,
     desc: Timeout after the user stops typing before triggering deferred behaviors, etc. auto cmp or searching on typing.
 
 - logverbose:  

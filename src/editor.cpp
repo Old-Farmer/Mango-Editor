@@ -1289,8 +1289,8 @@ void Editor::SearchCurrentBuffer(const std::string& pattern) {
             1, true, c_state);
         c_state.SetCursor(&c);
         cursor_.restore_from_peel->frame_.b_view_->SaveCursorState(&c);
+        highlight_search_ = true;
     }
-    highlight_search_ = true;
 }
 
 void Editor::CursorGoSearch(bool next, size_t count, bool keep_current_if_one) {
@@ -1306,6 +1306,7 @@ void Editor::CursorGoSearch(bool next, size_t count, bool keep_current_if_one) {
             ss << "[No result]";
         } else {
             ss << "[" << state.i << "/" << state.total << "]";
+            highlight_search_ = true;
         }
     } else {
         ss << "No searching pattern";
