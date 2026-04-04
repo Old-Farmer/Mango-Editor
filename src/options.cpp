@@ -81,11 +81,13 @@ static void OptStaticInit(const OptInfo*& opt_info) {
     opt_info = static_opt_info;
 }
 
+// clang-format off
 static std::unordered_map<std::string_view, ColorSchemeType>
     kStrToColorSchemeType{
         {"normal", kNormal},
         {"selection", kSelection},
         {"menu", kMenu},
+        {"menu_selection", kMenuSelection},
         {"sidebar", kSidebar},
         {"statusline", kStatusLine},
         {"search", kSearch},
@@ -104,6 +106,7 @@ static std::unordered_map<std::string_view, ColorSchemeType>
         {"property", kProperty},
         {"label", kLabel},
     };
+// clang-format on
 
 static const std::unordered_map<std::string_view, Terminal::Color>
     kBasedColors = {

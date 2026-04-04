@@ -71,7 +71,7 @@ void CmpMenu::Draw() {
     auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
     for (size_t r = 0; r < height_; r++) {
         const Terminal::AttrPair& attr = r + menu_view_line_ == menu_cursor_
-                                             ? scheme[kSelection]
+                                             ? scheme[kMenuSelection]
                                              : scheme[kMenu];
 
         const std::string& str = entries_[menu_view_line_ + r];
@@ -98,8 +98,8 @@ void CmpMenu::Draw() {
             // for show ... when space is not enough for long width entries
             if (menu_col + character_width <= width_) {
                 term_->SetCell(menu_col + col_, r + row_,
-                                            character.Codepoints(),
-                                            character.CodePointCount(), attr);
+                               character.Codepoints(),
+                               character.CodePointCount(), attr);
             } else {
                 break;
             }
