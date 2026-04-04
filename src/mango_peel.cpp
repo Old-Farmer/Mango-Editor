@@ -21,8 +21,6 @@ MangoPeel::MangoPeel(Cursor* cursor, GlobalOpts* global_opts,
     opts_.SetOpt(kOptLineNumber, static_cast<int64_t>(LineNumberType::kNone));
 }
 
-void MangoPeel::Draw() { frame_.Draw(); }
-
 void MangoPeel::MakeCursorVisible() {
     MGO_ASSERT(frame_.cursor_->in_window == nullptr);
     frame_.MakeCursorVisible();
@@ -57,10 +55,10 @@ Result MangoPeel::Paste(size_t count) {
     return frame_.AddStringAtCursor(std::move(content));
 }
 
-void MangoPeel::SetContent(std::string content) {
+void MangoPeel::SetContent(const std::string& content) {
     buffer_.Clear();
     Pos pos;
-    buffer_.Add({0, 0}, std::move(content), nullptr, false, pos);
+    buffer_.Add({0, 0}, content, nullptr, false, pos);
 }
 
 const std::string& MangoPeel::GetContent() { return buffer_.GetLine(0); }

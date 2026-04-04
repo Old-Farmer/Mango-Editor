@@ -30,7 +30,9 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
 
     Command& c = iter->second;
     const auto real_argc = static_cast<int8_t>(splitted_str.size() - 1);
-    if (real_argc + c.optional_argc < c.argc) {
+    if ((c.optional_argc == 0 && real_argc != c.argc) ||
+        (real_argc + c.optional_argc < c.argc) || real_argc > c.argc) {
+        command = &c;
         return kCommandInvalidArgs;
     }
 
@@ -42,6 +44,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
             } else if (substr == kBoolFalse) {
                 args[i] = false;
             } else {
+                command = &c;
                 return kCommandInvalidArgs;
             }
         } else if (c.types[i] == Type::kInteger) {
@@ -49,6 +52,7 @@ Result CommandManager::EvalCommand(const std::string& str, CommandArgs args,
             auto [ptr, errc] = std::from_chars(
                 substr.data(), substr.data() + substr.size(), v);
             if (errc != std::errc() || ptr != substr.data() + substr.size()) {
+                command = &c;
                 return kCommandInvalidArgs;
             }
             args[i] = v;

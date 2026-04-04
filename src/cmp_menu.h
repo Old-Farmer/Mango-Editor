@@ -24,8 +24,8 @@ class CmpMenu {
     void SetEntries(std::vector<std::string>&& entries);
 
     void Draw();
-    void SelectNext();
-    void SelectPrev();
+    void SelectNext(size_t count);
+    void SelectPrev(size_t count);
     size_t Accept();
     void Clear();
 

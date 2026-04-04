@@ -16,58 +16,64 @@ static const std::string kUserColorschemePath =
     std::string(Path::GetConfig()) + "mango-editor/colorscheme.json";
 
 static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
-    {"scroll_rows", kOptScrollRows},
-    {"cursor_start_holding_interval", kOptCursorStartHoldingInterval},
-    {"tab_stop", kOptTabStop},
-    {"tab_space", kOptTabSpace},
+    // buffer
     {"auto_indent", kOptAutoIndent},
     {"auto_pair", kOptAutoPair},
+    {"tab_space", kOptTabSpace},
+    {"tab_stop", kOptTabStop},
     {"wrap", kOptWrap},
+    // window
     {"line_number", kOptLineNumber},
+    // global
+    {"basic_word_completion", kOptBasicWordCompletion},
     {"cmp_menu_max_height", kOptCmpMenuMaxHeight},
     {"cmp_menu_max_width", kOptCmpMenuMaxWidth},
+    {"highlight_on_search", kOptHighlightOnSearch},
+    {"input_idle_timeout", kOptInputIdleTimeout},
+    {"logverbose", kOptLogVerbose},
     {"max_edit_history", kOptMaxEditHistory},
     {"max_jump_history", kOptMaxJumpHistory},
-    {"basic_word_completion", kOptBasicWordCompletion},
+    {"scroll_rows", kOptScrollRows},
     {"truecolor", kOptTrueColor},
-    {"logverbose", kOptLogVerbose},
     {"vim", kOptVim},
-    {"auto_cmp_timeout", kOptAutoCmpTimeout},
+    // private
+    {"cursor_start_holding_interval", kOptCursorStartHoldingInterval},
 };
 
 static void OptStaticInit(const OptInfo*& opt_info) {
     static const auto static_opt_info = [] {
         auto static_opt_info = new OptInfo[__kOptKeyCount];
-        static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
-        static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
-                                                           Type::kInteger};
+        // buffer
+        static_opt_info[kOptAutoIndent] = {OptScope::kBuffer, Type::kBool};
+        static_opt_info[kOptAutoPair] = {OptScope::kBuffer, Type::kBool};
+        static_opt_info[kOptTabSpace] = {OptScope::kBuffer, Type::kBool};
+        static_opt_info[kOptTabStop] = {OptScope::kBuffer, Type::kInteger};
+        static_opt_info[kOptWrap] = {OptScope::kBuffer, Type::kBool};
+        // window
+        static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
+        // global
+        static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,
+                                                    Type::kBool};
         static_opt_info[kOptCmpMenuMaxWidth] = {OptScope::kGlobal,
                                                 Type::kInteger};
         static_opt_info[kOptCmpMenuMaxHeight] = {OptScope::kGlobal,
                                                  Type::kInteger};
+        static_opt_info[kOptColorScheme] = {OptScope::kGlobal, Type::kPtr};
+        static_opt_info[kOptHighlightOnSearch] = {OptScope::kGlobal,
+                                                  Type::kBool};
+        static_opt_info[kOptInputIdleTimeout] = {OptScope::kGlobal,
+                                                 Type::kInteger};
+        static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptMaxEditHistory] = {OptScope::kGlobal,
                                                Type::kInteger};
         static_opt_info[kOptMaxJumpHistory] = {OptScope::kGlobal,
                                                Type::kInteger};
-
-        static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,
-                                                    Type::kBool};
+        static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptVim] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptAutoCmpTimeout] = {OptScope::kGlobal,
-                                               Type::kInteger};
-
-        static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
-
-        static_opt_info[kOptTabStop] = {OptScope::kBuffer, Type::kInteger};
-        static_opt_info[kOptTabSpace] = {OptScope::kBuffer, Type::kBool};
-        static_opt_info[kOptAutoIndent] = {OptScope::kBuffer, Type::kBool};
-        static_opt_info[kOptAutoPair] = {OptScope::kBuffer, Type::kBool};
-        static_opt_info[kOptWrap] = {OptScope::kBuffer, Type::kBool};
-
-        static_opt_info[kOptColorScheme] = {OptScope::kGlobal, Type::kPtr};
-
+        // private
+        static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
+                                                           Type::kInteger};
         return const_cast<OptInfo*>(static_opt_info);
     }();
     opt_info = static_opt_info;
@@ -80,6 +86,7 @@ static std::unordered_map<std::string_view, ColorSchemeType>
         {"menu", kMenu},
         {"linenumber", kLineNumber},
         {"statusline", kStatusLine},
+        {"search", kSearch},
 
         {"keyword", kKeyword},
         {"typebuiltin", kTypeBuiltin},

@@ -139,13 +139,16 @@ foreach(LANG IN LISTS TS_GRAMMAR_LANGS)
         GIT_SHALLOW TRUE
         GIT_PROGRESS TRUE
         SOURCE_DIR "${TS_GRAMMAR_DIR}/tree-sitter-${LANG}"
-    ) 
+    )
     # Use populate Instead of MakeAvailabe to avoid target conflicts.
     FetchContent_Populate(${NAME})
 endforeach()
 
 # fmt
 # ref https://fmt.dev/12.0/get-started/
+# TODO: We link fmt as static lib,
+# but when packaging the fmt lib will still be packaged.
+# Try remove it from package.
 FetchContent_Declare(
     fmt
     GIT_REPOSITORY https://github.com/fmtlib/fmt
@@ -197,6 +200,8 @@ target_sources(
   "${SRC_DIR}/editor.cpp"
   "${SRC_DIR}/event_loop.h"
   "${SRC_DIR}/event_loop.cpp"
+  "${SRC_DIR}/editor_event_manager.h"
+  "${SRC_DIR}/editor_event_manager.cpp"
   "${SRC_DIR}/exception.h"
   "${SRC_DIR}/exception.cpp"
   "${SRC_DIR}/file.h"
@@ -242,6 +247,7 @@ target_sources(
   "${SRC_DIR}/trie.cpp"
   "${SRC_DIR}/utils.h"
   "${SRC_DIR}/utils.cpp"
+  "${SRC_DIR}/vim.h"
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )

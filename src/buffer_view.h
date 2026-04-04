@@ -3,14 +3,15 @@
 #include <cstddef>
 #include <optional>
 
+#include "pos.h"
+
 namespace mango {
 
 class Buffer;
 struct Cursor;
 
 struct CursorStateForStore {
-    size_t line = 0;
-    size_t byte_offset = 0;
+    Pos pos;
     std::optional<size_t> b_view_col_want_;
     size_t character_in_line_ =
         0;  // for status line to show the state, no need to restore

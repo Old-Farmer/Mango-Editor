@@ -15,13 +15,15 @@ class Window {
 
     int id() { return id_; }
 
-    void Draw() { frame_.Draw(); }
+    void Draw(bool highlight_search) { frame_.Draw(highlight_search); }
 
     void MakeCursorVisible() { frame_.MakeCursorVisible(); }
 
     void SetCursorHint(size_t s_row, size_t s_col) {
         frame_.SetCursorHint(s_row, s_col);
     }
+
+    // NOTE: all count shouldn't be 0, otherwise behavior is undefined.
 
     void ScrollRows(int64_t count) { frame_.ScrollRows(count); }
     void ScrollCols(int64_t count) { frame_.ScrollCols(count); }
@@ -76,22 +78,21 @@ class Window {
     void OnBufferDelete(const Buffer* buffer);
 
     // Search relevant
-    struct SearchState {
-        size_t i = 0;  // from 1 instead of zero
-        size_t total = 0;
-    };
-    void BuildSearchContext(const std::string& pattern);
-    void DestorySearchContext();
-    const std::string& GetSearchPattern() { return search_pattern_; }
-    SearchState CursorGoNextSearchResult();
-    SearchState CursorGoPrevSearchResult();
+    void BuildSearchContext(const std::string& pattern) {
+        frame_.BuildSearchContext(pattern);
+    }
+    void DestorySearchContext() { frame_.DestorySearchContext(); }
+    const std::string& GetSearchPattern() { return frame_.GetSearchPattern(); }
+    SearchState CursorGoSearchResult(bool next, size_t count,
+                                     bool keep_current_if_one);
 
+    void InsertJumpHistory();
+    bool FarEnoughWithCursor(const CursorState& state);
+    void MoveJumpHistoryCursorForwardAndTruncate();
     void SetJumpPoint();
-    bool SetJumpPointIfFarEnough(CursorState& state);
     void JumpForward();
     void JumpBackward();
     // TODO: Better name.
-    void MoveJumpHistoryCursorForwardAndTruncate();
 
     const Opts& opts() { return opts_; }
 
@@ -136,12 +137,6 @@ class Window {
     // here. when we want to jump to other places, current buffer view and
     // cursor must be saved at where the history cursor points to.
     JumpHistory::iterator jump_history_cursor_ = jump_history_->end();
-
-    // Search context
-    std::vector<Range> search_result_;
-    std::string search_pattern_;
-    int64_t search_buffer_version_ = -1;
-    int64_t search_buffer_id_ = -1;
 
     int64_t id_ = AllocId();
     static int64_t cur_window_id_;

@@ -1,11 +1,9 @@
 #pragma once
 
 #include <cstddef>
-#include <memory>
 #include <optional>
 
 #include "pos.h"
-#include "timer_manager.h"
 
 namespace mango {
 
@@ -14,10 +12,6 @@ struct Selection;
 class GlobalOpts;
 class Opts;
 class MangoPeel;
-
-// ms
-static constexpr size_t kCusorBlinkingShowInterval = 750;
-static constexpr size_t kCursorBlinkingHideInterval = 750;
 
 struct Cursor {
     // row and col in screen
@@ -29,8 +23,7 @@ struct Cursor {
     size_t character_in_line = 0;
 
     // line and byte_offset of the buffer of the specific frame
-    size_t line = 0;
-    size_t byte_offset = 0;
+    Pos pos = {0, 0};
 
     // when cursor move up/down or scroll rows make cursor move,
     // b_view_col should be the same.
@@ -48,11 +41,11 @@ struct Cursor {
     // TODO: other info
 
     void DontHoldColWant() { b_view_col_want.reset(); }
-    void SetPos(Pos pos) {
-        line = pos.line;
-        byte_offset = pos.byte_offset;
-    }
-    Pos ToPos() { return {line, byte_offset}; }
+    // void SetPos(Pos pos) {
+    //     line = pos.line;
+    //     byte_offset = pos.byte_offset;
+    // }
+    // Pos ToPos() { return {line, byte_offset}; }
 
     void SetScreenPos(int screen_col, int screen_row) {
         s_col = screen_col;
@@ -62,18 +55,14 @@ struct Cursor {
 
 // A core state of cursor
 struct CursorState {
-    size_t line = 0;
-    size_t byte_offset = 0;
+    Pos pos;
     std::optional<size_t> b_view_col_want;
 
     CursorState(Cursor* cursor)
-        : line(cursor->line),
-          byte_offset(cursor->byte_offset),
-          b_view_col_want(cursor->b_view_col_want) {}
+        : pos(cursor->pos), b_view_col_want(cursor->b_view_col_want) {}
 
     void SetCursor(Cursor* cursor) {
-        cursor->line = line;
-        cursor->byte_offset = byte_offset;
+        cursor->pos = pos;
         cursor->b_view_col_want = b_view_col_want;
     }
     void DontHoldColWant() { b_view_col_want.reset(); }

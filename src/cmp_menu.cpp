@@ -114,24 +114,25 @@ void CmpMenu::Draw() {
     }
 }
 
-void CmpMenu::SelectNext() {
-    if (menu_cursor_ == entries_.size() - 1) {
-        menu_cursor_ = 0;
-        return;
-    }
-    menu_cursor_++;
+void CmpMenu::SelectNext(size_t count) {
+    menu_cursor_ = (menu_cursor_ + count) % entries_.size();
     if (menu_cursor_ >= menu_view_line_ + height_) {
         menu_view_line_ = menu_cursor_ - height_ + 1;
+    } else if (menu_cursor_ < menu_view_line_) {
+        menu_view_line_ = menu_cursor_;
     }
 }
 
-void CmpMenu::SelectPrev() {
-    if (menu_cursor_ == 0) {
-        menu_cursor_ = entries_.size() - 1;
-        return;
+void CmpMenu::SelectPrev(size_t count) {
+    count = count % entries_.size();
+    if (count <= menu_cursor_) {
+        menu_cursor_ -= count;
+    } else {
+        menu_cursor_ = entries_.size() - (count - menu_cursor_);
     }
-    menu_cursor_--;
-    if (menu_cursor_ < menu_view_line_) {
+    if (menu_cursor_ >= menu_view_line_ + height_) {
+        menu_view_line_ = menu_cursor_ - height_ + 1;
+    } else if (menu_cursor_ < menu_view_line_) {
         menu_view_line_ = menu_cursor_;
     }
 }

@@ -22,8 +22,8 @@ void Window::CursorGoLine(size_t line) {
     frame_.b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (frame_.CursorGoLineState(line, state)) {
-        if (SetJumpPointIfFarEnough(state)) {
-            MoveJumpHistoryCursorForwardAndTruncate();
+        if (FarEnoughWithCursor(state)) {
+            SetJumpPoint();
         }
         state.SetCursor(cursor_);
         frame_.SelectionFollowCursor();
@@ -37,16 +37,17 @@ Result Window::DeleteAtCursor() {
 
     Buffer* buffer = frame_.buffer_;
     Range range;
-    if (cursor_->byte_offset == 0) {  // first byte
-        if (cursor_->line == 0) {
+    if (cursor_->pos.byte_offset == 0) {  // first byte
+        if (cursor_->pos.line == 0) {
             return kFail;
         }
-        range = {{cursor_->line - 1, buffer->GetLine(cursor_->line - 1).size()},
-                 {cursor_->line, 0}};
+        range = {{cursor_->pos.line - 1,
+                  buffer->GetLine(cursor_->pos.line - 1).size()},
+                 {cursor_->pos.line, 0}};
     } else if (GetOpt<bool>(kOptTabSpace)) {
         bool all_space = true;
-        const std::string& line = buffer->GetLine(cursor_->line);
-        for (size_t byte_offset = 0; byte_offset < cursor_->byte_offset;
+        const std::string& line = buffer->GetLine(cursor_->pos.line);
+        for (size_t byte_offset = 0; byte_offset < cursor_->pos.byte_offset;
              byte_offset++) {
             if (line[byte_offset] != kSpaceChar) {
                 all_space = false;
@@ -54,35 +55,38 @@ Result Window::DeleteAtCursor() {
             }
         }
         if (all_space) {
-            range = {{cursor_->line, (cursor_->byte_offset - 1) / 4 * 4},
-                     {cursor_->line, cursor_->byte_offset}};
+            range = {
+                {cursor_->pos.line, (cursor_->pos.byte_offset - 1) / 4 * 4},
+                cursor_->pos};
         } else {
             goto slow;
         }
     } else {
     slow:
-        const std::string& cur_line = frame_.buffer_->GetLine(cursor_->line);
+        const std::string& cur_line =
+            frame_.buffer_->GetLine(cursor_->pos.line);
         Character character;
         int len;
-        PrevCharacter(cur_line, cursor_->byte_offset, character, len);
+        PrevCharacter(cur_line, cursor_->pos.byte_offset, character, len);
 
         char c = -1;
         character.Ascii(c);
 
-        if (cur_line.size() == cursor_->byte_offset) {
-            range = {{cursor_->line, cursor_->byte_offset - len},
-                     {cursor_->line, cursor_->byte_offset}};
+        if (cur_line.size() == cursor_->pos.byte_offset) {
+            range = {{cursor_->pos.line, cursor_->pos.byte_offset - len},
+                     cursor_->pos};
         } else {
             // may delete pairs
             int byte_len;
-            ThisCharacter(cur_line, cursor_->byte_offset, character, byte_len);
+            ThisCharacter(cur_line, cursor_->pos.byte_offset, character,
+                          byte_len);
             char this_char = -1;
             character.Ascii(this_char);
             bool need_delete_pairs =
                 c != -1 && this_char != -1 && IsPair(c, this_char);
-            range = {{cursor_->line, cursor_->byte_offset - len},
-                     {cursor_->line,
-                      cursor_->byte_offset + (need_delete_pairs ? 1 : 0)}};
+            range = {{cursor_->pos.line, cursor_->pos.byte_offset - len},
+                     {cursor_->pos.line,
+                      cursor_->pos.byte_offset + (need_delete_pairs ? 1 : 0)}};
         }
     }
 
@@ -90,7 +94,7 @@ Result Window::DeleteAtCursor() {
     if (Result res; (res = buffer->Delete(range, nullptr, pos)) != kOk) {
         return res;
     }
-    cursor_->SetPos(pos);
+    cursor_->pos = pos;
     cursor_->DontHoldColWant();
     parser_->ParseSyntaxAfterEdit(buffer);
     return kOk;
@@ -116,7 +120,7 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     }
 
     if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
-        return TryAutoIndent(cursor_->ToPos());
+        return TryAutoIndent(cursor_->pos);
     } else if (GetOpt<bool>(kOptAutoPair)) {
         if (IsPair(c)) {
             return TryAutoPair(str);
@@ -130,18 +134,18 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
 
 Result Window::NewLineAboveCursorline() {
     MGO_ASSERT(!frame_.IsSelectionActive());
-    if (cursor_->line == 0) {
-        Pos cursor_pos = cursor_->ToPos();
-        return frame_.AddStringAtPos({0, 0}, "\n", &cursor_pos);
+    if (cursor_->pos.line == 0) {
+        return frame_.AddStringAtPos({0, 0}, "\n", &cursor_->pos);
     }
     return TryAutoIndent(
-        {cursor_->line - 1, frame_.buffer_->GetLine(cursor_->line - 1).size()});
+        {cursor_->pos.line - 1,
+         frame_.buffer_->GetLine(cursor_->pos.line - 1).size()});
 }
 
 Result Window::NewLineUnderCursorline() {
     MGO_ASSERT(!frame_.IsSelectionActive());
     return TryAutoIndent(
-        {cursor_->line, frame_.buffer_->GetLine(cursor_->line).size()});
+        {cursor_->pos.line, frame_.buffer_->GetLine(cursor_->pos.line).size()});
 }
 
 Result Window::Replace(const Range& range, std::string_view str) {
@@ -151,20 +155,21 @@ Result Window::Replace(const Range& range, std::string_view str) {
 Result Window::TryAutoPair(std::string_view str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
-    bool end_of_line =
-        frame_.buffer_->GetLine(cursor_->line).size() == cursor_->byte_offset;
+    bool end_of_line = frame_.buffer_->GetLine(cursor_->pos.line).size() ==
+                       cursor_->pos.byte_offset;
     char cur_c =
         end_of_line
             ? -1
             : frame_.buffer_->GetLine(
-                  cursor_->line)[cursor_->byte_offset];  // -1 here just makes
+                  cursor_->pos
+                      .line)[cursor_->pos.byte_offset];  // -1 here just makes
                                                          // compiler happy, not
                                                          // used.
-    bool start_of_line = cursor_->byte_offset == 0;
-    char prev_c =
-        start_of_line
-            ? -1
-            : frame_.buffer_->GetLine(cursor_->line)[cursor_->byte_offset - 1];
+    bool start_of_line = cursor_->pos.byte_offset == 0;
+    char prev_c = start_of_line
+                      ? -1
+                      : frame_.buffer_->GetLine(
+                            cursor_->pos.line)[cursor_->pos.byte_offset - 1];
     // Can we just move cursor next ?
     // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
     if (!start_of_line && !end_of_line) {
@@ -175,7 +180,7 @@ Result Window::TryAutoPair(std::string_view str) {
             if (frame_.buffer_->read_only()) {
                 return kBufferReadOnly;
             }
-            cursor_->byte_offset++;
+            cursor_->pos.byte_offset++;
             cursor_->DontHoldColWant();
             return kOk;
         }
@@ -189,7 +194,7 @@ Result Window::TryAutoPair(std::string_view str) {
     }
 
     if (end_of_line || !IsPair(str[0], cur_c)) {
-        Pos pos = {cursor_->line, cursor_->byte_offset + 1};
+        Pos pos = {cursor_->pos.line, cursor_->pos.byte_offset + 1};
         std::string pairs = std::string(str) + c_close;
         return frame_.AddStringAtCursor(pairs, &pos);
     }
@@ -247,8 +252,7 @@ Result Window::TryAutoIndent(Pos pos) {
         } else {
             str += "\t";
         }
-        for (i = pos.byte_offset; i < static_cast<int64_t>(line.size());
-             i++) {
+        for (i = pos.byte_offset; i < static_cast<int64_t>(line.size()); i++) {
             if (line[i] == want_right) {
                 cursor_pos.line = pos.line + 1;
                 cursor_pos.byte_offset = str.size() - 1;
@@ -303,7 +307,7 @@ void Window::AttachBuffer(Buffer* buffer) {
 void Window::DetachBuffer() {
     if (frame_.buffer_) {
         frame_.b_view_->SaveCursorState(cursor_);
-        SetJumpPoint();
+        InsertJumpHistory();
         frame_.b_view_ = nullptr;
         frame_.buffer_ = nullptr;
         frame_.StopSelection();
@@ -323,125 +327,19 @@ void Window::OnBufferDelete(const Buffer* buffer) {
     buffer_views_.erase(buffer->id());
 }
 
-void Window::BuildSearchContext(const std::string& pattern) {
-    search_pattern_ = pattern;
-    search_result_ = frame_.buffer_->Search(search_pattern_);
-    search_buffer_version_ = frame_.buffer_->version();
+SearchState Window::CursorGoSearchResult(bool next, size_t count,
+                                     bool keep_current_if_one) {
+    CursorState state(cursor_);
+    SearchState search_state = frame_.CursorGoSearchResultState(next, count, keep_current_if_one, state);
+    if (search_state.total == 0) {
+        return search_state;
+    }
+    SetJumpPoint();
+    state.SetCursor(cursor_);
+    return search_state;
 }
 
-void Window::DestorySearchContext() {
-    search_pattern_.clear();
-    search_result_.clear();
-    search_buffer_version_ = -1;
-    search_buffer_id_ = -1;
-}
-
-Window::SearchState Window::CursorGoNextSearchResult() {
-    if (search_buffer_version_ == -1) {
-        return {};
-    }
-
-    if (frame_.buffer_->id() != search_buffer_id_ ||
-        frame_.buffer_->version() != search_buffer_version_) {
-        // Another buffer or the buffer has changed, we do search again.
-        search_result_ = frame_.buffer_->Search(search_pattern_);
-        search_buffer_version_ = frame_.buffer_->version();
-        search_buffer_id_ = frame_.buffer_->id();
-    }
-
-    if (search_result_.size() == 0) {
-        return {};
-    }
-
-    int64_t left = 0, right = search_result_.size() - 1;
-    while (left <= right) {
-        int64_t mid = left + (right - left) / 2;
-        size_t line = search_result_[mid].begin.line;
-        size_t byte_offset = search_result_[mid].begin.byte_offset;
-        if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
-            if (static_cast<size_t>(mid) == search_result_.size() - 1) {
-                mid = 0;
-            } else {
-                mid++;
-            }
-            cursor_->line = search_result_[mid].begin.line;
-            cursor_->byte_offset = search_result_[mid].begin.byte_offset;
-            cursor_->DontHoldColWant();
-            return {static_cast<size_t>(mid + 1), search_result_.size()};
-        } else if (cursor_->line < line ||
-                   (cursor_->line == line &&
-                    cursor_->byte_offset < byte_offset)) {
-            right = mid - 1;
-        } else {
-            left = mid + 1;
-        }
-    }
-    if (static_cast<size_t>(left) == search_result_.size()) {
-        cursor_->line = search_result_[0].begin.line;
-        cursor_->byte_offset = search_result_[0].begin.byte_offset;
-        cursor_->DontHoldColWant();
-        return {1, search_result_.size()};
-    }
-    cursor_->line = search_result_[left].begin.line;
-    cursor_->byte_offset = search_result_[left].begin.byte_offset;
-    cursor_->DontHoldColWant();
-    return {static_cast<size_t>(left + 1), search_result_.size()};
-}
-
-Window::SearchState Window::CursorGoPrevSearchResult() {
-    if (search_buffer_version_ == -1) {
-        return {};
-    }
-
-    if (frame_.buffer_->id() != search_buffer_id_ ||
-        frame_.buffer_->version() != search_buffer_version_) {
-        // Another buffer or the buffer has changed, we do search again.
-        search_result_ = frame_.buffer_->Search(search_pattern_);
-        search_buffer_version_ = frame_.buffer_->version();
-        search_buffer_id_ = frame_.buffer_->id();
-    }
-
-    if (search_result_.size() == 0) {
-        return {};
-    }
-
-    int64_t left = 0, right = search_result_.size() - 1;
-    while (left <= right) {
-        int64_t mid = left + (right - left) / 2;
-        size_t line = search_result_[mid].begin.line;
-        size_t byte_offset = search_result_[mid].begin.byte_offset;
-        if (line == cursor_->line && byte_offset == cursor_->byte_offset) {
-            if (mid == 0) {
-                mid = search_result_.size() - 1;
-            } else {
-                mid--;
-            }
-            cursor_->line = search_result_[mid].begin.line;
-            cursor_->byte_offset = search_result_[mid].begin.byte_offset;
-            cursor_->DontHoldColWant();
-            return {static_cast<size_t>(mid + 1), search_result_.size()};
-        } else if (cursor_->line < line ||
-                   (cursor_->line == line &&
-                    cursor_->byte_offset < byte_offset)) {
-            right = mid - 1;
-        } else {
-            left = mid + 1;
-        }
-    }
-    if (static_cast<size_t>(left) == 0) {
-        size_t last = search_result_.size() - 1;
-        cursor_->line = search_result_[last].begin.line;
-        cursor_->byte_offset = search_result_[last].begin.byte_offset;
-        cursor_->DontHoldColWant();
-        return {last, search_result_.size()};
-    }
-    cursor_->line = search_result_[left - 1].begin.line;
-    cursor_->byte_offset = search_result_[left - 1].begin.byte_offset;
-    cursor_->DontHoldColWant();
-    return {static_cast<size_t>(left), search_result_.size()};
-}
-
-void Window::SetJumpPoint() {
+void Window::InsertJumpHistory() {
     BufferView b_view = *frame_.b_view_;
     b_view.SaveCursorState(cursor_);
     if (jump_history_cursor_ == jump_history_->end()) {
@@ -453,14 +351,10 @@ void Window::SetJumpPoint() {
     jump_history_cursor_->buffer = frame_.buffer_->id();
 }
 
-bool Window::SetJumpPointIfFarEnough(CursorState& state) {
-    if ((cursor_->line > state.line
-             ? cursor_->line - state.line
-             : state.line - cursor_->line) >= frame_.height_ / 2) {
-        SetJumpPoint();
-        return true;
-    }
-    return false;
+bool Window::FarEnoughWithCursor(const CursorState& state) {
+    return (cursor_->pos.line > state.pos.line
+                ? cursor_->pos.line - state.pos.line
+                : state.pos.line - cursor_->pos.line) >= frame_.height_ / 2;
 }
 
 void Window::MoveJumpHistoryCursorForwardAndTruncate() {
@@ -472,6 +366,11 @@ void Window::MoveJumpHistoryCursorForwardAndTruncate() {
            static_cast<size_t>(GetOpt<int64_t>(kOptMaxJumpHistory))) {
         jump_history_->pop_front();
     }
+}
+
+void Window::SetJumpPoint() {
+    InsertJumpHistory();
+    MoveJumpHistoryCursorForwardAndTruncate();
 }
 
 void Window::JumpForward() {

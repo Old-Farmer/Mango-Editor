@@ -1,9 +1,13 @@
 #include "buffer_manager.h"
 
+#include "editor_event_manager.h"
+
 namespace mango {
 
-BufferManager::BufferManager()
-    : list_head_(nullptr, false), list_tail_(nullptr, false) {
+BufferManager::BufferManager(EditorEventManager* editor_event_manager)
+    : list_head_(nullptr, false),
+      list_tail_(nullptr, false),
+      editor_event_manager_(editor_event_manager) {
     list_head_.prev_ = nullptr;
     list_tail_.next_ = nullptr;
     list_head_.next_ = &list_tail_;
@@ -21,41 +25,10 @@ Buffer* BufferManager::AddBuffer(Buffer&& buffer) {
 void BufferManager::RemoveBuffer(Buffer* buffer) {
     MGO_ASSERT(buffer);
     int64_t id = buffer->id();
-    for (const auto& callback_store : on_buffer_removes_) {
-        if (callback_store.handler != nullptr) {
-            callback_store.handler(buffer);
-        }
-    }
+    editor_event_manager_->EmitEvent(EditorEvent::kBufferRemoved, buffer);
     buffer->RemoveFromList();
     MGO_ASSERT(buffers_.count(id) == 1);
     buffers_.erase(id);
-}
-
-BufferManager::HandlerID BufferManager::AddOnBufferRemoveHandler(
-    OnBufferRemove handler) {
-    for (size_t i = 0; i < on_buffer_removes_.size(); i++) {
-        if (on_buffer_removes_[i].handler == nullptr) {
-            on_buffer_removes_[i].handler = std::move(handler);
-            return {i, on_buffer_removes_[i].generation};
-        }
-    }
-    on_buffer_removes_.push_back({std::move(handler), 0});
-    return {on_buffer_removes_.size() - 1, 0};
-}
-
-void BufferManager::RemoveOnBufferRemoveHandler(BufferManager::HandlerID id) {
-    if (on_buffer_removes_.size() <= id.id) {
-        return;
-    }
-
-    if (on_buffer_removes_[id.id].handler == nullptr) {
-        return;
-    }
-    if (on_buffer_removes_[id.id].generation != id.generation) {
-        return;
-    }
-    on_buffer_removes_[id.id].handler = nullptr;
-    on_buffer_removes_[id.id].generation++;
 }
 
 Buffer* BufferManager::Begin() {

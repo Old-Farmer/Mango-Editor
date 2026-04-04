@@ -7,6 +7,7 @@
 #include "cmp_menu.h"
 #include "command_manager.h"
 #include "cursor.h"
+#include "editor_event_manager.h"
 #include "event_loop.h"
 #include "keyseq_manager.h"
 #include "mango_peel.h"
@@ -16,6 +17,7 @@
 #include "syntax.h"
 #include "timer_manager.h"
 #include "utils.h"
+#include "vim.h"
 #include "window.h"
 
 namespace mango {
@@ -51,27 +53,31 @@ class Editor {
     void GotoModeVim(Mode mode);
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
-    void StartAutoCompletionTimer();
     bool CompletionTriggered();
-    void SearchNext();
-    void SearchPrev();
+    void SearchCurrentBuffer(const std::string& pattern);
     void PickBuffers();
     void EditFile();
     void PeelHitEnter();
 
-    void CursorUp();
-    void CursorDown();
+    void CursorUp(size_t count);
+    void CursorDown(size_t count);
+    void CursorGoSearch(bool next, size_t count, bool keep_current_if_one);
+    void CursorGoSearchVim(bool next, size_t count, bool keep_current_if_one);
 
     void RemoveCurrentBuffer();
     void SaveCurrentBuffer();
     void SaveCurrentBufferAs(const Path& path);
 
+    void NotifyUser(const std::string& str);
+
    private:
+    // Editor Lifetime
     void InitKeymaps();
     void InitKeymapsVim();
     void InitCommands();
     void InitCommandsVim();
-    void PrintKey(const Terminal::KeyInfo& key_info);
+    void RegisterEditorEventHandlers();
+
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
     void HandleKey();
     void HandleLeftClick(int s_row, int s_col);
@@ -79,14 +85,26 @@ class Editor {
     void HandleMouse();
     void HandleResize();
 
+    void StartAutoCompletionTimer();
+    void StartSearchOnTypeTimer();
+    void TrySearchOnType();
+
     void Draw();
     void PreProcess();
     void Resize(int width, int height);
 
     // Count is at least 1.
     size_t Count() { return count_ == 0 ? 1 : count_; }
+    // OpPendingCount is at least 1.
+    // Used in vim operator pending mode
+    size_t OpPendingCountVim() {
+        return Count() * (state_vim_->op_pending_stored_count == 0
+                              ? 1
+                              : state_vim_->op_pending_stored_count);
+    }
 
     // helper methods
+    void PrintKey(const Terminal::KeyInfo& key_info);
     Window* LocateWindow(int s_col, int s_row);
 
    private:
@@ -94,10 +112,11 @@ class Editor {
 
     Mode mode_;
 
-    BufferManager buffer_manager_;
+    std::unique_ptr<BufferManager> buffer_manager_;
     KeyseqManager keymap_manager_{mode_};
     CommandManager command_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
+    EditorEventManager editor_event_manager_;
 
     enum class ContextID : int {};
     class ContextManager {
@@ -128,21 +147,22 @@ class Editor {
     static constexpr const char* kAskQuitStr =
         "Some buffers have not saved, force quit(y/[n])? ";
 
-    std::unique_ptr<GlobalOpts> global_opts_;
-
     // Cmp context
     Completer* tmp_completer_ = nullptr;
     bool show_cmp_menu_ = false;  // if false, hide cmp menu.
 
+    // buffer view stored for peel -> edit
+    BufferView b_view_stored_for_edit;
+
+    bool highlight_search_ = false;
+    size_t count_;
+
+    std::unique_ptr<EditorStateVim> state_vim_;
+
     std::unique_ptr<SingleTimer> autocmp_trigger_timer_;
+    std::unique_ptr<SingleTimer> search_on_type_timer_;
 
-    enum class InputState {
-        kNone,
-        kCount,  // count
-    };
-    InputState input_state_vim_ = InputState::kNone;
-
-    size_t count_ = 0;
+    std::unique_ptr<GlobalOpts> global_opts_;
 
     Terminal& term_ = Terminal::GetInstance();
 };

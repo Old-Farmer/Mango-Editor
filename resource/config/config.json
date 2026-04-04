@@ -1,11 +1,18 @@
 {
-    "cursor_start_holding_interval": 500,
+    "auto_indent": true,
+    "auto_pair": true,
+    "tab_space": true,
+    "tab_stop": 4,
+    "wrap": false,
 
-    "auto_cmp_timeout": 125,
+    "line_number": 1,
+
     "basic_word_completion": true,
     "cmp_menu_max_height": 15,
     "cmp_menu_max_width": 40,
     "colorscheme": "default",
+    "highlight_on_search": true,
+    "input_idle_timeout": 150,
     "logverbose": false,
     "max_edit_history": 100,
     "max_jump_history": 100,
@@ -13,19 +20,15 @@
     "truecolor": true,
     "vim": false,
 
-    "line_number": 1,
-
-    "auto_indent": true,
-    "auto_pair": true,
-    "tab_space": true,
-    "tab_stop": 4,
-    "wrap": false,
+    "cursor_start_holding_interval": 500,
 
     "makefile": {
         "tab_space": false
     },
-
     "markdown": {
+        "wrap": true
+    },
+    "txt": {
         "wrap": true
     }
 }

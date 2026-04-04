@@ -53,11 +53,6 @@ Window Scope:
 
 Global Scope:
 
-- auto_cmp_timeout:  
-    type: integer,
-    default: 125,
-    desc: Auto-completion is triggered after a timeout following the user’s input.
-
 - basic_word_completion  
     type: bool,
     default: true,
@@ -77,6 +72,16 @@ Global Scope:
     type: string,
     default: "default",
     desc: A colorscheme. When truecolor not enabled, default is a clean 8 color colorscheme; Otherwise, Default is a Catpuccin-like colorscheme(See [Colorscheme](./colorscheme.md) for more info).
+
+- highlight_on_search:  
+    type: bool,
+    default: true,
+    desc: highlight all searched strings.
+
+- input_indle_timeout:  
+    type: integer,
+    default: 150,
+    desc: Timeout after the user stops typing before triggering deferred behaviors, etc. auto cmp or searching on typing.
 
 - logverbose:  
     type: bool,

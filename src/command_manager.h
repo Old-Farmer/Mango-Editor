@@ -39,6 +39,8 @@ class CommandManager {
     // kNotExist,
     // kCommandInvalidArgs,
     // kCommandEmpty
+    // if return kOk or kCommandInvalidArgs, command will be set.
+    // if return kOk, args will also be filled.
     Result EvalCommand(const std::string& str, CommandArgs args,
                        Command*& command);
 

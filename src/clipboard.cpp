@@ -4,7 +4,6 @@
 #include "constants.h"
 #include "exception.h"
 #include "subprocess.h"
-#include "utils.h"
 
 namespace mango {
 

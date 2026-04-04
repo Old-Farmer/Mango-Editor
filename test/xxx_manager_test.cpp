@@ -3,6 +3,7 @@
 #include "catch2/catch_test_macros.hpp"
 #include "command_manager.h"
 #include "keyseq_manager.h"
+#include "timer_manager.h"
 
 using namespace mango;
 

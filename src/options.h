@@ -25,6 +25,7 @@ enum ColorSchemeType : int {
     kMenu,
     kLineNumber,
     kStatusLine,
+    kSearch,
 
     kKeyword,
     kTypeBuiltin,
@@ -51,25 +52,32 @@ enum class LineNumberType {
 
 // NOTE: The unit of time related opts is ms.
 enum OptKey {
-    kOptScrollRows,
-    kOptCursorStartHoldingInterval,
-    kOptTabStop,
-    kOptTabSpace,
+    // buffer
     kOptAutoIndent,
     kOptAutoPair,
+    kOptTabSpace,
+    kOptTabStop,
     kOptWrap,
+
+    // window
     kOptLineNumber,
+
+    // global
+    kOptBasicWordCompletion,
     kOptCmpMenuMaxHeight,
     kOptCmpMenuMaxWidth,
+    kOptColorScheme,
+    kOptHighlightOnSearch,
+    kOptInputIdleTimeout,
+    kOptLogVerbose,
     kOptMaxEditHistory,
     kOptMaxJumpHistory,
-    kOptBasicWordCompletion,
+    kOptScrollRows,
     kOptTrueColor,
-    kOptLogVerbose,
     kOptVim,
-    kOptAutoCmpTimeout,
 
-    kOptColorScheme,
+    // private
+    kOptCursorStartHoldingInterval,
 
     __kOptKeyCount,
 };

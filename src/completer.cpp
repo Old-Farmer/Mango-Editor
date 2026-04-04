@@ -122,26 +122,26 @@ Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     peel_->frame_.b_view_->make_cursor_visible = true;
     if (type_ == SuggestType::kOther) {
         peel_->frame_.buffer_->Replace(
-            {{0, this_arg_offset_}, {0, cursor->byte_offset}},
+            {{0, this_arg_offset_}, {0, cursor->pos.byte_offset}},
             suggestions_[index], nullptr, false, pos);
     } else if (type_ == SuggestType::kPath) {
         std::string_view hint = {peel_->GetContent().c_str() + this_arg_offset_,
-                                 cursor->byte_offset - this_arg_offset_};
+                                 cursor->pos.byte_offset - this_arg_offset_};
         int64_t sep_index = Path::LastPathSeperator(hint);
         if (sep_index == static_cast<int64_t>(hint.size() - 1)) {
-            peel_->frame_.buffer_->Add({0, cursor->byte_offset},
+            peel_->frame_.buffer_->Add({0, cursor->pos.byte_offset},
                                        suggestions_[index], nullptr, false,
                                        pos);
         } else {
             peel_->frame_.buffer_->Replace(
                 {{0, sep_index + 1 + this_arg_offset_},
-                 {0, cursor->byte_offset}},
+                 {0, cursor->pos.byte_offset}},
                 suggestions_[index], nullptr, false, pos);
         }
     } else {
         MGO_ASSERT("Shouldn't reach here");
     }
-    cursor->SetPos(pos);
+    cursor->pos = pos;
     Result res;
     if (type_ == SuggestType::kPath &&
         suggestions_[index].back() == kPathSeperator) {
@@ -221,7 +221,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
 Result BufferBasicWordCompleter::Accept(size_t index, Cursor* cursor) {
     MGO_ASSERT(cursor->in_window);
     MGO_ASSERT(index < suggestions_.size());
-    Pos cursor_pos = cursor->ToPos();
+    Pos cursor_pos = cursor->pos;
     cursor->in_window->Replace(
         {{cursor_pos.line,
           cursor_pos.byte_offset - bytes_of_word_before_cursor_},
