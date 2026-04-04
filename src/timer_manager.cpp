@@ -32,7 +32,7 @@ void TimerManager::StartTimer(Timer* timer) {
     TimerHeapSiftUp(timer_heap_.size() - 1);
 }
 void TimerManager::StopTimer(Timer* timer) {
-    if (timer->heap_index_ != -1) {
+    if (timer->heap_index_ == -1) {
         return;
     }
 

@@ -141,8 +141,10 @@ void Editor::Loop() {
         // it.
         while (term_.Poll(0)) {
             show_cmp_menu_ = false;
-            if (autocmp_trigger_timer_->IsTimingOn()) {
+            if (autocmp_trigger_timer_ &&
+                autocmp_trigger_timer_->IsTimingOn()) {
                 loop_->timer_manager_.StopTimer(autocmp_trigger_timer_.get());
+                MGO_ASSERT(!autocmp_trigger_timer_->IsTimingOn());
             }
 
             // Handle it and do sth
@@ -180,12 +182,13 @@ void Editor::Loop() {
                     break;
                 }
             }
+        }
 
-            // If autocmp trigger timer has started,
-            // don't cancel it to avoid flash of cmp menu.
-            if (!show_cmp_menu_ && !autocmp_trigger_timer_->IsTimingOn()) {
-                CancellCompletion();
-            }
+        // If autocmp trigger timer has started,
+        // don't cancel it to avoid flash of cmp menu.
+        if (!show_cmp_menu_ &&
+            (autocmp_trigger_timer_ && !autocmp_trigger_timer_->IsTimingOn())) {
+            CancellCompletion();
         }
     };
 
@@ -300,12 +303,12 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<tab>", {[this] { cursor_.in_window->TabAtCursor(); }});
     MGO_KEYMAP("<enter>", {[this] {
                    if (CompletionTriggered()) {
-                       if (tmp_completer_->Accept(cmp_menu_->Accept(),
-                                                  &cursor_) == kRetriggerCmp) {
-                           tmp_completer_ = nullptr;
+                       if (completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
+                           kRetriggerCmp) {
+                           completer_ = nullptr;
                            TriggerCompletion(true);
                        } else {
-                           tmp_completer_ = nullptr;
+                           completer_ = nullptr;
                        }
                    } else {
                        cursor_.in_window->AddStringAtCursor("\n");
@@ -475,12 +478,12 @@ void Editor::InitKeymapsVim() {
                {Mode::kEdit});
     MGO_KEYMAP("<enter>", {[this] {
                    if (CompletionTriggered()) {
-                       if (tmp_completer_->Accept(cmp_menu_->Accept(),
-                                                  &cursor_) == kRetriggerCmp) {
-                           tmp_completer_ = nullptr;
+                       if (completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
+                           kRetriggerCmp) {
+                           completer_ = nullptr;
                            TriggerCompletion(true);
                        } else {
-                           tmp_completer_ = nullptr;
+                           completer_ = nullptr;
                        }
                    } else {
                        cursor_.in_window->AddStringAtCursor("\n");
@@ -1323,12 +1326,12 @@ void Editor::TriggerCompletion(bool autocmp) {
 
     bool in_peel = IsPeel(mode_);
     if (!in_peel) {
-        tmp_completer_ = window_->frame_.buffer_->completer();
+        completer_ = window_->frame_.buffer_->completer();
     } else {
-        tmp_completer_ = &peel_->completer_;
+        completer_ = &peel_->completer_;
     }
 
-    if (tmp_completer_ == nullptr) {
+    if (completer_ == nullptr) {
         if (autocmp) {
             return;
         }
@@ -1339,13 +1342,13 @@ void Editor::TriggerCompletion(bool autocmp) {
     }
 
     std::vector<std::string> entries;
-    tmp_completer_->Suggest(cursor_.pos, entries);
+    completer_->Suggest(cursor_.pos, entries);
     if (entries.empty()) {
-        tmp_completer_->Cancel();
+        completer_->Cancel();
         if (!autocmp && !in_peel) {
             NotifyUser("No completion");
         }
-        tmp_completer_ = nullptr;
+        completer_ = nullptr;
         return;
     }
 
@@ -1359,13 +1362,13 @@ void Editor::CancellCompletion() {
         return;
     }
 
-    tmp_completer_->Cancel();
-    tmp_completer_ = nullptr;
+    completer_->Cancel();
+    completer_ = nullptr;
     cmp_menu_->Clear();
     cmp_menu_->visible() = false;
 }
 
-bool Editor::CompletionTriggered() { return tmp_completer_ != nullptr; }
+bool Editor::CompletionTriggered() { return completer_ != nullptr; }
 
 void*& Editor::ContextManager::GetContext(ContextID id) {
     return contexts_[id];
@@ -1400,12 +1403,12 @@ void Editor::PeelHitEnter() {
     }
 
     if (CompletionTriggered()) {
-        if (tmp_completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
+        if (completer_->Accept(cmp_menu_->Accept(), &cursor_) ==
             kRetriggerCmp) {
-            tmp_completer_ = nullptr;
+            completer_ = nullptr;
             TriggerCompletion(true);
         } else {
-            tmp_completer_ = nullptr;
+            completer_ = nullptr;
         }
         return;
     }

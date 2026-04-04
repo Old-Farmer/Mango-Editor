@@ -148,7 +148,7 @@ class Editor {
         "Some buffers have not saved, force quit(y/[n])? ";
 
     // Cmp context
-    Completer* tmp_completer_ = nullptr;
+    Completer* completer_ = nullptr;
     bool show_cmp_menu_ = false;  // if false, hide cmp menu.
 
     // buffer view stored for peel -> edit

@@ -114,9 +114,6 @@ class Frame {
     // If lines == true, clipboard content will be line semantic.
     void Cut(bool lines);
 
-    void CopyRange(Range range, bool lines);
-    void CutRange(Range range, bool lines);
-
     Result DeleteCharacterBeforeCursor();
     Result DeleteSelection();
 
