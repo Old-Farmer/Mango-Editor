@@ -41,11 +41,6 @@ struct Cursor {
     // TODO: other info
 
     void DontHoldColWant() { b_view_col_want.reset(); }
-    // void SetPos(Pos pos) {
-    //     line = pos.line;
-    //     byte_offset = pos.byte_offset;
-    // }
-    // Pos ToPos() { return {line, byte_offset}; }
 
     void SetScreenPos(int screen_col, int screen_row) {
         s_col = screen_col;

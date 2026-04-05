@@ -27,6 +27,7 @@ enum ColorSchemeType : int {
     kSidebar,
     kStatusLine,
     kSearch,
+    kSearchCurrent,
 
     kKeyword,
     kTypeBuiltin,

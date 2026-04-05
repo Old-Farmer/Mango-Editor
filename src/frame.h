@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "buffer_view.h"
 #include "options.h"
+#include "search.h"
 #include "selection.h"
 #include "term.h"
 #include "utils.h"
@@ -16,11 +17,6 @@ class SyntaxParser;
 struct Pos;
 class ClipBoard;
 
-struct SearchState {
-    size_t i = 0;  // from 1 instead of zero
-    size_t total = 0;
-};
-
 // Frame is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
 class Frame {
@@ -32,7 +28,9 @@ class Frame {
     MGO_DELETE_COPY(Frame);
     MGO_DEFAULT_MOVE(Frame);
 
-    void Draw(bool highlight_search);
+    // if search_context != nullptr, frame will draw the search highlight no
+    // matter what kHighlighOnSearch is. So caller should be careful.
+    void Draw(BufferSearchContext* search_context);
 
     bool In(size_t s_col, size_t s_row);
 
@@ -114,6 +112,9 @@ class Frame {
     // If lines == true, clipboard content will be line semantic.
     void Cut(bool lines);
 
+    void CopyRange(Range range, bool lines);
+    void CutRange(Range range, bool lines);
+
     Result DeleteCharacterBeforeCursor();
     Result DeleteSelection();
 
@@ -123,17 +124,14 @@ class Frame {
                             const Pos* cursor_pos = nullptr);
 
     // Search relevant
-    // if the pattern is a empty string, DestorySearchContext will be called
-    void BuildSearchContext(const std::string& pattern);
-    void DestorySearchContext();
-    const std::string& GetSearchPattern() { return search_pattern_; }
-    bool EnsureSearched();
-    SearchState CursorGoSearchResultState(bool next, size_t count,
-                                          bool keep_current_if_one,
-                                          CursorState& state);
+    BufferSearchState CursorGoSearchResultState(BufferSearchContext& context,
+                                                bool next, size_t count,
+                                                bool keep_current_if_one,
+                                                CursorState& state);
     // Just move buffer view without touch cursor
-    void BufferViewGoSearchResult(bool next, size_t count,
-                                  bool keep_current_if_one, CursorState& state);
+    void BufferViewGoSearchResult(BufferSearchContext& context, bool next,
+                                  size_t count, bool keep_current_if_one,
+                                  CursorState& state);
 
    private:
     size_t SidebarWidth();
@@ -198,12 +196,6 @@ class Frame {
     Cursor* cursor_ = nullptr;
 
     BufferView* b_view_;
-
-    // Search context
-    std::vector<Range> search_result_;
-    std::string search_pattern_;
-    int64_t search_buffer_version_ = -1;
-    int64_t search_buffer_id_ = -1;
 
     std::unique_ptr<Selection> selection_;
     ClipBoard* clipboard_;

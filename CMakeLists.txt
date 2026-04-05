@@ -224,6 +224,8 @@ target_sources(
   "${SRC_DIR}/options.cpp"
   "${SRC_DIR}/pos.h"
   "${SRC_DIR}/result.h"
+  "${SRC_DIR}/search.h"
+  "${SRC_DIR}/search.cpp"
   "${SRC_DIR}/selection.h"
   "${SRC_DIR}/selection.cpp"
   "${SRC_DIR}/signal_handler.h"

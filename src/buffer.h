@@ -177,7 +177,7 @@ class Buffer {
     Result Undo(Pos& cursor_pos_hint);
 
     // Not support regex, only plain text
-    std::vector<Range> Search(const std::string& pattern);
+    std::vector<Range> Search(const std::string& pattern) const;
 
     int64_t id() const noexcept { return id_; }
     size_t LineCnt() const noexcept { return lines_.size(); }

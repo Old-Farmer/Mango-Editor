@@ -1256,7 +1256,7 @@ void Editor::ExitFromModeVim() {
 }
 
 void Editor::GotoModeVim(Mode mode) {
-    if (mode != Mode::kVimNormal) {
+    if (mode_ != Mode::kVimNormal) {
         ExitFromModeVim();
     }
     if (mode == Mode::kEdit) {
@@ -1275,20 +1275,21 @@ void Editor::SearchCurrentBuffer(const std::string& pattern) {
             CursorGoSearch(true, 1, true);
         }
     } else {
-        cursor_.restore_from_peel->BuildSearchContext(pattern);
+        Window* w = cursor_.restore_from_peel;
+        w->BuildSearchContext(pattern);
         // Just make buffer view move.
         // A little bit ugly, but just make sure we don't modify cursor, and
         // make the cursor state right accroding to the buffer state.
         Cursor c = cursor_;
-        cursor_.restore_from_peel->frame_.b_view_->RestoreCursorState(
-            &c, cursor_.restore_from_peel->frame_.buffer_);
+        w->frame_.b_view_->RestoreCursorState(&c, w->frame_.buffer_);
         CursorState c_state(&c);
-        cursor_.restore_from_peel->frame_.BufferViewGoSearchResult(
-            global_opts_->GetOpt<bool>(kOptVim) ? state_vim_->search_foward
-                                                : true,
-            1, true, c_state);
+        w->frame_.BufferViewGoSearchResult(w->b_search_context_,
+                                           global_opts_->GetOpt<bool>(kOptVim)
+                                               ? state_vim_->search_foward
+                                               : true,
+                                           1, true, c_state);
         c_state.SetCursor(&c);
-        cursor_.restore_from_peel->frame_.b_view_->SaveCursorState(&c);
+        w->frame_.b_view_->SaveCursorState(&c);
         highlight_search_ = true;
     }
 }
@@ -1299,7 +1300,7 @@ void Editor::CursorGoSearch(bool next, size_t count, bool keep_current_if_one) {
     Window* w = cursor_.in_window;
     auto& pattern = w->GetSearchPattern();
     if (!pattern.empty()) {
-        SearchState state =
+        BufferSearchState state =
             w->CursorGoSearchResult(next, count, keep_current_if_one);
         ss << "searching " << pattern << " ";
         if (state.total == 0) {

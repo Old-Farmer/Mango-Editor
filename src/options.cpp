@@ -91,6 +91,7 @@ static std::unordered_map<std::string_view, ColorSchemeType>
         {"sidebar", kSidebar},
         {"statusline", kStatusLine},
         {"search", kSearch},
+        {"search_current", kSearchCurrent},
 
         {"keyword", kKeyword},
         {"typebuiltin", kTypeBuiltin},

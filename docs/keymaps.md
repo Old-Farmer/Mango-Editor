@@ -18,6 +18,9 @@ Use `<c-k>` as a general leader key.
 - `<c-e>`
     go to peel(to execute command)
 
+- `<esc>`
+    escape from current states. e.g. cancel completion, cancel search highlight, cancel selection, etc.
+
 ## Navigation
 
 - `<home>`
@@ -130,4 +133,3 @@ Use `<c-k>` as a general leader key.
     accept current entry
 
 - `<esc>`
-    cancel completion

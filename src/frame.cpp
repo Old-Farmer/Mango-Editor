@@ -11,6 +11,7 @@
 #include "cursor.h"
 #include "draw.h"
 #include "options.h"
+#include "search.h"
 #include "syntax.h"
 
 namespace mango {
@@ -21,7 +22,7 @@ Frame::Frame(Cursor* cursor, Opts* opts, SyntaxParser* parser,
              ClipBoard* clipboard) noexcept
     : cursor_(cursor), clipboard_(clipboard), parser_(parser), opts_(opts) {}
 
-void Frame::Draw(bool highlight_search) {
+void Frame::Draw(BufferSearchContext* search_context) {
     MGO_ASSERT(buffer_ != nullptr);
     if (!buffer_->IsLoad()) {
         return;
@@ -43,12 +44,15 @@ void Frame::Draw(bool highlight_search) {
 
     // Search hl
     std::vector<Highlight> search_hl;
-    if (GetOpt<bool>(kOptHighlightOnSearch) && highlight_search &&
-        EnsureSearched()) {
-        search_hl.reserve(search_result_.size());
+    if (search_context && search_context->EnsureSearched(buffer_)) {
+        search_hl.reserve(search_context->search_result.size());
         // TODO: Only highlight ranges in the screen
-        for (const auto& range : search_result_) {
-            search_hl.push_back({range, scheme[kSearch]});
+        for (size_t i = 0; i < search_context->search_result.size(); i++) {
+            search_hl.push_back(
+                {search_context->search_result[i],
+                 search_context->current_search == static_cast<int64_t>(i)
+                     ? scheme[kSearchCurrent]
+                     : scheme[kSearch]});
         }
         highlights.push_back(&search_hl);
     }
@@ -1391,101 +1395,25 @@ Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
     return kOk;
 }
 
-void Frame::BuildSearchContext(const std::string& pattern) {
-    if (pattern.empty()) {
-        DestorySearchContext();
-        return;
-    }
-    search_pattern_ = pattern;
-    search_result_ = buffer_->Search(search_pattern_);
-    search_buffer_version_ = buffer_->version();
-}
-
-void Frame::DestorySearchContext() {
-    search_pattern_.clear();
-    search_result_.clear();
-    search_buffer_version_ = -1;
-    search_buffer_id_ = -1;
-}
-
-bool Frame::EnsureSearched() {
-    if (search_buffer_version_ == -1) {
-        return false;
-    }
-
-    if (buffer_->id() != search_buffer_id_ ||
-        buffer_->version() != search_buffer_version_) {
-        // Another buffer or the buffer has changed, we do search again.
-        search_result_ = buffer_->Search(search_pattern_);
-        search_buffer_version_ = buffer_->version();
-        search_buffer_id_ = buffer_->id();
-    }
-
-    if (search_result_.size() == 0) {
-        return false;
-    }
-    return true;
-}
-
-SearchState Frame::CursorGoSearchResultState(bool next, size_t count,
-                                             bool keep_current_if_one,
-                                             CursorState& state) {
-    MGO_ASSERT(count != 0);
-    bool has_result = EnsureSearched();
-    if (!has_result) {
+BufferSearchState Frame::CursorGoSearchResultState(BufferSearchContext& context,
+                                                   bool next, size_t count,
+                                                   bool keep_current_if_one,
+                                                   CursorState& state) {
+    if (!context.NearestSearchPos(state.pos, buffer_, next, count,
+                                  keep_current_if_one)) {
         return {};
     }
-
-    // Search an insert pos
-    int64_t left = 0, right = search_result_.size() - 1;
-    while (left <= right) {
-        int64_t mid = left + (right - left) / 2;
-        if (state.pos == search_result_[mid].begin) {
-            left = mid;
-            right = left - 1;
-        } else if (state.pos < search_result_[mid].begin) {
-            right = mid - 1;
-        } else {
-            left = mid + 1;
-        }
-    }
-
-    if (next) {
-        if (static_cast<size_t>(left) == search_result_.size()) {
-            left = 0;
-        } else if (state.pos == search_result_[left].begin &&
-                   !(keep_current_if_one && count == 1)) {
-            left = (left + 1) % search_result_.size();
-        }
-        left = (left + count - 1) % search_result_.size();
-    } else {
-        if (static_cast<size_t>(left) == search_result_.size()) {
-            left--;
-        } else if (search_result_[left].begin == state.pos &&
-                   (keep_current_if_one && count == 1)) {
-            ;
-        } else if (static_cast<size_t>(left) == 0) {
-            left = search_result_.size() - 1;
-        } else {
-            left--;
-        }
-        count = (count - 1) % search_result_.size();
-        if (count <= static_cast<size_t>(left)) {
-            left -= count;
-        } else {
-            left = search_result_.size() - (count - left);
-        }
-    }
-    state.pos = search_result_[left].begin;
+    state.pos = context.search_result[context.current_search].begin;
     state.DontHoldColWant();
-    return {static_cast<size_t>(left + 1), search_result_.size()};
+    return {static_cast<size_t>(context.current_search + 1),
+            context.search_result.size()};
 }
 
-void Frame::BufferViewGoSearchResult(bool next, size_t count,
-                                     bool keep_current_if_one,
+void Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
+                                     size_t count, bool keep_current_if_one,
                                      CursorState& state) {
-    SearchState s =
-        CursorGoSearchResultState(next, count, keep_current_if_one, state);
+    BufferSearchState s = CursorGoSearchResultState(context, next, count,
+                                                    keep_current_if_one, state);
     if (s.total == 0) {
         return;
     }

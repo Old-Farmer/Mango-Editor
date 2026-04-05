@@ -2,6 +2,7 @@
 
 #include "buffer.h"
 #include "frame.h"
+#include "search.h"
 
 namespace mango {
 
@@ -15,7 +16,11 @@ class Window {
 
     int id() { return id_; }
 
-    void Draw(bool highlight_search) { frame_.Draw(highlight_search); }
+    void Draw(bool highlight_search) {
+        frame_.Draw(highlight_search && GetOpt<bool>(kOptHighlightOnSearch)
+                        ? &b_search_context_
+                        : nullptr);
+    }
 
     void MakeCursorVisible() { frame_.MakeCursorVisible(); }
 
@@ -79,12 +84,14 @@ class Window {
 
     // Search relevant
     void BuildSearchContext(const std::string& pattern) {
-        frame_.BuildSearchContext(pattern);
+        b_search_context_ = BufferSearchContext{pattern, frame_.buffer_};
     }
-    void DestorySearchContext() { frame_.DestorySearchContext(); }
-    const std::string& GetSearchPattern() { return frame_.GetSearchPattern(); }
-    SearchState CursorGoSearchResult(bool next, size_t count,
-                                     bool keep_current_if_one);
+    void DestorySearchContext() { b_search_context_.Destroy(); }
+    const std::string& GetSearchPattern() {
+        return b_search_context_.search_pattern;
+    }
+    BufferSearchState CursorGoSearchResult(bool next, size_t count,
+                                           bool keep_current_if_one);
 
     void InsertJumpHistory();
     bool FarEnoughWithCursor(const CursorState& state);
@@ -143,6 +150,7 @@ class Window {
 
    public:
     Frame frame_;
+    BufferSearchContext b_search_context_;
 };
 
 }  // namespace mango

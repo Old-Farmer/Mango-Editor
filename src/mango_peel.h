@@ -17,7 +17,7 @@ class MangoPeel {
     MGO_DELETE_COPY(MangoPeel);
     MGO_DEFAULT_MOVE(MangoPeel);
 
-    void Draw() { frame_.Draw(false); }
+    void Draw() { frame_.Draw(nullptr); }
 
     void MakeCursorVisible();
 

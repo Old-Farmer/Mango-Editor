@@ -7,6 +7,7 @@
 #include "character.h"
 #include "cursor.h"
 #include "options.h"
+#include "search.h"
 #include "syntax.h"
 
 namespace mango {
@@ -327,10 +328,11 @@ void Window::OnBufferDelete(const Buffer* buffer) {
     buffer_views_.erase(buffer->id());
 }
 
-SearchState Window::CursorGoSearchResult(bool next, size_t count,
-                                     bool keep_current_if_one) {
+BufferSearchState Window::CursorGoSearchResult(bool next, size_t count,
+                                               bool keep_current_if_one) {
     CursorState state(cursor_);
-    SearchState search_state = frame_.CursorGoSearchResultState(next, count, keep_current_if_one, state);
+    BufferSearchState search_state = frame_.CursorGoSearchResultState(
+        b_search_context_, next, count, keep_current_if_one, state);
     if (search_state.total == 0) {
         return search_state;
     }

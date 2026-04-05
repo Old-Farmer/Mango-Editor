@@ -5,7 +5,8 @@
     "menu": { "fg": [ "default" ], "bg": [ "black", "bright" ] },
     "sidebar": { "fg": [ "yellow" ], "bg": [ "default" ] },
     "statusline": { "fg": [ "default", "reverse" ], "bg": [ "default", "reverse" ] },
-    "search": { "fg": [ "default", "reverse" ], "bg": [ "default", "reverse" ] },
+    "search": { "fg": [ "black" ], "bg": [ "yellow", "bright" ] },
+    "search_current": { "fg": [ "white" ], "bg": [ "blue", "bright" ] },
 
     "keyword": { "fg": [ "blue" ] },
     "typebuiltin": { "fg": [ "blue" ] },
@@ -29,6 +30,7 @@
     "sidebar": { "fg": [ "#7f849c" ], "bg": [ "#1e1e2e" ] },
     "statusline": { "fg": [ "#cdd6f4" ], "bg": [ "#313244" ] },
     "search": { "fg": [ "#1e1e2e" ], "bg": [ "#f9e2af" ] },
+    "search_current": { "fg": [ "#1e1e2e" ], "bg": [ "#89b4fa" ] },
 
     "keyword": { "fg": [ "#b4befe" ] },
     "typebuiltin": { "fg": [ "#f9e2af" ] },
