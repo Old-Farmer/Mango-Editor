@@ -19,9 +19,9 @@ Notice that you can only specify "fg" or "bg" to one colorscheme type, but follo
 - "sidbar"
 - "statusline"
 
-Below is a truecolor colorscheme example, all colorscheme type is showed.
-
 You can check [colorscheme.json](../resource/colorscheme.json) to have a look at all provided colorscheme.
+
+Below is a truecolor colorscheme example, and not all colorscheme types are showed.
 
 ```json
   "default_truecolor": {

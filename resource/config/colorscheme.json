@@ -3,10 +3,12 @@
     "normal": { "fg": [ "default" ], "bg": [ "default" ] },
     "selection": { "fg": [ "default", "reverse" ], "bg": [ "default", "reverse" ] },
     "menu": { "fg": [ "default" ], "bg": [ "black", "bright" ] },
+    "menu_selection": { "fg": [ "default", "reverse" ], "bg": [ "default", "reverse" ] },
     "sidebar": { "fg": [ "yellow" ], "bg": [ "default" ] },
     "statusline": { "fg": [ "default", "reverse" ], "bg": [ "default", "reverse" ] },
     "search": { "fg": [ "black" ], "bg": [ "yellow", "bright" ] },
     "search_current": { "fg": [ "white" ], "bg": [ "blue", "bright" ] },
+    "trailing_white": { "fg": [ "cyan" ] },
 
     "keyword": { "fg": [ "blue" ] },
     "typebuiltin": { "fg": [ "blue" ] },
@@ -31,6 +33,7 @@
     "statusline": { "fg": [ "#cdd6f4" ], "bg": [ "#313244" ] },
     "search": { "fg": [ "#1e1e2e" ], "bg": [ "#f9e2af" ] },
     "search_current": { "fg": [ "#1e1e2e" ], "bg": [ "#89b4fa" ] },
+    "trailing_white": { "fg": [ "#585b70" ] },
 
     "keyword": { "fg": [ "#b4befe" ] },
     "typebuiltin": { "fg": [ "#f9e2af" ] },

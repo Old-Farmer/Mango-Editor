@@ -129,7 +129,7 @@ class Frame {
                                                 bool keep_current_if_one,
                                                 CursorState& state);
     // Just move buffer view without touch cursor
-    void BufferViewGoSearchResult(BufferSearchContext& context, bool next,
+    bool BufferViewGoSearchResult(BufferSearchContext& context, bool next,
                                   size_t count, bool keep_current_if_one,
                                   CursorState& state);
 

@@ -63,8 +63,8 @@ class Terminal {
     struct AttrPair {
         Attr fg;
         Attr bg;
-        bool fg_exist;
-        bool bg_exist;
+        bool fg_exist; // fg valid?
+        bool bg_exist; // bg valid?
 
         AttrPair() = default;
     };

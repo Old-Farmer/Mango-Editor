@@ -18,6 +18,9 @@ constexpr int kReplacementCharWidth = 1;
 constexpr const char* kSpace = " ";
 constexpr const char* kReplacement = "�";
 
+constexpr Codepoint kTrailingSpace = 0x00B7; // "·"
+constexpr Codepoint kTrailingTab = 0x2192; // "→"
+
 // A unicode grapheme. Any op on a user-perceived character should use this,
 // e.g. Parsing users' buffers.
 

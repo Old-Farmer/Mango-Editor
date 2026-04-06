@@ -1266,7 +1266,7 @@ void Editor::GotoModeVim(Mode mode) {
 }
 
 void Editor::SearchCurrentBuffer(const std::string& pattern) {
-    MGO_LOG_DEBUG("search {}", pattern);
+    // TODO: Maybe we can eliminate duplicate searching?
     if (cursor_.in_window) {
         cursor_.in_window->BuildSearchContext(pattern);
         if (global_opts_->GetOpt<bool>(kOptVim)) {
@@ -1283,14 +1283,14 @@ void Editor::SearchCurrentBuffer(const std::string& pattern) {
         Cursor c = cursor_;
         w->frame_.b_view_->RestoreCursorState(&c, w->frame_.buffer_);
         CursorState c_state(&c);
-        w->frame_.BufferViewGoSearchResult(w->b_search_context_,
-                                           global_opts_->GetOpt<bool>(kOptVim)
-                                               ? state_vim_->search_foward
-                                               : true,
-                                           1, true, c_state);
+        bool has_result = w->frame_.BufferViewGoSearchResult(
+            w->b_search_context_,
+            global_opts_->GetOpt<bool>(kOptVim) ? state_vim_->search_foward
+                                                : true,
+            1, true, c_state);
         c_state.SetCursor(&c);
         w->frame_.b_view_->SaveCursorState(&c);
-        highlight_search_ = true;
+        highlight_search_ = has_result;
     }
 }
 
@@ -1299,18 +1299,14 @@ void Editor::CursorGoSearch(bool next, size_t count, bool keep_current_if_one) {
     std::stringstream ss;
     Window* w = cursor_.in_window;
     auto& pattern = w->GetSearchPattern();
-    if (!pattern.empty()) {
-        BufferSearchState state =
-            w->CursorGoSearchResult(next, count, keep_current_if_one);
-        ss << "searching " << pattern << " ";
-        if (state.total == 0) {
-            ss << "[No result]";
-        } else {
-            ss << "[" << state.i << "/" << state.total << "]";
-            highlight_search_ = true;
-        }
+    BufferSearchState state =
+        w->CursorGoSearchResult(next, count, keep_current_if_one);
+    ss << "searching \"" << pattern << "\" ";
+    if (state.total == 0) {
+        ss << "[No result]";
     } else {
-        ss << "No searching pattern";
+        ss << "[" << state.i << "/" << state.total << "]";
+        highlight_search_ = true;
     }
     peel_->SetContent(ss.str());
 }

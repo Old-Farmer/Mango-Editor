@@ -38,9 +38,24 @@ void Frame::Draw(BufferSearchContext* search_context) {
 
     auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
+    auto wrap = GetOpt<bool>(kOptWrap);
+    auto eob_mark = GetOpt<bool>(kOptEndOfBufferMark);
+    auto trailing_white = GetOpt<bool>(kOptTrailingWhite);
 
     // Prepare highlights, priority: index 0 -> n, high -> low
     std::vector<const std::vector<Highlight>*> highlights;
+
+    Range render_range;
+    if (!wrap) {
+        size_t last_line =
+            std::min(b_view_->line + height_ - 1, buffer_->LineCnt() - 1);
+        // If not wrap, render range is larger than the real render range,
+        // but it's ok.
+        render_range = {{b_view_->line, 0},
+                        {last_line, buffer_->GetLine(last_line).size()}};
+    } else {
+        render_range = CalcWrapRange(content_width);
+    }
 
     // Search hl
     std::vector<Highlight> search_hl;
@@ -66,19 +81,36 @@ void Frame::Draw(BufferSearchContext* search_context) {
         highlights.push_back(&selection_hl);
     }
 
+    // Trailing blank hl
+    std::vector<Highlight> trailing_white_hl;
+    std::vector<int64_t> trailing_white_begin_pre_line;
+    if (trailing_white) {
+        size_t line_cnt = render_range.end.line - render_range.begin.line + 1;
+        trailing_white_begin_pre_line.reserve(line_cnt);
+        for (size_t l = b_view_->line; l < b_view_->line + line_cnt; l++) {
+            const std::string& line = buffer_->GetLine(l);
+            int64_t i = static_cast<int64_t>(line.size()) - 1;
+            for (; i >= 0; i--) {
+                // Backward codepoint scan is correct and enough.
+                // '\t' will break all, ' ' only may after a pretend codepoint,
+                // but we render from begin so we will skip it if it's wrong.
+                if (line[i] != kSpaceChar && line[i] != '\t') {
+                    break;
+                }
+            }
+            i++;
+            trailing_white_begin_pre_line.push_back(i);
+            if (i != static_cast<int64_t>(line.size())) {
+                trailing_white_hl.push_back(
+                    {{{l, static_cast<size_t>(i)}, {l, line.size()}},
+                     scheme[kTrailingWhite]});
+            }
+        }
+        highlights.push_back(&trailing_white_hl);
+    }
+
     // Syntax hl
     if (parser_) {
-        Range render_range;
-        if (!GetOpt<bool>(kOptWrap)) {
-            size_t last_line =
-                std::min(b_view_->line + height_ - 1, buffer_->LineCnt() - 1);
-            // If not wrap, render range is larger than the real render range,
-            // but it's ok.
-            render_range = {{b_view_->line, 0},
-                            {last_line, buffer_->GetLine(last_line).size()}};
-        } else {
-            render_range = CalcWrapRange(content_width);
-        }
         auto syntax_context =
             parser_->GetBufferSyntaxContext(buffer_, render_range);
         if (syntax_context) {
@@ -86,24 +118,22 @@ void Frame::Draw(BufferSearchContext* search_context) {
         }
     }
 
-    if (GetOpt<bool>(kOptWrap)) {
+    if (wrap) {
         // An empty sidebar
-        char sidebar_buf[kMaxSizeTWidth + 3 + 1];
-        memset(sidebar_buf, kSpaceChar, sidebar_width);
-        sidebar_buf[sidebar_width] = '\0';
+        char empty_sidebar[kMaxSizeTWidth + 3 + 1];
+        memset(empty_sidebar, kSpaceChar, sidebar_width);
+        empty_sidebar[sidebar_width] = '\0';
+
+        // subline indicator sidebar
+        char subline_ind_sidebar[kMaxSizeTWidth + 3 + 1];
 
         size_t line = b_view_->line;
-        size_t byte_offset = 0;
-
-        // First, we skip some sublines.
-        for (size_t i = 0; i < b_view_->subline; i++) {
-            byte_offset = ArrangeLine(buffer_->GetLine(line), byte_offset, 0,
-                                      content_width, tabstop, true);
-        }
+        size_t byte_offset = render_range.begin.byte_offset;
 
         MGO_ASSERT(line < buffer_->LineCnt());
         for (size_t i = 0; i < height_; i++) {
             if (line >= buffer_->LineCnt()) {
+                if (!eob_mark) break;
                 Codepoint codepoint = '~';
                 term_->SetCell(content_s_col, i + row_, &codepoint, 1,
                                scheme[kNormal]);
@@ -115,21 +145,29 @@ void Frame::Draw(BufferSearchContext* search_context) {
                 DrawSidebar(row_ + i, line, sidebar_width);
             } else {
                 if (i == 0) {
+                    memset(subline_ind_sidebar, kSpaceChar, sidebar_width);
+                    size_t left_space_size =
+                        sidebar_width - 1 - kSublineIndicator.size();
+                    memcpy(subline_ind_sidebar + left_space_size,
+                           kSublineIndicator.data(), kSublineIndicator.size());
                     // If first row is a subline, we draw a <<< at the sidebar
-                    std::string buf(std::string(sidebar_width - 1 -
-                                                    kSublineIndicator.size(),
-                                                kSpaceChar) +
-                                    std::string(kSublineIndicator) + kSpace);
-                    term_->Print(0, row_ + i, scheme[kSidebar], buf.data());
+                    term_->Print(0, row_ + i, scheme[kSidebar],
+                                 subline_ind_sidebar);
                 } else {
-                    term_->Print(0, row_ + i, scheme[kSidebar], sidebar_buf);
+                    term_->Print(0, row_ + i, scheme[kSidebar], empty_sidebar);
                 }
             }
+            const auto& line_str = buffer_->GetLine(line);
+            int64_t trailing_white_begin =
+                trailing_white
+                    ? trailing_white_begin_pre_line[line -
+                                                    render_range.begin.line]
+                    : line_str.size();
             byte_offset =
-                DrawLine(*term_, buffer_->GetLine(line), {line, byte_offset}, 0,
+                DrawLine(*term_, line_str, {line, byte_offset}, 0,
                          content_width, i + row_, content_s_col, &highlights,
-                         scheme[kNormal], tabstop, true);
-            if (byte_offset == buffer_->GetLine(line).size()) {
+                         scheme[kNormal], trailing_white_begin, tabstop, true);
+            if (byte_offset == line_str.size()) {
                 line++;
                 byte_offset = 0;
             }
@@ -141,15 +179,22 @@ void Frame::Draw(BufferSearchContext* search_context) {
             size_t line = win_r + b_view_->line;
 
             if (line_cnt <= line) {
+                if (!eob_mark) break;
                 Codepoint codepoint = '~';
                 term_->SetCell(content_s_col, cur_s_row, &codepoint, 1,
                                scheme[kNormal]);
                 continue;
             }
             DrawSidebar(cur_s_row, line, sidebar_width);
-            DrawLine(*term_, buffer_->GetLine(line), {line, 0}, b_view_->col,
-                     content_width, cur_s_row, content_s_col, &highlights,
-                     scheme[kNormal], tabstop, false);
+            const auto& line_str = buffer_->GetLine(line);
+            int64_t trailing_white_begin =
+                trailing_white
+                    ? trailing_white_begin_pre_line[line -
+                                                    render_range.begin.line]
+                    : line_str.size();
+            DrawLine(*term_, line_str, {line, 0}, b_view_->col, content_width,
+                     cur_s_row, content_s_col, &highlights, scheme[kNormal],
+                     trailing_white_begin, tabstop, false);
         }
     }
 }
@@ -1409,13 +1454,13 @@ BufferSearchState Frame::CursorGoSearchResultState(BufferSearchContext& context,
             context.search_result.size()};
 }
 
-void Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
+bool Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
                                      size_t count, bool keep_current_if_one,
                                      CursorState& state) {
     BufferSearchState s = CursorGoSearchResultState(context, next, count,
                                                     keep_current_if_one, state);
     if (s.total == 0) {
-        return;
+        return false;
     }
 
     CursorState cursor_state(cursor_);
@@ -1424,6 +1469,7 @@ void Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
     MakeSureViewValid();
     MakeCursorVisible();
     cursor_state.SetCursor(cursor_);
+    return true;
 }
 
 size_t Frame::SidebarWidth() {

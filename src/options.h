@@ -28,6 +28,7 @@ enum ColorSchemeType : int {
     kStatusLine,
     kSearch,
     kSearchCurrent,
+    kTrailingWhite,
 
     kKeyword,
     kTypeBuiltin,
@@ -62,7 +63,9 @@ enum OptKey {
     kOptWrap,
 
     // window
+    kOptEndOfBufferMark,
     kOptLineNumber,
+    kOptTrailingWhite,
 
     // global
     kOptBasicWordCompletion,

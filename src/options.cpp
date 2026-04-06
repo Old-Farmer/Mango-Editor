@@ -25,7 +25,9 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"tab_stop", kOptTabStop},
     {"wrap", kOptWrap},
     // window
+    {"end_of_buffer_mark", kOptEndOfBufferMark},
     {"line_number", kOptLineNumber},
+    {"trailing_white", kOptTrailingWhite},
     // global
     {"basic_word_completion", kOptBasicWordCompletion},
     {"cmp_menu_max_height", kOptCmpMenuMaxHeight},
@@ -52,7 +54,9 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptTabStop] = {OptScope::kBuffer, Type::kInteger};
         static_opt_info[kOptWrap] = {OptScope::kBuffer, Type::kBool};
         // window
+        static_opt_info[kOptEndOfBufferMark] = {OptScope::kWindow, Type::kBool};
         static_opt_info[kOptLineNumber] = {OptScope::kWindow, Type::kInteger};
+        static_opt_info[kOptTrailingWhite] = {OptScope::kWindow, Type::kBool};
         // global
         static_opt_info[kOptBasicWordCompletion] = {OptScope::kGlobal,
                                                     Type::kBool};
@@ -84,29 +88,30 @@ static void OptStaticInit(const OptInfo*& opt_info) {
 // clang-format off
 static std::unordered_map<std::string_view, ColorSchemeType>
     kStrToColorSchemeType{
-        {"normal", kNormal},
-        {"selection", kSelection},
-        {"menu", kMenu},
-        {"menu_selection", kMenuSelection},
-        {"sidebar", kSidebar},
-        {"statusline", kStatusLine},
-        {"search", kSearch},
-        {"search_current", kSearchCurrent},
+    {"normal", kNormal},
+    {"selection", kSelection},
+    {"menu", kMenu},
+    {"menu_selection", kMenuSelection},
+    {"sidebar", kSidebar},
+    {"statusline", kStatusLine},
+    {"search", kSearch},
+    {"search_current", kSearchCurrent},
+    {"trailing_white", kTrailingWhite},
 
-        {"keyword", kKeyword},
-        {"typebuiltin", kTypeBuiltin},
-        {"operator", kOperator},
-        {"string", kString},
-        {"comment", kComment},
-        {"number", kNumber},
-        {"constant", kConstant},
-        {"function", kFunction},
-        {"type", kType},
-        {"variable", kVariable},
-        {"delimiter", kDelimiter},
-        {"property", kProperty},
-        {"label", kLabel},
-    };
+    {"keyword", kKeyword},
+    {"typebuiltin", kTypeBuiltin},
+    {"operator", kOperator},
+    {"string", kString},
+    {"comment", kComment},
+    {"number", kNumber},
+    {"constant", kConstant},
+    {"function", kFunction},
+    {"type", kType},
+    {"variable", kVariable},
+    {"delimiter", kDelimiter},
+    {"property", kProperty},
+    {"label", kLabel},
+};
 // clang-format on
 
 static const std::unordered_map<std::string_view, Terminal::Color>

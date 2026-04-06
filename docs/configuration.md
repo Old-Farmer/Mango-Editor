@@ -45,11 +45,21 @@ Note that you can set per filetype buffer options like:
 
 Window Scope:
 
+- end_of_buffer_mark  
+    type: bool
+    default: false,
+    desc: Display markers after the end of the buffer.
+
 - line_number  
     type: int,
     available: 0 = none, 1 = absolute, 2 = relative,
     default: 1,
     desc: Show line number.
+
+- trailing_white  
+    type: bool
+    default: true
+    desc: Show trailing white character.
 
 Global Scope:
 
