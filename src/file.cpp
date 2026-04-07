@@ -38,10 +38,7 @@ File::File(const std::string& path, const char* mode,
     }
 }
 
-File::~File() {
-    int ret = fclose(file_);
-    MGO_ASSERT(ret != EOF);
-}
+File::~File() { fclose(file_); }
 
 File::File(File&& other) noexcept : file_(other.file_) {
     other.file_ = nullptr;
@@ -52,8 +49,7 @@ File& File::operator=(File&& other) noexcept {
     }
 
     if (file_ != nullptr) {
-        int ret = fclose(file_);
-        MGO_ASSERT(ret != EOF);
+        fclose(file_);
     }
     file_ = other.file_;
     other.file_ = nullptr;

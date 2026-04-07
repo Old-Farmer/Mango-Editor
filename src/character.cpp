@@ -242,9 +242,7 @@ Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
     while (cur_offset >= 0) {
         if (IsUtf8BeginByte(str[cur_offset])) {
             Codepoint codepoint;
-            Result res =
-                Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
-            MGO_ASSERT(res == kOk);
+            Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
             if (!codepoints_reverse.empty()) {
                 // Safe as a state 0 grapheme break check.
                 // See
@@ -322,7 +320,7 @@ Result NextWordBegin(std::string_view str, size_t offset,
 }
 
 Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
-               size_t& next_word_end_offset) {
+                   size_t& next_word_end_offset) {
     if (offset == str.size()) {
         return kOk;
     }
@@ -364,7 +362,7 @@ Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
 }
 
 Result PrevWordBegin(std::string_view str, size_t offset,
-                 size_t& prev_word_offset) {
+                     size_t& prev_word_offset) {
     if (offset == 0) {
         prev_word_offset = 0;
         return kOk;

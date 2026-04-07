@@ -18,8 +18,8 @@ constexpr int kReplacementCharWidth = 1;
 constexpr const char* kSpace = " ";
 constexpr const char* kReplacement = "�";
 
-constexpr Codepoint kTrailingSpace = 0x00B7; // "·"
-constexpr Codepoint kTrailingTab = 0x2192; // "→"
+constexpr Codepoint kTrailingSpace = 0x00B7;  // "·"
+constexpr Codepoint kTrailingTab = 0x2192;    // "→"
 
 // A unicode grapheme. Any op on a user-perceived character should use this,
 // e.g. Parsing users' buffers.
@@ -152,8 +152,7 @@ __always_inline Result ThisCharacterInline(std::string_view str, int64_t offset,
     utf8proc_int32_t state = 0;
     while (cur_offset < end_offset) {
         int byte_eat;
-        Result res = Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
-        MGO_ASSERT(kOk == res);
+        Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
         if (character.CodePointCount() == 0) {
             character.Push(codepoint);
         } else {
@@ -188,13 +187,13 @@ Result NextWordBegin(std::string_view str, size_t offset,
 // one_more_character means it will stop one character after the end.
 // Current only return kOk
 Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
-               size_t& next_word_end_offset);
+                   size_t& next_word_end_offset);
 
 // prev word offset will set to the this/prev word end
 // on success, return kOk;
 // if Not found, retrun kNotExist and set prev_word_offset to 0
 Result PrevWordBegin(std::string_view str, size_t offset,
-                 size_t& prev_word_offset);
+                     size_t& prev_word_offset);
 
 // If c is the open part of a pair, return true and the close part.
 inline std::pair<bool, char> IsPairOpen(char c) {

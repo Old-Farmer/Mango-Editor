@@ -51,9 +51,11 @@ void ParseCmdArgs(int argc, char* argv[], GlobalOpts* options,
     while (optind < argc) {
         init_options->begin_files.push_back(argv[optind++]);
     }
+#ifndef NDEBUG
     for (auto file : init_options->begin_files) {
         MGO_LOG_DEBUG("cmd args: file name: {}", file);
     }
+#endif
     (void)options;
 }
 

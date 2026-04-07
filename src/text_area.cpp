@@ -993,6 +993,7 @@ bool TextArea::CursorGoPrevWordBeginState(size_t count, CursorState& state) {
         Result res = PrevWordBegin(cur_line, state.pos.byte_offset,
                                    state.pos.byte_offset);
         MGO_ASSERT(res == kOk || res == kNotExist);
+        (void)res;
     }
     if (i == 0) {
         return false;
@@ -1197,6 +1198,7 @@ Result TextArea::DeleteWordBeforeCursor() {
         Result res = PrevWordBegin(cur_line, deleted_until.byte_offset,
                                    deleted_until.byte_offset);
         MGO_ASSERT(res == kOk || res == kNotExist);
+        (void)res;
     }
     Pos pos;
     if (Result res; (res = buffer_->Delete({deleted_until, cursor_->pos},
@@ -1267,8 +1269,7 @@ Result TextArea::TabAtCursor() {
     size_t offset = 0;
     while (offset < cursor_->pos.byte_offset) {
         int byte_len;
-        Result res = ThisCharacter(cur_line, offset, character, byte_len);
-        MGO_ASSERT(res == kOk);
+        ThisCharacter(cur_line, offset, character, byte_len);
         int character_width = character.Width();
         if (character_width <= 0) {
             char c;
