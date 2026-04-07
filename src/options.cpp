@@ -21,6 +21,7 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     // buffer
     {"auto_indent", kOptAutoIndent},
     {"auto_pair", kOptAutoPair},
+    {"max_edit_history", kOptMaxEditHistory},
     {"tab_space", kOptTabSpace},
     {"tab_stop", kOptTabStop},
     {"wrap", kOptWrap},
@@ -35,7 +36,6 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"highlight_on_search", kOptHighlightOnSearch},
     {"input_idle_timeout", kOptInputIdleTimeout},
     {"logverbose", kOptLogVerbose},
-    {"max_edit_history", kOptMaxEditHistory},
     {"max_jump_history", kOptMaxJumpHistory},
     {"scroll_rows", kOptScrollRows},
     {"truecolor", kOptTrueColor},
@@ -50,6 +50,8 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         // buffer
         static_opt_info[kOptAutoIndent] = {OptScope::kBuffer, Type::kBool};
         static_opt_info[kOptAutoPair] = {OptScope::kBuffer, Type::kBool};
+        static_opt_info[kOptMaxEditHistory] = {OptScope::kBuffer,
+                                               Type::kInteger};
         static_opt_info[kOptTabSpace] = {OptScope::kBuffer, Type::kBool};
         static_opt_info[kOptTabStop] = {OptScope::kBuffer, Type::kInteger};
         static_opt_info[kOptWrap] = {OptScope::kBuffer, Type::kBool};
@@ -70,8 +72,6 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptInputIdleTimeout] = {OptScope::kGlobal,
                                                  Type::kInteger};
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptMaxEditHistory] = {OptScope::kGlobal,
-                                               Type::kInteger};
         static_opt_info[kOptMaxJumpHistory] = {OptScope::kGlobal,
                                                Type::kInteger};
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};

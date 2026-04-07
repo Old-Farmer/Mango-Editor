@@ -1,21 +1,31 @@
 # Commands
 
-Commands are instructions you can execute in the Mango Peel.
+Commands are instructions you can execute in the Mango Peel. You can use full form or short form as you like.
 
-- "s `<search-pattern>`"
-    search string
+- `search <search-pattern>`  
+    short form: s
+    desc: search string
 
-- "sa `<path>`"
-    save the current content as a file
+- `saveas <path>`  
+    short form: sa
+    desc: save the current content as a file
 
-- "h `[<doc-name>]`"
-    goto help
+- `help [doc-name]`  
+    short form: h
+    desc: goto help
 
-- "e `<path>`"
-    goto and edit the file
+- `edit <path>`  
+    short form: e
+    desc: goto and edit the file
 
-- "b `<path>`"
-    goto and edit the buffer
+- `buffer <path>`  
+    short form: b
+    desc: goto and edit the buffer
 
-- "g `<line>`"
-    goto the line.
+- `goline <line>`
+    short form: g
+    desc: goto the line.
+
+- `smile`
+    short form: None
+    desc: print a smile.

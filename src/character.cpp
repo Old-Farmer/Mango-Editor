@@ -299,7 +299,7 @@ Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
     return kOk;
 }
 
-Result NextWordBegin(const std::string& str, size_t offset,
+Result NextWordBegin(std::string_view str, size_t offset,
                      size_t& next_word_offset) {
     Character character;
     int byte_len;
@@ -321,7 +321,7 @@ Result NextWordBegin(const std::string& str, size_t offset,
     return kOk;
 }
 
-Result NextWordEnd(const std::string& str, size_t offset, bool one_more_character,
+Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
                size_t& next_word_end_offset) {
     if (offset == str.size()) {
         return kOk;
@@ -363,7 +363,7 @@ Result NextWordEnd(const std::string& str, size_t offset, bool one_more_characte
     return kOk;
 }
 
-Result PrevWordBegin(const std::string& str, size_t offset,
+Result PrevWordBegin(std::string_view str, size_t offset,
                  size_t& prev_word_offset) {
     if (offset == 0) {
         prev_word_offset = 0;

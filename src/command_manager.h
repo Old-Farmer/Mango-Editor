@@ -18,6 +18,7 @@ using CommandArgTypes = Type[kMaxCommandCnt];
 
 struct Command {
     std::string name;
+    std::string short_name;
     std::string description;
     CommandArgTypes types;  // Types of arguments
     std::function<void(CommandArgs)> f;
@@ -32,7 +33,10 @@ class CommandManager {
     MGO_DELETE_COPY(CommandManager);
     MGO_DELETE_MOVE(CommandManager);
 
+
+    // throw CommandNameExistException if command name conflict
     void AddCommand(const Command& command);
+    // should only be command name not short name.
     void RemoveCommand(const std::string& name);
     // return
     // kOk
@@ -41,11 +45,11 @@ class CommandManager {
     // kCommandEmpty
     // if return kOk or kCommandInvalidArgs, command will be set.
     // if return kOk, args will also be filled.
-    Result EvalCommand(const std::string& str, CommandArgs args,
+    Result EvalCommand(std::string_view str, CommandArgs args,
                        Command*& command);
 
    private:
-    std::unordered_map<std::string, Command> commands_;
+    std::unordered_map<std::string, Command*> commands_;
 };
 
 }  // namespace mango

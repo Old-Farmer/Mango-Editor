@@ -17,26 +17,26 @@ Window::Window(Cursor* cursor, GlobalOpts* global_opts, SyntaxParser* parser,
       opts_(global_opts),
       parser_(parser),
       buffer_manager_(buffer_manager),
-      frame_(cursor, &opts_, parser, clipboard) {}
+      area_(cursor, &opts_, parser, clipboard) {}
 
 void Window::CursorGoLine(size_t line) {
-    frame_.b_view_->make_cursor_visible = true;
+    area_.b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
-    if (frame_.CursorGoLineState(line, state)) {
+    if (area_.CursorGoLineState(line, state)) {
         if (FarEnoughWithCursor(state)) {
             SetJumpPoint();
         }
         state.SetCursor(cursor_);
-        frame_.SelectionFollowCursor();
+        area_.SelectionFollowCursor();
     }
 }
 
 Result Window::DeleteAtCursor() {
-    if (frame_.IsSelectionActive()) {
-        return frame_.DeleteSelection();
+    if (area_.IsSelectionActive()) {
+        return area_.DeleteSelection();
     }
 
-    Buffer* buffer = frame_.buffer_;
+    Buffer* buffer = area_.buffer_;
     Range range;
     if (cursor_->pos.byte_offset == 0) {  // first byte
         if (cursor_->pos.line == 0) {
@@ -47,7 +47,7 @@ Result Window::DeleteAtCursor() {
                  {cursor_->pos.line, 0}};
     } else if (GetOpt<bool>(kOptTabSpace)) {
         bool all_space = true;
-        const std::string& line = buffer->GetLine(cursor_->pos.line);
+        const auto& line = buffer->GetLine(cursor_->pos.line);
         for (size_t byte_offset = 0; byte_offset < cursor_->pos.byte_offset;
              byte_offset++) {
             if (line[byte_offset] != kSpaceChar) {
@@ -64,8 +64,8 @@ Result Window::DeleteAtCursor() {
         }
     } else {
     slow:
-        const std::string& cur_line =
-            frame_.buffer_->GetLine(cursor_->pos.line);
+        const auto& cur_line =
+            area_.buffer_->GetLine(cursor_->pos.line);
         Character character;
         int len;
         PrevCharacter(cur_line, cursor_->pos.byte_offset, character, len);
@@ -103,12 +103,12 @@ Result Window::DeleteAtCursor() {
 
 Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     if (raw) {
-        return frame_.AddStringAtCursor(str);
+        return area_.AddStringAtCursor(str);
     }
 
     // TODO: better support autopair autoindent when selection
-    if (frame_.IsSelectionActive()) {
-        return frame_.AddStringAtCursor(str);
+    if (area_.IsSelectionActive()) {
+        return area_.AddStringAtCursor(str);
     }
 
     char c = -1;
@@ -117,7 +117,7 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
     }
 
     if (c == -1) {
-        return frame_.AddStringAtCursor(str);
+        return area_.AddStringAtCursor(str);
     }
 
     if (GetOpt<bool>(kOptAutoIndent) && c == '\n') {
@@ -126,7 +126,7 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
         if (IsPair(c)) {
             return TryAutoPair(str);
         } else {
-            return frame_.AddStringAtCursor(str);
+            return area_.AddStringAtCursor(str);
         }
     }
     // Will not reach here.
@@ -134,34 +134,34 @@ Result Window::AddStringAtCursor(std::string_view str, bool raw) {
 }
 
 Result Window::NewLineAboveCursorline() {
-    MGO_ASSERT(!frame_.IsSelectionActive());
+    MGO_ASSERT(!area_.IsSelectionActive());
     if (cursor_->pos.line == 0) {
-        return frame_.AddStringAtPos({0, 0}, "\n", &cursor_->pos);
+        return area_.AddStringAtPos({0, 0}, "\n", &cursor_->pos);
     }
     return TryAutoIndent(
         {cursor_->pos.line - 1,
-         frame_.buffer_->GetLine(cursor_->pos.line - 1).size()});
+         area_.buffer_->GetLine(cursor_->pos.line - 1).size()});
 }
 
 Result Window::NewLineUnderCursorline() {
-    MGO_ASSERT(!frame_.IsSelectionActive());
+    MGO_ASSERT(!area_.IsSelectionActive());
     return TryAutoIndent(
-        {cursor_->pos.line, frame_.buffer_->GetLine(cursor_->pos.line).size()});
+        {cursor_->pos.line, area_.buffer_->GetLine(cursor_->pos.line).size()});
 }
 
 Result Window::Replace(const Range& range, std::string_view str) {
-    return frame_.Replace(range, str);
+    return area_.Replace(range, str);
 }
 
 Result Window::TryAutoPair(std::string_view str) {
     MGO_ASSERT(str.size() == 1 && str[0] < CHAR_MAX && str[0] >= 0);
 
-    bool end_of_line = frame_.buffer_->GetLine(cursor_->pos.line).size() ==
+    bool end_of_line = area_.buffer_->GetLine(cursor_->pos.line).size() ==
                        cursor_->pos.byte_offset;
     char cur_c =
         end_of_line
             ? -1
-            : frame_.buffer_->GetLine(
+            : area_.buffer_->GetLine(
                   cursor_->pos
                       .line)[cursor_->pos.byte_offset];  // -1 here just makes
                                                          // compiler happy, not
@@ -169,16 +169,16 @@ Result Window::TryAutoPair(std::string_view str) {
     bool start_of_line = cursor_->pos.byte_offset == 0;
     char prev_c = start_of_line
                       ? -1
-                      : frame_.buffer_->GetLine(
+                      : area_.buffer_->GetLine(
                             cursor_->pos.line)[cursor_->pos.byte_offset - 1];
     // Can we just move cursor next ?
     // e.g. (<cursor>) and input ')', we just move cursor right to ()<cursor>
     if (!start_of_line && !end_of_line) {
         if (IsPair(prev_c, cur_c) && cur_c == str[0]) {
-            if (!frame_.buffer_->IsLoad()) {
+            if (!area_.buffer_->IsLoad()) {
                 return kBufferCannotLoad;
             }
-            if (frame_.buffer_->read_only()) {
+            if (area_.buffer_->read_only()) {
                 return kBufferReadOnly;
             }
             cursor_->pos.byte_offset++;
@@ -191,22 +191,22 @@ Result Window::TryAutoPair(std::string_view str) {
     // try auto pair
     auto [is_open, c_close] = IsPairOpen(str[0]);
     if (!is_open) {
-        return frame_.AddStringAtCursor(str);
+        return area_.AddStringAtCursor(str);
     }
 
     if (end_of_line || !IsPair(str[0], cur_c)) {
         Pos pos = {cursor_->pos.line, cursor_->pos.byte_offset + 1};
         std::string pairs = std::string(str) + c_close;
-        return frame_.AddStringAtCursor(pairs, &pos);
+        return area_.AddStringAtCursor(pairs, &pos);
     }
 
-    return frame_.AddStringAtCursor(str);
+    return area_.AddStringAtCursor(str);
 }
 
 Result Window::TryAutoIndent(Pos pos) {
-    MGO_ASSERT(!frame_.IsSelectionActive());
+    MGO_ASSERT(!area_.IsSelectionActive());
 
-    const std::string& line = frame_.buffer_->GetLine(pos.line);
+    const auto& line = area_.buffer_->GetLine(pos.line);
     std::string indent = "";
     size_t cur_indent = 0;
     // Same as this line's indent
@@ -268,25 +268,25 @@ Result Window::TryAutoIndent(Pos pos) {
     }
 
     if (maunally_set_cursor_pos) {
-        return frame_.AddStringAtPos(pos, str, &cursor_pos);
+        return area_.AddStringAtPos(pos, str, &cursor_pos);
     } else {
-        return frame_.AddStringAtPos(pos, str);
+        return area_.AddStringAtPos(pos, str);
     }
 }
 
 void Window::NextBuffer() {
-    if (frame_.buffer_->IsLastBuffer()) {
+    if (area_.buffer_->IsLastBuffer()) {
         return;
     }
-    Buffer* next = frame_.buffer_->next_;
+    Buffer* next = area_.buffer_->next_;
     AttachBuffer(next);
 }
 
 void Window::PrevBuffer() {
-    if (frame_.buffer_->IsFirstBuffer()) {
+    if (area_.buffer_->IsFirstBuffer()) {
         return;
     }
-    Buffer* prev = frame_.buffer_->prev_;
+    Buffer* prev = area_.buffer_->prev_;
     AttachBuffer(prev);
 }
 
@@ -301,22 +301,22 @@ void Window::AttachBuffer(Buffer* buffer) {
         MGO_ASSERT(ok);
     }
     b_view_iter->second.RestoreCursorState(cursor_, buffer);
-    frame_.b_view_ = &b_view_iter->second;
-    frame_.buffer_ = buffer;
+    area_.b_view_ = &b_view_iter->second;
+    area_.buffer_ = buffer;
 }
 
 void Window::DetachBuffer() {
-    if (frame_.buffer_) {
-        frame_.b_view_->SaveCursorState(cursor_);
+    if (area_.buffer_) {
+        area_.b_view_->SaveCursorState(cursor_);
         InsertJumpHistory();
-        frame_.b_view_ = nullptr;
-        frame_.buffer_ = nullptr;
-        frame_.StopSelection();
+        area_.b_view_ = nullptr;
+        area_.buffer_ = nullptr;
+        area_.StopSelection();
     }
 }
 
 void Window::OnBufferDelete(const Buffer* buffer) {
-    if (buffer == frame_.buffer_) {
+    if (buffer == area_.buffer_) {
         if (buffer->IsFirstBuffer() && buffer->IsLastBuffer()) {
             AttachBuffer(buffer_manager_->AddBuffer({opts_.global_opts_}));
         } else if (buffer->IsFirstBuffer()) {
@@ -331,7 +331,7 @@ void Window::OnBufferDelete(const Buffer* buffer) {
 BufferSearchState Window::CursorGoSearchResult(bool next, size_t count,
                                                bool keep_current_if_one) {
     CursorState state(cursor_);
-    BufferSearchState search_state = frame_.CursorGoSearchResultState(
+    BufferSearchState search_state = area_.CursorGoSearchResultState(
         b_search_context_, next, count, keep_current_if_one, state);
     if (search_state.total == 0) {
         return search_state;
@@ -342,21 +342,21 @@ BufferSearchState Window::CursorGoSearchResult(bool next, size_t count,
 }
 
 void Window::InsertJumpHistory() {
-    BufferView b_view = *frame_.b_view_;
+    BufferView b_view = *area_.b_view_;
     b_view.SaveCursorState(cursor_);
     if (jump_history_cursor_ == jump_history_->end()) {
-        jump_history_->emplace_back(b_view, frame_.buffer_->id());
+        jump_history_->emplace_back(b_view, area_.buffer_->id());
         jump_history_cursor_--;
         return;
     }
     jump_history_cursor_->b_view = b_view;
-    jump_history_cursor_->buffer = frame_.buffer_->id();
+    jump_history_cursor_->buffer = area_.buffer_->id();
 }
 
 bool Window::FarEnoughWithCursor(const CursorState& state) {
     return (cursor_->pos.line > state.pos.line
                 ? cursor_->pos.line - state.pos.line
-                : state.pos.line - cursor_->pos.line) >= frame_.height_ / 2;
+                : state.pos.line - cursor_->pos.line) >= area_.height_ / 2;
 }
 
 void Window::MoveJumpHistoryCursorForwardAndTruncate() {
@@ -388,9 +388,9 @@ void Window::JumpForward() {
         }
         DetachBuffer();
         buffer_views_[b->id()] = iter->b_view;
-        frame_.b_view_ = &buffer_views_[b->id()];
-        frame_.buffer_ = b;
-        frame_.b_view_->RestoreCursorState(cursor_, b);
+        area_.b_view_ = &buffer_views_[b->id()];
+        area_.buffer_ = b;
+        area_.b_view_->RestoreCursorState(cursor_, b);
         jump_history_cursor_ = iter;
         return;
     }
@@ -411,9 +411,9 @@ void Window::JumpBackward() {
         }
         DetachBuffer();
         buffer_views_[b->id()] = iter->b_view;
-        frame_.b_view_ = &buffer_views_[b->id()];
-        frame_.buffer_ = b;
-        frame_.b_view_->RestoreCursorState(cursor_, frame_.buffer_);
+        area_.b_view_ = &buffer_views_[b->id()];
+        area_.buffer_ = b;
+        area_.b_view_->RestoreCursorState(cursor_, area_.buffer_);
         jump_history_cursor_ = iter;
         return;
     }

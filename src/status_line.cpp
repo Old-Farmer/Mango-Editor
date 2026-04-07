@@ -22,9 +22,9 @@ void StatusLine::Draw() {
 
     Buffer* b;
     if (IsPeel(*mode_)) {
-        b = cursor_->restore_from_peel->frame_.buffer_;
+        b = cursor_->restore_from_peel->area_.buffer_;
     } else {
-        b = cursor_->in_window->frame_.buffer_;
+        b = cursor_->in_window->area_.buffer_;
     }
     std::string left_str;
     if (global_opts_->GetOpt<bool>(kOptVim)) {
@@ -43,8 +43,8 @@ void StatusLine::Draw() {
     int64_t line, character_in_line;
     if (IsPeel(*mode_)) {
         line =
-            cursor_->restore_from_peel->frame_.b_view_->cursor_state.pos.line;
-        character_in_line = cursor_->restore_from_peel->frame_.b_view_
+            cursor_->restore_from_peel->area_.b_view_->cursor_state.pos.line;
+        character_in_line = cursor_->restore_from_peel->area_.b_view_
                                 ->cursor_state.character_in_line_;
     } else {
         line = cursor_->pos.line;

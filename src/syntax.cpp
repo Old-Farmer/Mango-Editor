@@ -33,7 +33,7 @@ const char* my_ts_read(void* payload, uint32_t byte_offset, TSPoint position,
             return kTSNewLine;
         }
         *bytes_read = buffer->GetLine(position.row).size() - position.column;
-        return buffer->GetLine(position.row).c_str() + position.column;
+        return buffer->GetLine(position.row).data() + position.column;
     }
 
     if (position.row == buffer->LineCnt() - 1) {
@@ -42,7 +42,7 @@ const char* my_ts_read(void* payload, uint32_t byte_offset, TSPoint position,
             return nullptr;
         }
         *bytes_read = buffer->GetLine(position.row).size() - position.column;
-        return buffer->GetLine(position.row).c_str() + position.column;
+        return buffer->GetLine(position.row).data() + position.column;
     }
 
     // >=
@@ -138,11 +138,11 @@ bool SyntaxParser::QueryPredicate(const TSQueryContext& query_context,
 
             if (range.begin.line == range.end.line) {
                 Buffer* b = const_cast<Buffer*>(buffer);
-                std::string& str = b->GetLineNonConst(range.begin.line);
+                auto str = b->GetLineNonConst(range.begin.line);
                 char tmp = str[range.end.byte_offset];
                 str[range.end.byte_offset] = '\0';
                 int exec_ret =
-                    regexec(&regex, str.c_str() + range.begin.byte_offset, 0,
+                    regexec(&regex, str.data() + range.begin.byte_offset, 0,
                             nullptr, 0);
                 str[range.end.byte_offset] = tmp;
                 if (exec_ret == REG_NOMATCH) {

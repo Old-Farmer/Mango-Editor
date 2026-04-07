@@ -1,7 +1,7 @@
 #pragma once
 
 #include "buffer.h"
-#include "frame.h"
+#include "text_area.h"
 #include "search.h"
 
 namespace mango {
@@ -17,44 +17,44 @@ class Window {
     int id() { return id_; }
 
     void Draw(bool highlight_search) {
-        frame_.Draw(highlight_search && GetOpt<bool>(kOptHighlightOnSearch)
+        area_.Draw(highlight_search && GetOpt<bool>(kOptHighlightOnSearch)
                         ? &b_search_context_
                         : nullptr);
     }
 
-    void MakeCursorVisible() { frame_.MakeCursorVisible(); }
+    void MakeCursorVisible() { area_.MakeCursorVisible(); }
 
     void SetCursorHint(size_t s_row, size_t s_col) {
-        frame_.SetCursorHint(s_row, s_col);
+        area_.SetCursorHint(s_row, s_col);
     }
 
     // NOTE: all count shouldn't be 0, otherwise behavior is undefined.
 
-    void ScrollRows(int64_t count) { frame_.ScrollRows(count); }
-    void ScrollCols(int64_t count) { frame_.ScrollCols(count); }
+    void ScrollRows(int64_t count) { area_.ScrollRows(count); }
+    void ScrollCols(int64_t count) { area_.ScrollCols(count); }
 
-    void CursorGoRight(size_t count) { frame_.CursorGoRight(count); }
-    void CursorGoLeft(size_t count) { frame_.CursorGoLeft(count); }
-    void CursorGoUp(size_t count) { frame_.CursorGoUp(count); }
-    void CursorGoDown(size_t count) { frame_.CursorGoDown(count); }
-    void CursorGoHome() { frame_.CursorGoHome(); }
-    void CursorGoFirstNonBlank() { frame_.CursorGoFirstNonBlank(); }
-    void CursorGoEnd() { frame_.CursorGoEnd(); }
+    void CursorGoRight(size_t count) { area_.CursorGoRight(count); }
+    void CursorGoLeft(size_t count) { area_.CursorGoLeft(count); }
+    void CursorGoUp(size_t count) { area_.CursorGoUp(count); }
+    void CursorGoDown(size_t count) { area_.CursorGoDown(count); }
+    void CursorGoHome() { area_.CursorGoHome(); }
+    void CursorGoFirstNonBlank() { area_.CursorGoFirstNonBlank(); }
+    void CursorGoEnd() { area_.CursorGoEnd(); }
     void CursorGoNextWordEnd(size_t count, bool one_more_character) {
-        frame_.CursorGoNextWordEnd(count, one_more_character);
+        area_.CursorGoNextWordEnd(count, one_more_character);
     }
     void CursorGoWordBegin(size_t count) {
-        frame_.CursorGoPrevWordBegin(count);
+        area_.CursorGoPrevWordBegin(count);
     }
     void CursorGoNextWordBegin(size_t count) {
-        frame_.CursorGoNextWordBegin(count);
+        area_.CursorGoNextWordBegin(count);
     }
     void CursorGoLine(size_t line);
 
-    void SelectAll() { frame_.SelectAll(); }
+    void SelectAll() { area_.SelectAll(); }
 
     Result DeleteAtCursor();
-    Result DeleteWordBeforeCursor() { return frame_.DeleteWordBeforeCursor(); }
+    Result DeleteWordBeforeCursor() { return area_.DeleteWordBeforeCursor(); }
     // raw means do not treat it as keystroke
     Result AddStringAtCursor(std::string_view str, bool raw = false);
     // Create a new line after or under the cursor line.
@@ -64,13 +64,13 @@ class Window {
     Result NewLineUnderCursorline();
     // See Frame::Replace
     Result Replace(const Range& range, std::string_view str);
-    Result TabAtCursor() { return frame_.TabAtCursor(); }
-    Result Redo() { return frame_.Redo(); }
-    Result Undo() { return frame_.Undo(); }
+    Result TabAtCursor() { return area_.TabAtCursor(); }
+    Result Redo() { return area_.Redo(); }
+    Result Undo() { return area_.Undo(); }
 
-    void Copy(bool lines) { frame_.Copy(lines); }
-    Result Paste(size_t count) { return frame_.Paste(count); }
-    void Cut(bool lines) { frame_.Cut(lines); }
+    void Copy(bool lines) { area_.Copy(lines); }
+    Result Paste(size_t count) { return area_.Paste(count); }
+    void Cut(bool lines) { area_.Cut(lines); }
 
     void NextBuffer();
     void PrevBuffer();
@@ -84,7 +84,7 @@ class Window {
 
     // Search relevant
     void BuildSearchContext(const std::string& pattern) {
-        b_search_context_ = BufferSearchContext{pattern, frame_.buffer_};
+        b_search_context_ = BufferSearchContext{pattern, area_.buffer_};
     }
     void DestorySearchContext() { b_search_context_.Destroy(); }
     const std::string& GetSearchPattern() {
@@ -118,7 +118,7 @@ class Window {
             return opts_.global_opts_->GetOpt<T>(key);
         }
         if (opts_.GetScope(key) == OptScope::kBuffer) {
-            return frame_.buffer_->opts().GetOpt<T>(key);
+            return area_.buffer_->opts().GetOpt<T>(key);
         }
         return opts_.GetOpt<T>(key);
     }
@@ -149,7 +149,7 @@ class Window {
     static int64_t cur_window_id_;
 
    public:
-    Frame frame_;
+    TextArea area_;
     BufferSearchContext b_search_context_;
 };
 

@@ -14,4 +14,5 @@ This document is more like an index document, helping you find the parts you are
 
 ## Dev docs
 
-...
+- [CPP-GUIDE](./CPP-GUIDE.md)
+- [Design](./design.md)

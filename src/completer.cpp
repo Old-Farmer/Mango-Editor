@@ -66,8 +66,11 @@ static std::vector<std::string> SuggestBuffers(std::string_view hint,
 
 void PeelCompleter::Suggest(const Pos& cursor_pos,
                             std::vector<std::string>& menu_entries) {
-    const std::string_view content_before_cursor{peel_->GetContent().data(),
+    const std::string_view content_before_cursor{peel_->GetCmdContent().data(),
                                                  cursor_pos.byte_offset};
+    // TODO: Refactor here!
+    // Don't add any shit code here before refactor here.
+
     auto args = StrSplit(content_before_cursor);
     std::string_view arg_hint;
     size_t arg_index;
@@ -86,7 +89,8 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
     if (arg_index == 0) {
         // TODO: suggest commands
     } else {
-        if (args[0] == "e" || args[0] == "sa") {
+        if (args[0] == "e" || args[0] == "edit" || args[0] == "sa" ||
+            args[0] == "saveas") {
             if (arg_index == 1) {
                 try {
                     suggestions_ = SuggestFilePath(arg_hint);
@@ -96,12 +100,12 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
                 }
                 type_ = SuggestType::kPath;
             }
-        } else if (args[0] == "b") {
+        } else if (args[0] == "b" || args[0] == "buffer") {
             if (arg_index == 1) {
                 suggestions_ = SuggestBuffers(arg_hint, buffer_manager_);
                 type_ = SuggestType::kOther;
             }
-        } else if (args[0] == "h") {
+        } else if (args[0] == "h" || args[0] == "help") {
             if (arg_index == 1) {
                 try {
                     suggestions_ =
@@ -119,21 +123,21 @@ void PeelCompleter::Suggest(const Pos& cursor_pos,
 }
 Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
     Pos pos;
-    peel_->frame_.b_view_->make_cursor_visible = true;
+    peel_->area_.b_view_->make_cursor_visible = true;
     if (type_ == SuggestType::kOther) {
-        peel_->frame_.buffer_->Replace(
+        peel_->area_.buffer_->Replace(
             {{0, this_arg_offset_}, {0, cursor->pos.byte_offset}},
             suggestions_[index], nullptr, false, pos);
     } else if (type_ == SuggestType::kPath) {
-        std::string_view hint = {peel_->GetContent().c_str() + this_arg_offset_,
-                                 cursor->pos.byte_offset - this_arg_offset_};
+        std::string_view hint = {
+            peel_->GetCmdContent().data() + this_arg_offset_,
+            cursor->pos.byte_offset - this_arg_offset_};
         int64_t sep_index = Path::LastPathSeperator(hint);
         if (sep_index == static_cast<int64_t>(hint.size() - 1)) {
-            peel_->frame_.buffer_->Add({0, cursor->pos.byte_offset},
-                                       suggestions_[index], nullptr, false,
-                                       pos);
+            peel_->area_.buffer_->Add({0, cursor->pos.byte_offset},
+                                      suggestions_[index], nullptr, false, pos);
         } else {
-            peel_->frame_.buffer_->Replace(
+            peel_->area_.buffer_->Replace(
                 {{0, sep_index + 1 + this_arg_offset_},
                  {0, cursor->pos.byte_offset}},
                 suggestions_[index], nullptr, false, pos);
@@ -162,7 +166,7 @@ BufferBasicWordCompleter::BufferBasicWordCompleter(const Buffer* buffer) {
 void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
                                        std::vector<std::string>& menu_entries) {
     int64_t byte_offset = cursor_pos.byte_offset;
-    const std::string& cur_line = buffer_->GetLine(cursor_pos.line);
+    const auto& cur_line = buffer_->GetLine(cursor_pos.line);
     Character character;
     int byte_len;
     while (byte_offset > 0) {
@@ -179,7 +183,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
         return;
     }
 
-    std::string_view cur_word_prefix = {cur_line.c_str() + byte_offset,
+    std::string_view cur_word_prefix = {cur_line.data() + byte_offset,
                                         cursor_pos.byte_offset - byte_offset};
 
     // auto now = std::chrono::steady_clock::now();
@@ -191,7 +195,7 @@ void BufferBasicWordCompleter::Suggest(const Pos& cursor_pos,
     std::unordered_set<std::string_view> s;
     size_t lines = buffer_->LineCnt();
     for (size_t i = 0; i < lines; i++) {
-        const std::string& line = buffer_->GetLine(i);
+        const auto& line = buffer_->GetLine(i);
         auto words = GetWords(line);
         for (auto word : words) {
             if (cur_word_prefix.data() == word.data()) {

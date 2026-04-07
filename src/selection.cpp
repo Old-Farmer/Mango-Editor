@@ -15,7 +15,7 @@ Range VimSelection::ToSelectRange(const Buffer* buffer) const {
         r.begin = head;
         r.end = anchor;
     }
-    const std::string& line = buffer->GetLine(r.end.line);
+    const auto& line = buffer->GetLine(r.end.line);
     if (r.end.byte_offset == line.size()) {
         if (buffer->LineCnt() - 1 == r.end.line) {
             return r;

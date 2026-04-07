@@ -58,6 +58,7 @@ enum OptKey {
     // buffer
     kOptAutoIndent,
     kOptAutoPair,
+    kOptMaxEditHistory,
     kOptTabSpace,
     kOptTabStop,
     kOptWrap,
@@ -75,7 +76,6 @@ enum OptKey {
     kOptHighlightOnSearch,
     kOptInputIdleTimeout,
     kOptLogVerbose,
-    kOptMaxEditHistory,
     kOptMaxJumpHistory,
     kOptScrollRows,
     kOptTrueColor,

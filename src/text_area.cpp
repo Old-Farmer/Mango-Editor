@@ -1,4 +1,4 @@
-#include "frame.h"
+#include "text_area.h"
 
 #include <stdint.h>
 
@@ -18,11 +18,11 @@ namespace mango {
 
 static constexpr std::string_view kSublineIndicator = "<<<";
 
-Frame::Frame(Cursor* cursor, Opts* opts, SyntaxParser* parser,
-             ClipBoard* clipboard) noexcept
+TextArea::TextArea(Cursor* cursor, Opts* opts, SyntaxParser* parser,
+                   ClipBoard* clipboard) noexcept
     : cursor_(cursor), clipboard_(clipboard), parser_(parser), opts_(opts) {}
 
-void Frame::Draw(BufferSearchContext* search_context) {
+void TextArea::Draw(BufferSearchContext* search_context) {
     MGO_ASSERT(buffer_ != nullptr);
     if (!buffer_->IsLoad()) {
         return;
@@ -85,10 +85,16 @@ void Frame::Draw(BufferSearchContext* search_context) {
     std::vector<Highlight> trailing_white_hl;
     std::vector<int64_t> trailing_white_begin_pre_line;
     if (trailing_white) {
-        size_t line_cnt = render_range.end.line - render_range.begin.line + 1;
+        // Use int64_t to avoid only one empty line corner case.
+        int64_t last_line =
+            render_range.end.byte_offset == 0
+                ? static_cast<int64_t>(render_range.end.line) - 1
+                : render_range.end.line;
+        int64_t line_cnt =
+            last_line - static_cast<int64_t>(render_range.begin.line) + 1;
         trailing_white_begin_pre_line.reserve(line_cnt);
         for (size_t l = b_view_->line; l < b_view_->line + line_cnt; l++) {
-            const std::string& line = buffer_->GetLine(l);
+            const auto& line = buffer_->GetLine(l);
             int64_t i = static_cast<int64_t>(line.size()) - 1;
             for (; i >= 0; i--) {
                 // Backward codepoint scan is correct and enough.
@@ -106,7 +112,9 @@ void Frame::Draw(BufferSearchContext* search_context) {
                      scheme[kTrailingWhite]});
             }
         }
-        highlights.push_back(&trailing_white_hl);
+        if (!trailing_white_hl.empty()) {
+            highlights.push_back(&trailing_white_hl);
+        }
     }
 
     // Syntax hl
@@ -127,7 +135,7 @@ void Frame::Draw(BufferSearchContext* search_context) {
         // subline indicator sidebar
         char subline_ind_sidebar[kMaxSizeTWidth + 3 + 1];
 
-        size_t line = b_view_->line;
+        size_t line = render_range.begin.line;
         size_t byte_offset = render_range.begin.byte_offset;
 
         MGO_ASSERT(line < buffer_->LineCnt());
@@ -143,14 +151,17 @@ void Frame::Draw(BufferSearchContext* search_context) {
 
             if (byte_offset == 0) {
                 DrawSidebar(row_ + i, line, sidebar_width);
-            } else {
+            } else if (static_cast<LineNumberType>(GetOpt<int64_t>(
+                           kOptLineNumber)) != LineNumberType::kNone) {
+                // TODO: Merge this logic to DrawSideBar
                 if (i == 0) {
                     memset(subline_ind_sidebar, kSpaceChar, sidebar_width);
                     size_t left_space_size =
                         sidebar_width - 1 - kSublineIndicator.size();
                     memcpy(subline_ind_sidebar + left_space_size,
                            kSublineIndicator.data(), kSublineIndicator.size());
-                    // If first row is a subline, we draw a <<< at the sidebar
+                    // If first row is a subline, we draw a <<< at the
+                    // sidebar
                     term_->Print(0, row_ + i, scheme[kSidebar],
                                  subline_ind_sidebar);
                 } else {
@@ -159,10 +170,10 @@ void Frame::Draw(BufferSearchContext* search_context) {
             }
             const auto& line_str = buffer_->GetLine(line);
             int64_t trailing_white_begin =
-                trailing_white
-                    ? trailing_white_begin_pre_line[line -
-                                                    render_range.begin.line]
-                    : line_str.size();
+                trailing_white_begin_pre_line.empty()
+                    ? line_str.size()
+                    : trailing_white_begin_pre_line[line -
+                                                    render_range.begin.line];
             byte_offset =
                 DrawLine(*term_, line_str, {line, byte_offset}, 0,
                          content_width, i + row_, content_s_col, &highlights,
@@ -188,10 +199,10 @@ void Frame::Draw(BufferSearchContext* search_context) {
             DrawSidebar(cur_s_row, line, sidebar_width);
             const auto& line_str = buffer_->GetLine(line);
             int64_t trailing_white_begin =
-                trailing_white
-                    ? trailing_white_begin_pre_line[line -
-                                                    render_range.begin.line]
-                    : line_str.size();
+                trailing_white_begin_pre_line.empty()
+                    ? line_str.size()
+                    : trailing_white_begin_pre_line[line -
+                                                    render_range.begin.line];
             DrawLine(*term_, line_str, {line, 0}, b_view_->col, content_width,
                      cur_s_row, content_s_col, &highlights, scheme[kNormal],
                      trailing_white_begin, tabstop, false);
@@ -199,7 +210,7 @@ void Frame::Draw(BufferSearchContext* search_context) {
     }
 }
 
-bool Frame::In(size_t s_col, size_t s_row) {
+bool TextArea::In(size_t s_col, size_t s_row) {
     return s_col >= col_ && s_col < s_col + width_ && s_row >= row_ &&
            s_row < row_ + height_;
 }
@@ -207,7 +218,7 @@ bool Frame::In(size_t s_col, size_t s_row) {
 // cursor is before the first row.
 // we just put that cursor on the first row of screen.
 // TODO: scrolloff?
-void Frame::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
+void TextArea::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
     size_t content_width) {
     b_view_->line = cursor_->pos.line;
 
@@ -235,7 +246,7 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorBeforeRenderRange(
     }
 }
 
-void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
+void TextArea::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
     size_t content_width) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     // Which subline of the line the cursor in?
@@ -260,11 +271,16 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
         }
         subline++;
     }
-    size_t row_cnt_before_cursor_line = height_ - (subline + 1);
+
+    if (cursor_->pos.line == 0) {
+        b_view_->line = cursor_->pos.line;
+        b_view_->subline = subline;
+        return;
+    }
+
     // Search backward to set the start.
+    size_t row_cnt_before_cursor_line = height_ - (subline + 1);
     size_t line = cursor_->pos.line - 1;
-    // We don't need to check line isn't 0, because there must be a screen range
-    // of text before us.
     while (true) {
         size_t row_cnt =
             ScreenRows(buffer_->GetLine(line), content_width, tabstop);
@@ -280,7 +296,7 @@ void Frame::MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(
     }
 }
 
-void Frame::MakeCursorVisibleWrap() {
+void TextArea::MakeCursorVisibleWrap() {
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
         return;
@@ -351,7 +367,7 @@ void Frame::MakeCursorVisibleWrap() {
     MakeCursorVisibleWrapInnerWhenCursorAfterRenderRange(content_width);
 }
 
-void Frame::MakeCursorVisibleNotWrap() {
+void TextArea::MakeCursorVisibleNotWrap() {
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
         return;
@@ -362,7 +378,7 @@ void Frame::MakeCursorVisibleNotWrap() {
     // Calculate the cursor pos if we put the buffer from (0, 0)
     size_t row = cursor_->pos.line;
 
-    const std::string& cur_line = buffer_->GetLine(cursor_->pos.line);
+    const auto& cur_line = buffer_->GetLine(cursor_->pos.line);
     Character character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
@@ -426,7 +442,7 @@ void Frame::MakeCursorVisibleNotWrap() {
                           row - b_view_->line + row_);
 }
 
-void Frame::MakeCursorVisible() {
+void TextArea::MakeCursorVisible() {
     // MakeSureViewValid(); // call it outside
     if (GetOpt<bool>(kOptWrap)) {
         MakeCursorVisibleWrap();
@@ -435,7 +451,7 @@ void Frame::MakeCursorVisible() {
     }
 }
 
-void Frame::MakeSureViewValid() {
+void TextArea::MakeSureViewValid() {
     if (GetOpt<bool>(kOptWrap)) {
         if (b_view_->line >= buffer_->LineCnt()) {
             b_view_->line = buffer_->LineCnt() - 1;
@@ -450,7 +466,8 @@ void Frame::MakeSureViewValid() {
             b_view_->subline =
                 std::min(ScreenRows(buffer_->GetLine(b_view_->line),
                                     width_ - SidebarWidth(),
-                                    GetOpt<int64_t>(kOptTabStop)),
+                                    GetOpt<int64_t>(kOptTabStop)) -
+                             1,
                          b_view_->subline);
         }
     } else {
@@ -458,7 +475,7 @@ void Frame::MakeSureViewValid() {
     }
 }
 
-void Frame::MakeSureBColViewWantReady(CursorState& state) {
+void TextArea::MakeSureBColViewWantReady(CursorState& state) {
     if (state.b_view_col_want.has_value()) {
         return;
     }
@@ -487,10 +504,10 @@ void Frame::MakeSureBColViewWantReady(CursorState& state) {
     }
 }
 
-size_t Frame::CalcByteOffsetByBViewCol(std::string_view line,
-                                       size_t b_view_col_from_byte_offset,
-                                       size_t byte_offset, size_t content_width,
-                                       bool wrap) {
+size_t TextArea::CalcByteOffsetByBViewCol(std::string_view line,
+                                          size_t b_view_col_from_byte_offset,
+                                          size_t byte_offset,
+                                          size_t content_width, bool wrap) {
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
 
     size_t target_b_view_col = b_view_col_from_byte_offset;
@@ -527,8 +544,8 @@ size_t Frame::CalcByteOffsetByBViewCol(std::string_view line,
     return cur_byte_offset;
 }
 
-void Frame::SetCursorHintNoWrap(size_t s_row, size_t s_col,
-                                size_t sidebar_width) {
+void TextArea::SetCursorHintNoWrap(size_t s_row, size_t s_col,
+                                   size_t sidebar_width) {
     size_t cur_b_view_row = s_row - row_ + b_view_->line;
     // empty line, locate the last line end
     if (cur_b_view_row >= buffer_->LineCnt()) {
@@ -549,8 +566,8 @@ void Frame::SetCursorHintNoWrap(size_t s_row, size_t s_col,
     cursor_->DontHoldColWant();
 }
 
-void Frame::SetCursorHintWrap(size_t s_row, size_t s_col,
-                              size_t sidebar_width) {
+void TextArea::SetCursorHintWrap(size_t s_row, size_t s_col,
+                                 size_t sidebar_width) {
     size_t line = b_view_->line;
     size_t byte_offset = 0;
     // to the screen row where hint is.
@@ -590,7 +607,7 @@ void Frame::SetCursorHintWrap(size_t s_row, size_t s_col,
     cursor_->DontHoldColWant();
 }
 
-void Frame::SetCursorHint(size_t s_row, size_t s_col) {
+void TextArea::SetCursorHint(size_t s_row, size_t s_col) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(In(s_col, s_row));
     b_view_->make_cursor_visible = true;
@@ -613,7 +630,7 @@ void Frame::SetCursorHint(size_t s_row, size_t s_col) {
     }
 }
 
-void Frame::ScrollRowsWrap(int64_t count, size_t content_width) {
+void TextArea::ScrollRowsWrap(int64_t count, size_t content_width) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     if (count > 0) {
         while (count > 0) {
@@ -658,7 +675,7 @@ void Frame::ScrollRowsWrap(int64_t count, size_t content_width) {
     }
 }
 
-void Frame::ScrollRowsNoWrap(int64_t count, size_t content_width) {
+void TextArea::ScrollRowsNoWrap(int64_t count, size_t content_width) {
     (void)content_width;
     if (count > 0) {
         b_view_->line = std::min(b_view_->line + count, buffer_->LineCnt() - 1);
@@ -669,7 +686,7 @@ void Frame::ScrollRowsNoWrap(int64_t count, size_t content_width) {
     }
 }
 
-void Frame::ScrollRows(int64_t count) {
+void TextArea::ScrollRows(int64_t count) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     b_view_->make_cursor_visible = false;
@@ -686,15 +703,15 @@ void Frame::ScrollRows(int64_t count) {
     }
 }
 
-void Frame::ScrollCols(int64_t count) { (void)count; }
+void TextArea::ScrollCols(int64_t count) { (void)count; }
 
-bool Frame::CursorGoRightState(size_t count, CursorState& state) {
+bool TextArea::CursorGoRightState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     auto _ = gsl::finally([&state] { state.DontHoldColWant(); });
 
     // end
-    auto& line = buffer_->GetLine(state.pos.line);
+    const auto& line = buffer_->GetLine(state.pos.line);
     if (line.size() == state.pos.byte_offset) {
         return false;
     }
@@ -711,7 +728,7 @@ bool Frame::CursorGoRightState(size_t count, CursorState& state) {
     return true;
 }
 
-bool Frame::CursorGoLeftState(size_t count, CursorState& state) {
+bool TextArea::CursorGoLeftState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     auto _ = gsl::finally([&state] { state.DontHoldColWant(); });
@@ -721,7 +738,7 @@ bool Frame::CursorGoLeftState(size_t count, CursorState& state) {
         return false;
     }
 
-    auto& line = buffer_->GetLine(state.pos.line);
+    const auto& line = buffer_->GetLine(state.pos.line);
     Character c;
     int len;
     for (size_t i = 0; i < count; i++) {
@@ -734,8 +751,8 @@ bool Frame::CursorGoLeftState(size_t count, CursorState& state) {
     return true;
 }
 
-bool Frame::CursorGoUpStateWrap(size_t count, size_t content_width,
-                                CursorState& state) {
+bool TextArea::CursorGoUpStateWrap(size_t count, size_t content_width,
+                                   CursorState& state) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     size_t byte_offset = 0;
     std::vector<size_t> subline_begin_byte_offsets;
@@ -791,8 +808,8 @@ bool Frame::CursorGoUpStateWrap(size_t count, size_t content_width,
     return true;
 }
 
-bool Frame::CursorGoUpStateNoWrap(size_t count, size_t content_width,
-                                  CursorState& state) {
+bool TextArea::CursorGoUpStateNoWrap(size_t count, size_t content_width,
+                                     CursorState& state) {
     // first line
     if (state.pos.line == 0) {
         return false;
@@ -806,7 +823,7 @@ bool Frame::CursorGoUpStateNoWrap(size_t count, size_t content_width,
     return true;
 }
 
-bool Frame::CursorGoUpState(size_t count, CursorState& state) {
+bool TextArea::CursorGoUpState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     size_t sidebar_width = SidebarWidth();
@@ -820,8 +837,8 @@ bool Frame::CursorGoUpState(size_t count, CursorState& state) {
     }
 }
 
-bool Frame::CursorGoDownStateWrap(size_t count, size_t content_width,
-                                  CursorState& state) {
+bool TextArea::CursorGoDownStateWrap(size_t count, size_t content_width,
+                                     CursorState& state) {
     int tabstop = GetOpt<int64_t>(kOptTabStop);
     size_t byte_offset = 0;
 
@@ -866,8 +883,8 @@ bool Frame::CursorGoDownStateWrap(size_t count, size_t content_width,
     return true;
 }
 
-bool Frame::CursorGoDownStateNoWrap(size_t count, size_t content_width,
-                                    CursorState& state) {
+bool TextArea::CursorGoDownStateNoWrap(size_t count, size_t content_width,
+                                       CursorState& state) {
     // last line
     if (buffer_->LineCnt() - 1 == state.pos.line) {
         return false;
@@ -882,7 +899,7 @@ bool Frame::CursorGoDownStateNoWrap(size_t count, size_t content_width,
     return true;
 }
 
-bool Frame::CursorGoDownState(size_t count, CursorState& state) {
+bool TextArea::CursorGoDownState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     size_t sidebar_width = SidebarWidth();
     if (!SizeValid(sidebar_width)) {
@@ -895,7 +912,7 @@ bool Frame::CursorGoDownState(size_t count, CursorState& state) {
     }
 }
 
-bool Frame::CursorGoHomeState(CursorState& state) {
+bool TextArea::CursorGoHomeState(CursorState& state) {
     MGO_ASSERT(buffer_);
     if (state.pos.byte_offset == 0) {
         return false;
@@ -904,9 +921,9 @@ bool Frame::CursorGoHomeState(CursorState& state) {
     state.DontHoldColWant();
     return true;
 }
-bool Frame::CursorGoFirstNonBlankState(CursorState& state) {
+bool TextArea::CursorGoFirstNonBlankState(CursorState& state) {
     MGO_ASSERT(buffer_);
-    auto& line = buffer_->GetLine(cursor_->pos.line);
+    const auto& line = buffer_->GetLine(cursor_->pos.line);
     Character c;
     size_t s = line.size();
     int byte_len;
@@ -926,7 +943,7 @@ bool Frame::CursorGoFirstNonBlankState(CursorState& state) {
     state.DontHoldColWant();
     return true;
 }
-bool Frame::CursorGoEndState(CursorState& state) {
+bool TextArea::CursorGoEndState(CursorState& state) {
     MGO_ASSERT(buffer_);
     if (state.pos.byte_offset == buffer_->GetLine(state.pos.line).size()) {
         return false;
@@ -935,22 +952,22 @@ bool Frame::CursorGoEndState(CursorState& state) {
     state.DontHoldColWant();
     return true;
 }
-bool Frame::CursorGoNextWordEndState(size_t count, bool one_more_character,
-                                     CursorState& state) {
+bool TextArea::CursorGoNextWordEndState(size_t count, bool one_more_character,
+                                        CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     size_t i = 0;
     for (; i < count; i++) {
-        const std::string* cur_line = &buffer_->GetLine(state.pos.line);
-        if (state.pos.byte_offset == cur_line->size()) {
+        std::string_view cur_line = buffer_->GetLine(state.pos.line);
+        if (state.pos.byte_offset == cur_line.size()) {
             if (state.pos.line == buffer_->LineCnt() - 1) {
                 break;
             }
             state.pos.line++;
             state.pos.byte_offset = 0;
-            cur_line = &buffer_->GetLine(state.pos.line);
+            cur_line = buffer_->GetLine(state.pos.line);
         }
-        NextWordEnd(*cur_line, state.pos.byte_offset, one_more_character,
+        NextWordEnd(cur_line, state.pos.byte_offset, one_more_character,
                     state.pos.byte_offset);
     }
     if (i == 0) {
@@ -959,21 +976,21 @@ bool Frame::CursorGoNextWordEndState(size_t count, bool one_more_character,
     state.DontHoldColWant();
     return true;
 }
-bool Frame::CursorGoPrevWordBeginState(size_t count, CursorState& state) {
+bool TextArea::CursorGoPrevWordBeginState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     size_t i = 0;
     for (; i < count; i++) {
-        const std::string* cur_line = &buffer_->GetLine(state.pos.line);
+        std::string_view cur_line = buffer_->GetLine(state.pos.line);
         if (state.pos.byte_offset == 0) {
             if (state.pos.line == 0) {
                 break;
             }
             state.pos.line--;
-            cur_line = &buffer_->GetLine(state.pos.line);
-            state.pos.byte_offset = cur_line->size();
+            cur_line = buffer_->GetLine(state.pos.line);
+            state.pos.byte_offset = cur_line.size();
         }
-        Result res = PrevWordBegin(*cur_line, state.pos.byte_offset,
+        Result res = PrevWordBegin(cur_line, state.pos.byte_offset,
                                    state.pos.byte_offset);
         MGO_ASSERT(res == kOk || res == kNotExist);
     }
@@ -984,21 +1001,21 @@ bool Frame::CursorGoPrevWordBeginState(size_t count, CursorState& state) {
     return true;
 }
 
-bool Frame::CursorGoNextWordBeginState(size_t count, CursorState& state) {
+bool TextArea::CursorGoNextWordBeginState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     size_t i = 0;
     for (; i < count; i++) {
-        const std::string* cur_line = &buffer_->GetLine(state.pos.line);
-        if (state.pos.byte_offset == cur_line->size()) {
+        std::string_view cur_line = buffer_->GetLine(state.pos.line);
+        if (state.pos.byte_offset == cur_line.size()) {
             if (state.pos.line == buffer_->LineCnt() - 1) {
                 return false;
             }
             state.pos.line++;
             state.pos.byte_offset = 0;
-            cur_line = &buffer_->GetLine(state.pos.line);
+            cur_line = buffer_->GetLine(state.pos.line);
         }
-        NextWordBegin(*cur_line, state.pos.byte_offset, state.pos.byte_offset);
+        NextWordBegin(cur_line, state.pos.byte_offset, state.pos.byte_offset);
     }
     if (i == 0) {
         return false;
@@ -1007,7 +1024,7 @@ bool Frame::CursorGoNextWordBeginState(size_t count, CursorState& state) {
     return true;
 }
 
-bool Frame::CursorGoLineState(size_t line, CursorState& state) {
+bool TextArea::CursorGoLineState(size_t line, CursorState& state) {
     MGO_ASSERT(buffer_);
     if (line == state.pos.line) {
         return false;
@@ -1021,7 +1038,7 @@ bool Frame::CursorGoLineState(size_t line, CursorState& state) {
     return true;
 }
 
-void Frame::CursorGoRight(size_t count) {
+void TextArea::CursorGoRight(size_t count) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoRightState(count, state)) {
@@ -1030,7 +1047,7 @@ void Frame::CursorGoRight(size_t count) {
     }
 }
 
-void Frame::CursorGoLeft(size_t count) {
+void TextArea::CursorGoLeft(size_t count) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoLeftState(count, state)) {
@@ -1039,7 +1056,7 @@ void Frame::CursorGoLeft(size_t count) {
     }
 }
 
-void Frame::CursorGoUp(size_t count) {
+void TextArea::CursorGoUp(size_t count) {
     MGO_ASSERT(count != 0);
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
@@ -1049,7 +1066,7 @@ void Frame::CursorGoUp(size_t count) {
     }
 }
 
-void Frame::CursorGoDown(size_t count) {
+void TextArea::CursorGoDown(size_t count) {
     MGO_ASSERT(count != 0);
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
@@ -1059,7 +1076,7 @@ void Frame::CursorGoDown(size_t count) {
     }
 }
 
-void Frame::CursorGoHome() {
+void TextArea::CursorGoHome() {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoHomeState(state)) {
@@ -1068,7 +1085,7 @@ void Frame::CursorGoHome() {
     }
 }
 
-void Frame::CursorGoFirstNonBlank() {
+void TextArea::CursorGoFirstNonBlank() {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoFirstNonBlankState(state)) {
@@ -1077,7 +1094,7 @@ void Frame::CursorGoFirstNonBlank() {
     }
 }
 
-void Frame::CursorGoEnd() {
+void TextArea::CursorGoEnd() {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoEndState(state)) {
@@ -1086,7 +1103,7 @@ void Frame::CursorGoEnd() {
     }
 }
 
-void Frame::CursorGoNextWordEnd(size_t count, bool one_more_character) {
+void TextArea::CursorGoNextWordEnd(size_t count, bool one_more_character) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoNextWordEndState(count, one_more_character, state)) {
@@ -1095,7 +1112,7 @@ void Frame::CursorGoNextWordEnd(size_t count, bool one_more_character) {
     }
 }
 
-void Frame::CursorGoPrevWordBegin(size_t count) {
+void TextArea::CursorGoPrevWordBegin(size_t count) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoPrevWordBeginState(count, state)) {
@@ -1104,7 +1121,7 @@ void Frame::CursorGoPrevWordBegin(size_t count) {
     }
 }
 
-void Frame::CursorGoNextWordBegin(size_t count) {
+void TextArea::CursorGoNextWordBegin(size_t count) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoNextWordBeginState(count, state)) {
@@ -1113,7 +1130,7 @@ void Frame::CursorGoNextWordBegin(size_t count) {
     }
 }
 
-void Frame::CursorGoLine(size_t line) {
+void TextArea::CursorGoLine(size_t line) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
     if (CursorGoLineState(line, state)) {
@@ -1122,22 +1139,22 @@ void Frame::CursorGoLine(size_t line) {
     }
 }
 
-void Frame::StartSelection(Pos anchor) {
+void TextArea::StartSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
     selection_ = std::make_unique<EditSelection>(anchor, cursor_->pos);
 }
 
-void Frame::StartVimSelection(Pos anchor) {
+void TextArea::StartVimSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
     selection_ = std::make_unique<VimSelection>(anchor, cursor_->pos);
 }
 
-void Frame::StartVimLineSelection(Pos anchor) {
+void TextArea::StartVimLineSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
     selection_ = std::make_unique<VimLineSelection>(anchor, cursor_->pos);
 }
 
-void Frame::SelectAll() {
+void TextArea::SelectAll() {
     b_view_->make_cursor_visible = true;
     selection_ = std::make_unique<EditSelection>();
     selection_->anchor = {0, 0};
@@ -1147,13 +1164,13 @@ void Frame::SelectAll() {
     cursor_->DontHoldColWant();
 }
 
-void Frame::SelectionFollowCursor() {
+void TextArea::SelectionFollowCursor() {
     if (IsSelectionActive()) {
         selection_->head = cursor_->pos;
     }
 }
 
-Result Frame::DeleteAtCursor() {
+Result TextArea::DeleteAtCursor() {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         return DeleteSelection();
@@ -1162,22 +1179,22 @@ Result Frame::DeleteAtCursor() {
     }
 }
 
-Result Frame::DeleteWordBeforeCursor() {
+Result TextArea::DeleteWordBeforeCursor() {
     MGO_ASSERT(!IsSelectionActive());
     MGO_ASSERT(buffer_);
     b_view_->make_cursor_visible = true;
     Pos deleted_until;
-    const std::string* cur_line = &buffer_->GetLine(cursor_->pos.line);
+    std::string_view cur_line = buffer_->GetLine(cursor_->pos.line);
     if (cursor_->pos.byte_offset == 0) {
         if (cursor_->pos.line == 0) {
             return kOk;
         }
         deleted_until.line = cursor_->pos.line - 1;
-        cur_line = &buffer_->GetLine(deleted_until.line);
-        deleted_until.byte_offset = cur_line->size();
+        cur_line = buffer_->GetLine(deleted_until.line);
+        deleted_until.byte_offset = cur_line.size();
     } else {
         deleted_until = cursor_->pos;
-        Result res = PrevWordBegin(*cur_line, deleted_until.byte_offset,
+        Result res = PrevWordBegin(cur_line, deleted_until.byte_offset,
                                    deleted_until.byte_offset);
         MGO_ASSERT(res == kOk || res == kNotExist);
     }
@@ -1190,7 +1207,8 @@ Result Frame::DeleteWordBeforeCursor() {
     return kOk;
 }
 
-Result Frame::AddStringAtCursor(std::string_view str, const Pos* cursor_pos) {
+Result TextArea::AddStringAtCursor(std::string_view str,
+                                   const Pos* cursor_pos) {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         return ReplaceSelection(str, cursor_pos);
@@ -1199,8 +1217,8 @@ Result Frame::AddStringAtCursor(std::string_view str, const Pos* cursor_pos) {
     }
 }
 
-Result Frame::AddStringAtPos(Pos pos, std::string_view str,
-                             const Pos* cursor_pos) {
+Result TextArea::AddStringAtPos(Pos pos, std::string_view str,
+                                const Pos* cursor_pos) {
     MGO_ASSERT(!IsSelectionActive());
     b_view_->make_cursor_visible = true;
     Pos new_pos;
@@ -1216,8 +1234,8 @@ Result Frame::AddStringAtPos(Pos pos, std::string_view str,
     return kOk;
 }
 
-Result Frame::Replace(const Range& range, std::string_view str,
-                      const Pos* cursor_pos) {
+Result TextArea::Replace(const Range& range, std::string_view str,
+                         const Pos* cursor_pos) {
     b_view_->make_cursor_visible = true;
     Pos pos;
     if (cursor_pos != nullptr) {
@@ -1232,7 +1250,7 @@ Result Frame::Replace(const Range& range, std::string_view str,
     return kOk;
 }
 
-Result Frame::TabAtCursor() {
+Result TextArea::TabAtCursor() {
     b_view_->make_cursor_visible = true;
     // TODO: support tab when selection
     StopSelection();
@@ -1243,7 +1261,7 @@ Result Frame::TabAtCursor() {
 
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
     int64_t cur_b_view_row = cursor_->pos.line;
-    const std::string& cur_line = buffer_->GetLine(cur_b_view_row);
+    std::string_view cur_line = buffer_->GetLine(cur_b_view_row);
     Character character;
     size_t cur_b_view_c = 0;
     size_t offset = 0;
@@ -1267,7 +1285,7 @@ Result Frame::TabAtCursor() {
     return AddStringAtCursor(std::string(need_space, kSpaceChar));
 }
 
-Result Frame::Redo() {
+Result TextArea::Redo() {
     b_view_->make_cursor_visible = true;
     StopSelection();
 
@@ -1279,7 +1297,7 @@ Result Frame::Redo() {
     return kOk;
 }
 
-Result Frame::Undo() {
+Result TextArea::Undo() {
     b_view_->make_cursor_visible = true;
     StopSelection();
 
@@ -1291,7 +1309,7 @@ Result Frame::Undo() {
     return kOk;
 }
 
-void Frame::Copy(bool lines) {
+void TextArea::Copy(bool lines) {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         Range range = selection_->ToSelectRange(buffer_);
@@ -1306,7 +1324,7 @@ void Frame::Copy(bool lines) {
     }
 }
 
-Result Frame::Paste(size_t count) {
+Result TextArea::Paste(size_t count) {
     MGO_ASSERT(count != 0);
     b_view_->make_cursor_visible = true;
     bool lines;
@@ -1345,7 +1363,7 @@ Result Frame::Paste(size_t count) {
     }
 }
 
-void Frame::Cut(bool lines) {
+void TextArea::Cut(bool lines) {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         Range range = selection_->ToSelectRange(buffer_);
@@ -1377,7 +1395,7 @@ void Frame::Cut(bool lines) {
     }
 }
 
-Result Frame::DeleteCharacterBeforeCursor() {
+Result TextArea::DeleteCharacterBeforeCursor() {
     Range range;
     if (cursor_->pos.byte_offset == 0) {
         if (cursor_->pos.line == 0) {
@@ -1401,7 +1419,8 @@ Result Frame::DeleteCharacterBeforeCursor() {
     AfterModify(pos);
     return kOk;
 }
-Result Frame::DeleteSelection() {
+
+Result TextArea::DeleteSelection() {
     Pos pos;
     if (Result res; (res = buffer_->Delete(selection_->ToDeleteRange(buffer_),
                                            &cursor_->pos, pos)) != kOk) {
@@ -1412,8 +1431,8 @@ Result Frame::DeleteSelection() {
     return kOk;
 }
 
-Result Frame::AddStringAtCursorNoSelection(std::string_view str,
-                                           const Pos* cursor_pos) {
+Result TextArea::AddStringAtCursorNoSelection(std::string_view str,
+                                              const Pos* cursor_pos) {
     MGO_ASSERT(!IsSelectionActive());
 
     Pos pos;
@@ -1428,7 +1447,7 @@ Result Frame::AddStringAtCursorNoSelection(std::string_view str,
     return kOk;
 }
 
-Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
+Result TextArea::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
     MGO_ASSERT(IsSelectionActive());
     if (Result res;
         // FIXME: ToSelectRange?
@@ -1440,10 +1459,9 @@ Result Frame::ReplaceSelection(std::string_view str, const Pos* cursor_pos) {
     return kOk;
 }
 
-BufferSearchState Frame::CursorGoSearchResultState(BufferSearchContext& context,
-                                                   bool next, size_t count,
-                                                   bool keep_current_if_one,
-                                                   CursorState& state) {
+BufferSearchState TextArea::CursorGoSearchResultState(
+    BufferSearchContext& context, bool next, size_t count,
+    bool keep_current_if_one, CursorState& state) {
     if (!context.NearestSearchPos(state.pos, buffer_, next, count,
                                   keep_current_if_one)) {
         return {};
@@ -1454,9 +1472,9 @@ BufferSearchState Frame::CursorGoSearchResultState(BufferSearchContext& context,
             context.search_result.size()};
 }
 
-bool Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
-                                     size_t count, bool keep_current_if_one,
-                                     CursorState& state) {
+bool TextArea::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
+                                        size_t count, bool keep_current_if_one,
+                                        CursorState& state) {
     BufferSearchState s = CursorGoSearchResultState(context, next, count,
                                                     keep_current_if_one, state);
     if (s.total == 0) {
@@ -1472,7 +1490,7 @@ bool Frame::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
     return true;
 }
 
-size_t Frame::SidebarWidth() {
+size_t TextArea::SidebarWidth() {
     auto line_number =
         static_cast<LineNumberType>(GetOpt<int64_t>(kOptLineNumber));
     if (line_number == LineNumberType::kNone) {
@@ -1491,7 +1509,8 @@ size_t Frame::SidebarWidth() {
     return 0;
 }
 
-void Frame::DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width) {
+void TextArea::DrawSidebar(int s_row, size_t absolute_line,
+                           size_t sidebar_width) {
     auto line_number_type =
         static_cast<LineNumberType>(GetOpt<int64_t>(kOptLineNumber));
     if (line_number_type == LineNumberType::kNone) {
@@ -1528,7 +1547,7 @@ void Frame::DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width) {
     term_->Print(col_, s_row, scheme[kSidebar], sidebar_buf);
 }
 
-Range Frame::CalcWrapRange(size_t content_width) {
+Range TextArea::CalcWrapRange(size_t content_width) {
     size_t cur_b_view_line = b_view_->line;
     size_t byte_offset = 0;
 
@@ -1554,17 +1573,17 @@ Range Frame::CalcWrapRange(size_t content_width) {
     return {{b_view_->line, start_byte_offset}, {cur_b_view_line, byte_offset}};
 }
 
-void Frame::UpdateSyntax() {
+void TextArea::UpdateSyntax() {
     if (parser_) parser_->ParseSyntaxAfterEdit(buffer_);
 }
 
-void Frame::AfterModify(const Pos& cursor_pos) {
+void TextArea::AfterModify(const Pos& cursor_pos) {
     cursor_->pos = cursor_pos;
     cursor_->DontHoldColWant();
     UpdateSyntax();
 }
 
-bool Frame::SizeValid(size_t sidebar_width) {
+bool TextArea::SizeValid(size_t sidebar_width) {
     return sidebar_width < width_ && height_ > 0;
 }
 

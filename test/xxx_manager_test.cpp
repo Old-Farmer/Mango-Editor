@@ -108,6 +108,7 @@ TEST_CASE("command_manager test") {
     std::string c;
     m.AddCommand({"my_command",
                   "",
+                  "",
                   {Type::kBool, Type::kInteger, Type::kString},
                   [&a, &b, &c](CommandArgs args) {
                       a = std::get<bool>(args[0].value());

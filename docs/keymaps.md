@@ -18,6 +18,9 @@ Use `<c-k>` as a general leader key.
 - `<c-e>`
     go to peel(to execute command)
 
+- `<c-k><c-e>`
+    go to peel show window(multi row command window)
+
 - `<esc>`
     escape from current states. e.g. cancel completion, cancel search highlight, cancel selection, etc.
 
@@ -117,7 +120,7 @@ Use `<c-k>` as a general leader key.
 
 ## Code Completion
 
-- `<c-k><c-c>`
+- `<c-k><c-c>` or `<c-space>`
     trigger code completion
 
 - `<tab>`

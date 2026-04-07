@@ -17,16 +17,16 @@ class SyntaxParser;
 struct Pos;
 class ClipBoard;
 
-// Frame is a class that offers some basic ui interface
+// TextArea is a class that offers some basic ui interface
 // A Frame must associated with a buffer from rendering
-class Frame {
+class TextArea {
    public:
-    Frame() = default;
-    Frame(Cursor* cursor, Opts* opts, SyntaxParser* parser,
+    TextArea() = default;
+    TextArea(Cursor* cursor, Opts* opts, SyntaxParser* parser,
           ClipBoard* clipboard) noexcept;
-    ~Frame() = default;
-    MGO_DELETE_COPY(Frame);
-    MGO_DEFAULT_MOVE(Frame);
+    ~TextArea() = default;
+    MGO_DELETE_COPY(TextArea);
+    MGO_DEFAULT_MOVE(TextArea);
 
     // if search_context != nullptr, frame will draw the search highlight no
     // matter what kHighlighOnSearch is. So caller should be careful.

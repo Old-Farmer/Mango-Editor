@@ -4,9 +4,27 @@ Mango currently uses json for user configuration:
     All config files are in `$XDG_CONFIG_HOME/mango-editor/`.
     Current support files: `config.json`, `colorscheme.json`.
 
+## Options
+
+You can set options in `config.json` as key value pairs.
+
+There are 3 option scopes: global, buffer and window. You can set all options in `config.json` globally, but buffer & window options can be overridden per buffer & window. A buffer is memory presentation of a file and window is where to show a buffer.
+
+Currently, you can set per filetype buffer scope options like:
+
+```json
+{
+    "c": {
+        "auto_pair": false
+    }
+}
+```
+
+Window scope options can't specified per window now.
+
 In `config.json`, Support options:
 
-Buffer Scope:
+### Buffer Scope
 
 - auto_indent  
     type: bool,
@@ -17,6 +35,11 @@ Buffer Scope:
     type: bool,
     default: true,
     desc: Auto pair for brackets, etc.
+
+- max_edit_history:  
+    type: integer,
+    default: 100,
+    desc: The maximum number of edit history records kept for a buffer.
 
 - tab_space  
     type: bool,
@@ -33,17 +56,7 @@ Buffer Scope:
     default: false,
     desc: Wrap the file content.
 
-Note that you can set per filetype buffer options like:
-
-```json
-{
-    "c": {
-        "auto_pair": false
-    }
-}
-```
-
-Window Scope:
+### Window Scope
 
 - end_of_buffer_mark  
     type: bool
@@ -61,7 +74,7 @@ Window Scope:
     default: true
     desc: Show trailing white character.
 
-Global Scope:
+### Global Scope
 
 - basic_word_completion  
     type: bool,
@@ -98,11 +111,6 @@ Global Scope:
     default: false,
     desc: Verbose Logging.
 
-- max_edit_history:  
-    type: integer,
-    default: 100,
-    desc: The maximum number of edit history records kept for each buffer.
-
 - max_jump_history:  
     type: integer,
     default: 100,
@@ -122,3 +130,7 @@ Global Scope:
     type: bool,
     default: false,
     desc: Vim mode support. If enabled, Mango will switch to Vim mode.
+
+## Colorscheme
+
+See [colorscheme](./colorscheme.md)

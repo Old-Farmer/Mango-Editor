@@ -8,6 +8,7 @@
 #include "completer.h"
 #include "file.h"
 #include "fs.h"
+#include "gsl/span"
 #include "options.h"
 #include "pos.h"
 #include "result.h"
@@ -103,7 +104,7 @@ class Buffer {
     // Make sure that line, Range or Pos is valid, otherwise behavir
     // is undefined.
 
-    const std::string& GetLine(size_t line) const {
+    std::string_view GetLine(size_t line) const {
         MGO_ASSERT(LineCnt() > line);
         return lines_[line].line_str;
     }
@@ -111,9 +112,9 @@ class Buffer {
     // This method is for some op to get a '\0' terminated sub_str but don't
     // want to copy.
     // They must modify a byte to '\0' and then modified back.
-    std::string& GetLineNonConst(size_t line) {
+    gsl::span<char> GetLineNonConst(size_t line) {
         MGO_ASSERT(LineCnt() > line);
-        return lines_[line].line_str;
+        return {lines_[line].line_str.data(), lines_[line].line_str.size() + 1};
     }
 
     // GetConent will copy out a string in range.
@@ -133,6 +134,7 @@ class Buffer {
                              Pos& cursor_pos_hint, bool record_reverse);
 
     bool TryRecordMerge(const BufferEditHistoryItem& item);
+    // Caller should check whefher kMaxEditHistory <= 0
     void Record(BufferEditHistoryItem&& item);
 
     // return an global offset of a pos
@@ -192,7 +194,7 @@ class Buffer {
     // -1 means not stored
     zstring_view filetype() const noexcept { return filetype_; }
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
-    const Opts& opts() { return opts_; }
+    Opts& opts() { return opts_; }
     Completer* completer() { return basic_word_completer_.get(); }
     bool lsp_attached() { return lsp_attached_; }
 

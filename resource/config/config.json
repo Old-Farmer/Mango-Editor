@@ -1,6 +1,7 @@
 {
   "auto_indent": true,
   "auto_pair": true,
+  "max_edit_history": 100,
   "tab_space": true,
   "tab_stop": 4,
   "wrap": false,
@@ -16,7 +17,6 @@
   "highlight_on_search": true,
   "input_idle_timeout": 100,
   "logverbose": false,
-  "max_edit_history": 100,
   "max_jump_history": 100,
   "scroll_rows": 3,
   "truecolor": true,

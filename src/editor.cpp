@@ -24,8 +24,9 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
     term_.Init(global_opts_.get());
 
     buffer_manager_ = std::make_unique<BufferManager>(&editor_event_manager_);
-
     clipboard_ = ClipBoard::CreateClipBoard(true);
+
+    // Component
     status_line_ =
         std::make_unique<StatusLine>(&cursor_, global_opts_.get(), &mode_);
     peel_ = std::make_unique<MangoPeel>(
@@ -57,27 +58,31 @@ void Editor::Init(std::unique_ptr<GlobalOpts> global_opts,
     cursor_.in_window = window_.get();
     window_->AttachBuffer(buf);
 
-    // manually trigger resizing to create the layout
-    Resize(term_.Width(), term_.Height());
+    // Layout
+    layout_manager_ = std::make_unique<LayoutManager>(
+        window_.get(), status_line_.get(), peel_.get());
+    layout_manager_->ArrangeLayout();
 
+    // Keymaps & commands
+    InitCommandsGeneral();
     if (!global_opts_->GetOpt<bool>(kOptVim)) {
         mode_ = Mode::kEdit;
         exit_from_mode_ = [this] { Editor::ExitFromMode(); };
         // Keep Cusor style default here
         InitKeymaps();
-        InitCommands();
     } else {
         mode_ = Mode::kVimNormal;
         exit_from_mode_ = [this] { Editor::ExitFromModeVim(); };
         state_vim_ = std::make_unique<EditorStateVim>();
         term_.SetCursorStyle(Terminal::CursorStyle::kBlock);
         InitKeymapsVim();
-        InitCommandsVim();
+        InitCommandsVimSpecific();
     }
 
     if (!global_opts_->IsUserConfigValid()) {
         peel_->SetContent(
-            "User config file error! Please check your configuration." +
+            "Error in your config file! Default config loaded. Please "
+            "check your config." +
             global_opts_->GetUserConfigErrorReportStrAndReleaseIt());
     }
 
@@ -147,6 +152,8 @@ void Editor::Loop() {
                 MGO_ASSERT(!autocmp_trigger_timer_->IsTimingOn());
             }
 
+            multirow_peel_keep_ = false;
+
             // Handle it and do sth
             switch (term_.WhatEvent()) {
                 case Terminal::EventType::kKey: {
@@ -190,6 +197,16 @@ void Editor::Loop() {
             (autocmp_trigger_timer_ && !autocmp_trigger_timer_->IsTimingOn())) {
             CancellCompletion();
         }
+
+        // Hide peel multi row content if user don't in the peel.
+        if (!multirow_peel_keep_ && peel_->area_.height_ >= 2 && !IsPeel(mode_)) {
+            std::string output_hidden_hint =
+                fmt::format("[Collapse {} rows...]", peel_->area_.height_);
+            if (output_hidden_hint.size() > term_.Width()) {
+                output_hidden_hint.resize(term_.Width());
+            }
+            peel_->SetContent(output_hidden_hint);
+        }
     };
 
     EventInfo term_tty;
@@ -215,6 +232,8 @@ void Editor::InitKeymaps() {
 
     // peel
     MGO_KEYMAP("<c-e>", {[this] { GotoPeel(); }}, {Mode::kEdit});
+    MGO_KEYMAP("<c-k><c-e>", {[this] { GotoPeel(Mode::kPeelShow); }},
+               {Mode::kEdit});
     MGO_KEYMAP("<esc>", {[this] {
                    if (!CompletionTriggered()) {
                        if (IsPeel(mode_)) {
@@ -236,24 +255,23 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<enter>", {[this] { PeelHitEnter(); }}, {Mode::kPeelCommand});
-    MGO_KEYMAP("<enter>", {[this] {
-                   // TODO
-                   void(this);
-               }},
-               {Mode::kPeelShow});
     MGO_KEYMAP("<left>", {[this] { peel_->CursorGoLeft(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<right>", {[this] { peel_->CursorGoRight(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
+    MGO_KEYMAP("<up>", {[this] { peel_->CursorGoUp(Count()); }},
+               {Mode::kPeelShow});
+    MGO_KEYMAP("<down>", {[this] { peel_->CursorGoDown(Count()); }},
+               {Mode::kPeelShow});
     MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoPrevWordBegin(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<c-right>",
                {[this] { peel_->CursorGoNextWordEnd(Count(), true); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<home>", {[this] { peel_->CursorGoHome(); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<end>", {[this] { peel_->CursorGoEnd(); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<c-c>", {[this] { peel_->Copy(); }}, {Mode::kPeelCommand});
     MGO_KEYMAP("<c-v>", {[this] { peel_->Paste(Count()); }},
                {Mode::kPeelCommand});
@@ -280,20 +298,15 @@ void Editor::InitKeymaps() {
                {[this] { CursorGoSearch(true, Count(), false); }});
 
     // cmp
-    MGO_KEYMAP("<c-k><c-c>", {[this] {
-                   if (!IsPeel(mode_) &&
-                       (!cursor_.in_window->frame_.buffer_->IsLoad() ||
-                        cursor_.in_window->frame_.buffer_->read_only())) {
-                       return;
-                   }
-                   TriggerCompletion(false);
-               }},
-               {MGO_ALL_MODES});
+    MGO_KEYMAP("<c-k><c-c>", {[this] { TriggerCompletion(false); }},
+               {Mode::kEdit});
+    MGO_KEYMAP("<c-space>", {[this] { TriggerCompletion(false); }},
+               {Mode::kEdit});
 
     // edit
     MGO_KEYMAP("<bs>", {[this] {
                    if (cursor_.in_window->DeleteAtCursor() == kOk &&
-                       !cursor_.in_window->frame_.IsSelectionActive()) {
+                       !cursor_.in_window->area_.IsSelectionActive()) {
                        editor_event_manager_.EmitEvent(
                            EditorEvent::kEditCharEdit, nullptr);
                    }
@@ -333,26 +346,26 @@ void Editor::InitKeymaps() {
     MGO_KEYMAP("<c-right>", {[this] {
                    cursor_.in_window->CursorGoNextWordEnd(Count(), true);
                }});
-    MGO_KEYMAP("<up>", {[this] { CursorUp(Count()); }}, {MGO_ALL_MODES});
-    MGO_KEYMAP("<down>", {[this] { CursorDown(Count()); }}, {MGO_ALL_MODES});
-    MGO_KEYMAP("<c-p>", {[this] { CursorUp(Count()); }}, {MGO_ALL_MODES});
-    MGO_KEYMAP("<c-n>", {[this] { CursorDown(Count()); }}, {MGO_ALL_MODES});
+    MGO_KEYMAP("<up>", {[this] { CursorUp(Count()); }});
+    MGO_KEYMAP("<down>", {[this] { CursorDown(Count()); }});
+    MGO_KEYMAP("<c-p>", {[this] { CursorUp(Count()); }});
+    MGO_KEYMAP("<c-n>", {[this] { CursorDown(Count()); }});
     MGO_KEYMAP("<home>", {[this] { cursor_.in_window->CursorGoHome(); }});
     MGO_KEYMAP("<end>", {[this] { cursor_.in_window->CursorGoEnd(); }});
     MGO_KEYMAP(
         "<pgdn>", {[this] {
-            cursor_.in_window->CursorGoDown(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoDown(cursor_.in_window->area_.height_);
         }});
     MGO_KEYMAP(
         "<pgup>", {[this] {
-            cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoUp(cursor_.in_window->area_.height_);
         }});
     MGO_KEYMAP("<c-k><c-g>", {[this] {
                    GotoPeel();
                    peel_->AddStringAtCursor("g ");
                }});
     MGO_KEYMAP("<esc>", {[this] {
-                   cursor_.in_window->frame_.StopSelection();
+                   cursor_.in_window->area_.StopSelection();
                    highlight_search_ = false;
                }});
     MGO_KEYMAP("<a-left>", {[this] { cursor_.in_window->JumpBackward(); }});
@@ -361,7 +374,10 @@ void Editor::InitKeymaps() {
 
 void Editor::InitKeymapsVim() {
     // peel
+    // TODO: add hjkl, etc. to Peel show
     MGO_KEYMAP(":", {[this] { GotoPeel(); }}, {Mode::kVimNormal});
+    MGO_KEYMAP("<enter>", {[this] { GotoPeel(Mode::kPeelShow); }},
+               {Mode::kVimNormal});
     MGO_KEYMAP("<tab>", {[this] { TriggerCompletion(false); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<bs>", {[this] {
@@ -374,24 +390,23 @@ void Editor::InitKeymapsVim() {
     MGO_KEYMAP("<c-w>", {[this] { peel_->DeleteWordBeforeCursor(); }},
                {Mode::kPeelCommand});
     MGO_KEYMAP("<enter>", {[this] { PeelHitEnter(); }}, {Mode::kPeelCommand});
-    MGO_KEYMAP("<enter>", {[this] {
-                   // TODO
-                   void(this);
-               }},
-               {Mode::kPeelShow});
     MGO_KEYMAP("<left>", {[this] { peel_->CursorGoLeft(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<right>", {[this] { peel_->CursorGoRight(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
+    MGO_KEYMAP("<up>", {[this] { peel_->CursorGoUp(Count()); }},
+               {Mode::kPeelShow});
+    MGO_KEYMAP("<down>", {[this] { peel_->CursorGoDown(Count()); }},
+               {Mode::kPeelShow});
     MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoPrevWordBegin(Count()); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<c-right>",
                {[this] { peel_->CursorGoNextWordEnd(Count(), true); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<home>", {[this] { peel_->CursorGoHome(); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<end>", {[this] { peel_->CursorGoEnd(); }},
-               {Mode::kPeelCommand});
+               {Mode::kPeelCommand, Mode::kPeelShow});
     MGO_KEYMAP("<c-r>\"", {[this] { peel_->Paste(Count()); }},
                {Mode::kPeelCommand});
 
@@ -426,15 +441,8 @@ void Editor::InitKeymapsVim() {
                {Mode::kVimNormal});
 
     // cmp
-    MGO_KEYMAP("<c-x><c-o>", {[this] {
-                   if (!IsPeel(mode_) &&
-                       (!cursor_.in_window->frame_.buffer_->IsLoad() ||
-                        cursor_.in_window->frame_.buffer_->read_only())) {
-                       return;
-                   }
-                   TriggerCompletion(false);
-               }},
-               {Mode::kEdit});
+    MGO_KEYMAP("<c-x><c-o>", {[this] { TriggerCompletion(false); }});
+    MGO_KEYMAP("<c-space>", {[this] { TriggerCompletion(false); }});
 
     // edit
     MGO_KEYMAP("i", {[this] { GotoModeVim(Mode::kEdit); }}, {Mode::kVimNormal});
@@ -465,7 +473,7 @@ void Editor::InitKeymapsVim() {
                {Mode::kVimNormal});
     MGO_KEYMAP("<bs>", {[this] {
                    if (cursor_.in_window->DeleteAtCursor() == kOk &&
-                       !cursor_.in_window->frame_.IsSelectionActive()) {
+                       !cursor_.in_window->area_.IsSelectionActive()) {
                        editor_event_manager_.EmitEvent(
                            EditorEvent::kEditCharEdit, nullptr);
                    }
@@ -587,41 +595,41 @@ void Editor::InitKeymapsVim() {
                {MGO_VIM_DEFAULT_MODES});
     MGO_KEYMAP(
         "<pgdn>", {[this] {
-            cursor_.in_window->CursorGoDown(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoDown(cursor_.in_window->area_.height_);
         }},
         {MGO_VIM_DEFAULT_MODES, Mode::kEdit});
     MGO_KEYMAP(
         "<c-f>", {[this] {
-            cursor_.in_window->CursorGoDown(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoDown(cursor_.in_window->area_.height_);
         }},
         {MGO_VIM_DEFAULT_MODES});
     MGO_KEYMAP(
         "<pgup>", {[this] {
-            cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoUp(cursor_.in_window->area_.height_);
         }},
         {MGO_VIM_DEFAULT_MODES, Mode::kEdit});
     MGO_KEYMAP(
         "<c-b>", {[this] {
-            cursor_.in_window->CursorGoUp(cursor_.in_window->frame_.height_);
+            cursor_.in_window->CursorGoUp(cursor_.in_window->area_.height_);
         }},
         {MGO_VIM_DEFAULT_MODES, Mode::kEdit});
     MGO_KEYMAP("<c-d>", {[this] {
                    cursor_.in_window->CursorGoDown(
-                       cursor_.in_window->frame_.height_ / 2);
+                       cursor_.in_window->area_.height_ / 2);
                }},
                {MGO_VIM_DEFAULT_MODES});
-    MGO_KEYMAP("<c-u>", {[this] {
-                   cursor_.in_window->CursorGoUp(
-                       cursor_.in_window->frame_.height_ / 2);
-               }},
-               {MGO_VIM_DEFAULT_MODES});
+    MGO_KEYMAP(
+        "<c-u>", {[this] {
+            cursor_.in_window->CursorGoUp(cursor_.in_window->area_.height_ / 2);
+        }},
+        {MGO_VIM_DEFAULT_MODES});
     MGO_KEYMAP("<c-o>", {[this] { cursor_.in_window->JumpBackward(); }},
                {Mode::kVimNormal});
     MGO_KEYMAP("<c-i>", {[this] { cursor_.in_window->JumpForward(); }},
                {Mode::kVimNormal});
     MGO_KEYMAP("G", {[this] {
                    cursor_.in_window->CursorGoLine(
-                       cursor_.in_window->frame_.buffer_->LineCnt() - 1);
+                       cursor_.in_window->area_.buffer_->LineCnt() - 1);
                }},
                {MGO_VIM_DEFAULT_MODES});
     MGO_KEYMAP("gg", {[this] { cursor_.in_window->CursorGoLine(0); }},
@@ -629,12 +637,12 @@ void Editor::InitKeymapsVim() {
 
     // Selection
     MGO_KEYMAP("v", {[this] {
-                   cursor_.in_window->frame_.StartVimSelection(cursor_.pos);
+                   cursor_.in_window->area_.StartVimSelection(cursor_.pos);
                    GotoModeVim(Mode::kVimVisual);
                }},
                {Mode::kVimNormal});
     MGO_KEYMAP("V", {[this] {
-                   cursor_.in_window->frame_.StartVimLineSelection(cursor_.pos);
+                   cursor_.in_window->area_.StartVimLineSelection(cursor_.pos);
                    GotoModeVim(Mode::kVimVisualLine);
                }},
                {Mode::kVimNormal});
@@ -655,9 +663,10 @@ void Editor::InitKeymapsVim() {
 }
 #define MGO_CMD command_manager_.AddCommand
 
-void Editor::InitCommands() {
+void Editor::InitCommandsGeneral() {
 #define MGO_ENSURE_ARGEXITS(v) MGO_ASSERT(args[v].has_value())
-    MGO_CMD({"h",
+    MGO_CMD({"help",
+             "h",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -669,7 +678,8 @@ void Editor::InitCommands() {
              },
              1,
              1});
-    MGO_CMD({"e",
+    MGO_CMD({"edit",
+             "e",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -686,7 +696,8 @@ void Editor::InitCommands() {
                      Buffer(global_opts_.get(), std::move(p))));
              },
              1});
-    MGO_CMD({"b",
+    MGO_CMD({"buffer",
+             "b",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -699,7 +710,8 @@ void Editor::InitCommands() {
                  }
              },
              1});
-    MGO_CMD({"s",
+    MGO_CMD({"search",
+             "s",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -707,7 +719,8 @@ void Editor::InitCommands() {
                  SearchCurrentBuffer(std::get<std::string>(args[0].value()));
              },
              1});
-    MGO_CMD({"g",
+    MGO_CMD({"goline",
+             "g",
              "",
              {Type::kInteger},
              [this](CommandArgs args) {
@@ -716,7 +729,8 @@ void Editor::InitCommands() {
                      std::get<int64_t>(args[0].value()));
              },
              1});
-    MGO_CMD({"sa",
+    MGO_CMD({"saveas",
+             "sa",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -725,78 +739,30 @@ void Editor::InitCommands() {
                  SaveCurrentBufferAs(p);
              },
              1});
+    MGO_CMD({"smile",
+             "",
+             "",
+             {Type::kString},
+             [this](CommandArgs args) {
+                 (void)args;
+                 peel_->SetContent(kSmile);
+             },
+             0,
+             0});
 }
 
-void Editor::InitCommandsVim() {
-    MGO_CMD({"q", "", {}, [this](CommandArgs args) {
+void Editor::InitCommandsVimSpecific() {
+    MGO_CMD({"quit", "q", "", {}, [this](CommandArgs args) {
                  (void)args;
                  MGO_LOG_DEBUG("Quit");
                  Quit();
              }});
-    MGO_CMD({"h",
-             "",
-             {Type::kString},
-             [this](CommandArgs args) {
-                 if (!args[0].has_value()) {
-                     Help(kHelpDoc);
-                 } else {
-                     Help(std::get<std::string>(args[0].value()));
-                 }
-             },
-             1,
-             1});
-    MGO_CMD({"e",
-             "",
-             {Type::kString},
-             [this](CommandArgs args) {
-                 MGO_ENSURE_ARGEXITS(0);
-                 const std::string& name_str =
-                     std::get<std::string>(args[0].value());
-                 Path p = Path(name_str);
-                 Buffer* b = buffer_manager_->FindBuffer(p);
-                 if (b) {
-                     cursor_.in_window->AttachBuffer(b);
-                     return;
-                 }
-                 cursor_.in_window->AttachBuffer(buffer_manager_->AddBuffer(
-                     Buffer(global_opts_.get(), std::move(p))));
-             },
-             1});
-    MGO_CMD({"b",
-             "",
-             {Type::kString},
-             [this](CommandArgs args) {
-                 MGO_ENSURE_ARGEXITS(0);
-                 const std::string& name_str =
-                     std::get<std::string>(args[0].value());
-                 Buffer* b = buffer_manager_->FindBuffer(name_str);
-                 if (b) {
-                     cursor_.in_window->AttachBuffer(b);
-                 }
-             },
-             1});
-    MGO_CMD({"bd", "", {}, [this](CommandArgs args) {
+    MGO_CMD({"bdelete", "bd", "", {}, [this](CommandArgs args) {
                  (void)args;
                  RemoveCurrentBuffer();
              }});
-    MGO_CMD({"s",
-             "",
-             {Type::kString},
-             [this](CommandArgs args) {
-                 MGO_ENSURE_ARGEXITS(0);
-                 SearchCurrentBuffer(std::get<std::string>(args[0].value()));
-             },
-             1});
-    MGO_CMD({"g",
-             "",
-             {Type::kInteger},
-             [this](CommandArgs args) {
-                 MGO_ENSURE_ARGEXITS(0);
-                 cursor_.in_window->CursorGoLine(
-                     std::get<int64_t>(args[0].value()));
-             },
-             1});
-    MGO_CMD({"w",
+    MGO_CMD({"write",
+             "w",
              "",
              {Type::kString},
              [this](CommandArgs args) {
@@ -898,6 +864,11 @@ void Editor::HandleKey() {
         return;
     } else if (res == kKeyseqMatched) {
         // MGO_LOG_DEBUG("keymap matched");
+
+        // Encounter a sequnce, we let multirow peel stay.
+        if (!IsPeel(mode_) && peel_->area_.height_ > 1) {
+            multirow_peel_keep_ = true;
+        }
         return;
     }
 
@@ -960,8 +931,8 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
         if (!win) {
             return;
         }
-        if (cursor_.in_window->frame_.IsSelectionActive()) {
-            cursor_.in_window->frame_.StopSelection();
+        if (cursor_.in_window->area_.IsSelectionActive()) {
+            cursor_.in_window->area_.StopSelection();
             if (global_opts_->GetOpt<bool>(kOptVim)) {
                 ExitFromModeVim();
             }
@@ -981,23 +952,23 @@ void Editor::HandleLeftClick(int s_row, int s_col) {
         mouse_.state = MouseState::kLeftHolding;
         if (win) {
             if (win == prev_win && !(prev_pos == cursor_.pos)) {
-                cursor_.in_window->frame_.StartSelection(prev_pos);
+                cursor_.in_window->area_.StartSelection(prev_pos);
                 if (global_opts_->GetOpt<bool>(kOptVim)) {
                     GotoModeVim(Mode::kVimVisual);
                 }
             }
         }
     } else if (mouse_.state == MouseState::kLeftHolding) {
-        if (cursor_.in_window->frame_.IsSelectionActive()) {
+        if (cursor_.in_window->area_.IsSelectionActive()) {
             if (win) {
-                cursor_.in_window->frame_.SelectionFollowCursor();
+                cursor_.in_window->area_.SelectionFollowCursor();
             }
             return;
         }
 
         if (win) {
             if (win == prev_win && !(prev_pos == cursor_.pos)) {
-                cursor_.in_window->frame_.StartSelection(prev_pos);
+                cursor_.in_window->area_.StartSelection(prev_pos);
                 if (global_opts_->GetOpt<bool>(kOptVim)) {
                     GotoModeVim(Mode::kVimVisual);
                 }
@@ -1026,12 +997,12 @@ void Editor::HandleMouse() {
         }
         case mk::kRight: {
             mouse_.state = MouseState::kRightNotReleased;
-            cursor_.in_window->frame_.StopSelection();
+            cursor_.in_window->area_.StopSelection();
             break;
         }
         case mk::kMiddle: {
             mouse_.state = MouseState::kMiddleNotReleased;
-            cursor_.in_window->frame_.StopSelection();
+            cursor_.in_window->area_.StopSelection();
             break;
         }
         case mk::kRelease: {
@@ -1059,26 +1030,7 @@ void Editor::HandleMouse() {
     }
 }
 
-// TODO: support multi window
-void Editor::Resize(int width, int height) {
-    Window* first_win = window_.get();
-    first_win->frame_.col_ = 0;
-    first_win->frame_.row_ = 0;
-    first_win->frame_.width_ = width;
-    first_win->frame_.height_ = height - 2;
-
-    status_line_->row_ = height - 2;
-    status_line_->width_ = width;
-
-    peel_->frame_.row_ = height - 1;
-    peel_->frame_.width_ = width;
-    peel_->frame_.height_ = 1;
-}
-
-void Editor::HandleResize() {
-    Terminal::ResizeInfo resize_info = term_.EventResizeInfo();
-    Resize(resize_info.width, resize_info.height);
-}
+void Editor::HandleResize() { layout_manager_->ArrangeLayout(); }
 
 void Editor::Draw() {
     // TODO: do not redraw not modified part
@@ -1108,20 +1060,22 @@ void Editor::Draw() {
 
 void Editor::PreProcess() {
     // Try Load All Buffers in all windows
-    if (window_->frame_.buffer_->state() == BufferState::kHaveNotRead) {
+    if (window_->area_.buffer_->state() == BufferState::kHaveNotRead) {
         try {
-            window_->frame_.buffer_->Load();
+            window_->area_.buffer_->Load();
             // TODO: Not init if file is too big.
-            syntax_parser_->SyntaxInit(window_->frame_.buffer_);
+            syntax_parser_->SyntaxInit(window_->area_.buffer_);
         } catch (Exception& e) {
-            MGO_LOG_ERROR("buffer {} : {}", window_->frame_.buffer_->Name(),
+            MGO_LOG_ERROR("buffer {} : {}", window_->area_.buffer_->Name(),
                           e.what());
             // TODO: Maybe Notify the user
         }
     }
 
-    window_->frame_.MakeSureViewValid();
-    // Peel no need valid because it only have one line.
+    layout_manager_->EnsureLayout();
+
+    window_->area_.MakeSureViewValid();
+    peel_->area_.MakeSureViewValid();
     if (!IsPeel(mode_)) {
         cursor_.in_window->MakeCursorVisible();
     } else {
@@ -1130,7 +1084,7 @@ void Editor::PreProcess() {
 }
 
 Window* Editor::LocateWindow(int s_col, int s_row) {
-    if (window_->frame_.In(s_col, s_row)) {
+    if (window_->area_.In(s_col, s_row)) {
         return window_.get();
     }
     return nullptr;
@@ -1192,17 +1146,26 @@ void Editor::Quit() {
     peel_->AddStringAtCursor(kAskQuitStr);
 }
 
-void Editor::GotoPeel() {
+void Editor::GotoPeel(Mode mode) {
     MGO_ASSERT(!IsPeel(mode_));
 
-    peel_->SetContent("");
-    cursor_.in_window->frame_.b_view_->SaveCursorState(&cursor_);
-    b_view_stored_for_edit = *(cursor_.in_window->frame_.b_view_);
+    if (mode == Mode::kPeelShow && peel_->area_.height_ == 1) {
+        return;
+    }
+
+    cursor_.in_window->area_.b_view_->SaveCursorState(&cursor_);
+    b_view_stored_for_edit = *(cursor_.in_window->area_.b_view_);
     cursor_.restore_from_peel = cursor_.in_window;
     cursor_.in_window = nullptr;
     cursor_.pos = {0, 0};
     if (global_opts_->GetOpt<bool>(kOptVim)) {
-        GotoModeVim(Mode::kPeelCommand);
+        GotoModeVim(mode);
+    } else {
+        mode_ = mode;
+    }
+
+    if (mode == Mode::kPeelCommand) {
+        peel_->SetContent("");
     }
 }
 
@@ -1212,7 +1175,7 @@ void Editor::ExitFromMode() {
         // name.
         MGO_ASSERT(cursor_.restore_from_peel);
         cursor_.in_window = cursor_.restore_from_peel;
-        const Frame& f = cursor_.in_window->frame_;
+        const TextArea& f = cursor_.in_window->area_;
         *(f.b_view_) = b_view_stored_for_edit;
         f.b_view_->RestoreCursorState(&cursor_, f.buffer_);
         highlight_search_ = false;
@@ -1233,7 +1196,7 @@ void Editor::ExitFromModeVim() {
         case Mode::kVimVisual:
         case Mode::kVimVisualLine:
         case Mode::kVimVisualBlock: {
-            cursor_.in_window->frame_.StopSelection();
+            cursor_.in_window->area_.StopSelection();
             break;
         }
         case Mode::kVimOperatorPending: {
@@ -1243,7 +1206,7 @@ void Editor::ExitFromModeVim() {
         case Mode::kPeelShow: {
             MGO_ASSERT(cursor_.restore_from_peel);
             cursor_.in_window = cursor_.restore_from_peel;
-            const Frame& f = cursor_.in_window->frame_;
+            const TextArea& f = cursor_.in_window->area_;
             *(f.b_view_) = b_view_stored_for_edit;
             f.b_view_->RestoreCursorState(&cursor_, f.buffer_);
             highlight_search_ = false;
@@ -1281,15 +1244,15 @@ void Editor::SearchCurrentBuffer(const std::string& pattern) {
         // A little bit ugly, but just make sure we don't modify cursor, and
         // make the cursor state right accroding to the buffer state.
         Cursor c = cursor_;
-        w->frame_.b_view_->RestoreCursorState(&c, w->frame_.buffer_);
+        w->area_.b_view_->RestoreCursorState(&c, w->area_.buffer_);
         CursorState c_state(&c);
-        bool has_result = w->frame_.BufferViewGoSearchResult(
+        bool has_result = w->area_.BufferViewGoSearchResult(
             w->b_search_context_,
             global_opts_->GetOpt<bool>(kOptVim) ? state_vim_->search_foward
                                                 : true,
             1, true, c_state);
         c_state.SetCursor(&c);
-        w->frame_.b_view_->SaveCursorState(&c);
+        w->area_.b_view_->SaveCursorState(&c);
         highlight_search_ = has_result;
     }
 }
@@ -1324,7 +1287,7 @@ void Editor::TriggerCompletion(bool autocmp) {
 
     bool in_peel = IsPeel(mode_);
     if (!in_peel) {
-        completer_ = window_->frame_.buffer_->completer();
+        completer_ = window_->area_.buffer_->completer();
     } else {
         completer_ = &peel_->completer_;
     }
@@ -1387,7 +1350,7 @@ void Editor::EditFile() {
 
 void Editor::PeelHitEnter() {
     if (ask_quit_) {
-        std::string content = peel_->GetContent();
+        std::string_view content = peel_->GetCmdContent();
         ask_quit_ = false;
         if (content.empty()) {
             exit_from_mode_();
@@ -1413,7 +1376,7 @@ void Editor::PeelHitEnter() {
 
     CommandArgs args;
     Command* c;
-    Result res = command_manager_.EvalCommand(peel_->GetContent(), args, c);
+    Result res = command_manager_.EvalCommand(peel_->GetCmdContent(), args, c);
     if (res == kCommandEmpty) {
         exit_from_mode_();
         return;
@@ -1450,16 +1413,16 @@ void Editor::CursorDown(size_t count) {
 }
 
 void Editor::RemoveCurrentBuffer() {
-    buffer_manager_->RemoveBuffer(cursor_.in_window->frame_.buffer_);
+    buffer_manager_->RemoveBuffer(cursor_.in_window->area_.buffer_);
 }
 
 void Editor::SaveCurrentBuffer() {
     try {
-        Result res = cursor_.in_window->frame_.buffer_->Write();
+        Result res = cursor_.in_window->area_.buffer_->Write();
         if (res == kOk) {
             NotifyUser(fmt::format(
                 "\"{}\" saved",
-                cursor_.in_window->frame_.buffer_->path().FileName()));
+                cursor_.in_window->area_.buffer_->path().FileName()));
         } else if (res == kBufferNoBackupFile) {
             NotifyUser("Buffer no backup file");
         } else if (res == kBufferCannotLoad) {
@@ -1476,7 +1439,7 @@ void Editor::SaveCurrentBuffer() {
 }
 
 void Editor::SaveCurrentBufferAs(const Path& path) {
-    Buffer* cur_b = cursor_.in_window->frame_.buffer_;
+    Buffer* cur_b = cursor_.in_window->area_.buffer_;
     // We don't allow saving to the path of another buffer in order to avoid
     // some chaos.
     if (buffer_manager_->FindBuffer(path)) {
@@ -1497,7 +1460,7 @@ void Editor::SaveCurrentBufferAs(const Path& path) {
     }
 }
 
-void Editor::NotifyUser(const std::string& str) { peel_->SetContent(str); }
+void Editor::NotifyUser(std::string_view str) { peel_->SetContent(str); }
 
 void Editor::StartAutoCompletionTimer() {
     // We start a timer, every terminal event will cancel it.
@@ -1523,8 +1486,9 @@ void Editor::StartSearchOnTypeTimer() {
         }
         CommandArgs args;
         Command* c;
-        Result res = command_manager_.EvalCommand(peel_->GetContent(), args, c);
-        if ((res == kOk || res == kCommandInvalidArgs) && c->name == "s") {
+        Result res =
+            command_manager_.EvalCommand(peel_->GetCmdContent(), args, c);
+        if ((res == kOk || res == kCommandInvalidArgs) && c->short_name == "s") {
             loop_->timer_manager_.StartTimer(search_on_type_timer_.get());
         }
     }
@@ -1538,11 +1502,11 @@ void Editor::TrySearchOnType() {
     }
     CommandArgs args;
     Command* c;
-    Result res = command_manager_.EvalCommand(peel_->GetContent(), args, c);
-    if (res == kOk && c->name == "s") {
+    Result res = command_manager_.EvalCommand(peel_->GetCmdContent(), args, c);
+    if (res == kOk && c->short_name == "s") {
         MGO_ASSERT(args[0].has_value());
         SearchCurrentBuffer(std::get<std::string>(args[0].value()));
-    } else if (res == kCommandInvalidArgs && c->name == "s") {
+    } else if (res == kCommandInvalidArgs && c->short_name == "s") {
         SearchCurrentBuffer("");
     }
 }

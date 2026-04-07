@@ -10,6 +10,7 @@
 #include "editor_event_manager.h"
 #include "event_loop.h"
 #include "keyseq_manager.h"
+#include "layout_manager.h"
 #include "mango_peel.h"
 #include "mouse.h"
 #include "state.h"
@@ -45,7 +46,8 @@ class Editor {
     void Help(const std::string& doc_name);
     void Quit();
 
-    void GotoPeel();
+    void GotoPeel(Mode mode = Mode::kPeelCommand);
+    void GotoPeelShow();
     void ExitFromMode();
     void ExitFromModeVim();
     std::function<void()>
@@ -68,14 +70,14 @@ class Editor {
     void SaveCurrentBuffer();
     void SaveCurrentBufferAs(const Path& path);
 
-    void NotifyUser(const std::string& str);
+    void NotifyUser(std::string_view str);
 
    private:
     // Editor Lifetime
     void InitKeymaps();
     void InitKeymapsVim();
-    void InitCommands();
-    void InitCommandsVim();
+    void InitCommandsGeneral();
+    void InitCommandsVimSpecific();
     void RegisterEditorEventHandlers();
 
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
@@ -91,7 +93,6 @@ class Editor {
 
     void Draw();
     void PreProcess();
-    void Resize(int width, int height);
 
     // Count is at least 1.
     size_t Count() { return count_ == 0 ? 1 : count_; }
@@ -117,6 +118,7 @@ class Editor {
     CommandManager command_manager_;
     std::unique_ptr<SyntaxParser> syntax_parser_;
     EditorEventManager editor_event_manager_;
+    std::unique_ptr<LayoutManager> layout_manager_;
 
     enum class ContextID : int {};
     class ContextManager {
@@ -150,6 +152,8 @@ class Editor {
     // Cmp context
     Completer* completer_ = nullptr;
     bool show_cmp_menu_ = false;  // if false, hide cmp menu.
+
+    bool multirow_peel_keep_ = false;
 
     // buffer view stored for peel -> edit
     BufferView b_view_stored_for_edit;

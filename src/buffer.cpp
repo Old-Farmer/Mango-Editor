@@ -50,7 +50,7 @@ Buffer::~Buffer() {
 void Buffer::Load() {
     auto _ = gsl::finally([this] {
         opts_.InitAfterBufferLoad(this);
-        if (GetOpt<bool>(kOptBasicWordCompletion)) {
+        if (GetOpt<bool>(kOptBasicWordCompletion) && IsLoad() && !read_only()) {
             basic_word_completer_ =
                 std::make_unique<BufferBasicWordCompleter>(this);
             basic_word_completer_->Enable();
@@ -108,6 +108,7 @@ void Buffer::Clear() {
     state_ = BufferState::kNotModified;
     lines_.clear();
     lines_.push_back({});
+    version_++;
 }
 
 Result Buffer::Write() {
@@ -445,10 +446,6 @@ bool Buffer::TryRecordMerge(const BufferEditHistoryItem& item) {
 }
 
 void Buffer::Record(BufferEditHistoryItem&& item) {
-    if (GetOpt<int64_t>(kOptMaxEditHistory) <= 0) {
-        return;
-    }
-
     // Delete all history iterms after cursor(include the item which cursor
     // points to)
     if (edit_history_cursor_ != edit_history_->end()) {
@@ -489,6 +486,10 @@ Result Buffer::Add(Pos pos, std::string_view str, const Pos* cursor_pos,
     if (!use_given_pos_hint) {
         cursor_pos_hint = origin_pos_hint;
     }
+    if (GetOpt<int64_t>(kOptMaxEditHistory) <= 0) {
+        return kOk;
+    }
+
     BufferEditHistoryItem item;
     item.origin.range = {pos, pos};
     item.origin.str = str;
@@ -509,6 +510,10 @@ Result Buffer::Delete(const Range& range, const Pos* cursor_pos,
         return kBufferReadOnly;
     }
     std::string old_str = DeleteInner(range, cursor_pos_hint, true, true);
+    if (GetOpt<int64_t>(kOptMaxEditHistory) <= 0) {
+        return kOk;
+    }
+
     BufferEditHistoryItem item;
     item.origin.range = range;
     item.origin_pos_hint = cursor_pos_hint;
@@ -534,6 +539,9 @@ Result Buffer::Replace(const Range& range, std::string_view str,
     std::string old_str = ReplaceInner(range, str, origin_pos_hint, true);
     if (!use_given_pos_hint) {
         cursor_pos_hint = origin_pos_hint;
+    }
+    if (GetOpt<int64_t>(kOptMaxEditHistory) <= 0) {
+        return kOk;
     }
 
     BufferEditHistoryItem item;

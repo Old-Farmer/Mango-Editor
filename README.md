@@ -28,7 +28,9 @@ This project is far from mature, so:
 - colorscheme
 - home-like Vim mode
 
-See docs/help.md for more infomation
+See [help](./docs/help.md) for more infomation.
+
+See [TODO](./TODO.md) for planned features.
 
 ## Build
 
