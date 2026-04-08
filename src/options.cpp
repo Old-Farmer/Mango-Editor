@@ -37,6 +37,7 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"input_idle_timeout", kOptInputIdleTimeout},
     {"logverbose", kOptLogVerbose},
     {"max_jump_history", kOptMaxJumpHistory},
+    {"search_ignore_case", kOptSearchIgnoreCase},
     {"scroll_rows", kOptScrollRows},
     {"truecolor", kOptTrueColor},
     {"vim", kOptVim},
@@ -74,6 +75,7 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptLogVerbose] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptMaxJumpHistory] = {OptScope::kGlobal,
                                                Type::kInteger};
+        static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptVim] = {OptScope::kGlobal, Type::kBool};

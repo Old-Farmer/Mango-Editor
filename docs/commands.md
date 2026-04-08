@@ -2,9 +2,13 @@
 
 Commands are instructions you can execute in the Mango Peel. You can use full form or short form as you like.
 
-- `search <search-pattern>`  
-    short form: s
-    desc: search string
+- `quit`  
+    short form: q
+    desc: quit the editor
+
+- `quit!`  
+    short form: q!
+    desc: force quit the editor
 
 - `saveas <path>`  
     short form: sa

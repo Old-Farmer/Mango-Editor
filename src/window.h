@@ -1,8 +1,8 @@
 #pragma once
 
 #include "buffer.h"
-#include "text_area.h"
 #include "search.h"
+#include "text_area.h"
 
 namespace mango {
 
@@ -18,8 +18,8 @@ class Window {
 
     void Draw(bool highlight_search) {
         area_.Draw(highlight_search && GetOpt<bool>(kOptHighlightOnSearch)
-                        ? &b_search_context_
-                        : nullptr);
+                       ? &b_search_context_
+                       : nullptr);
     }
 
     void MakeCursorVisible() { area_.MakeCursorVisible(); }
@@ -43,9 +43,7 @@ class Window {
     void CursorGoNextWordEnd(size_t count, bool one_more_character) {
         area_.CursorGoNextWordEnd(count, one_more_character);
     }
-    void CursorGoWordBegin(size_t count) {
-        area_.CursorGoPrevWordBegin(count);
-    }
+    void CursorGoWordBegin(size_t count) { area_.CursorGoPrevWordBegin(count); }
     void CursorGoNextWordBegin(size_t count) {
         area_.CursorGoNextWordBegin(count);
     }
@@ -68,9 +66,9 @@ class Window {
     Result Redo() { return area_.Redo(); }
     Result Undo() { return area_.Undo(); }
 
-    void Copy(bool lines) { area_.Copy(lines); }
+    void Copy() { area_.Copy(); }
     Result Paste(size_t count) { return area_.Paste(count); }
-    void Cut(bool lines) { area_.Cut(lines); }
+    void Cut() { area_.Cut(); }
 
     void NextBuffer();
     void PrevBuffer();

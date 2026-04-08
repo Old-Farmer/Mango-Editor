@@ -17,38 +17,37 @@ class MangoPeel {
     MGO_DELETE_COPY(MangoPeel);
     MGO_DEFAULT_MOVE(MangoPeel);
 
-    void Draw() { area_.Draw(nullptr); }
+    void Draw();
 
     void MakeCursorVisible();
 
-    void CursorGoUp(size_t count) { area_.CursorGoUp(count); }
-    void CursorGoDown(size_t count) { area_.CursorGoDown(count); }
-    void CursorGoRight(size_t count) { area_.CursorGoRight(count); }
-    void CursorGoLeft(size_t count) { area_.CursorGoLeft(count); }
-    void CursorGoHome() { area_.CursorGoHome(); }
-    void CursorGoEnd() { area_.CursorGoEnd(); }
-    void CursorGoNextWordEnd(size_t count, bool one_more_character) {
-        area_.CursorGoNextWordEnd(count, one_more_character);
-    }
-    void CursorGoPrevWordBegin(size_t count) {
-        area_.CursorGoPrevWordBegin(count);
-    }
+    void SetCursorPosToAppend();
 
-    Result DeleteCharacterBeforeCursor() {
-        return area_.DeleteCharacterBeforeCursor();
-    }
-    Result DeleteWordBeforeCursor() { return area_.DeleteWordBeforeCursor(); }
-    Result AddStringAtCursor(std::string str) {
-        return area_.AddStringAtCursor(std::move(str));
-    }
+    void CursorGoUp(size_t count);
+    void CursorGoDown(size_t count);
+    void CursorGoRight(size_t count);
+    void CursorGoLeft(size_t count);
+    void CursorGoHome();
+    void CursorGoEnd();
+    void CursorGoNextWordEnd(size_t count, bool one_more_character);
+    void CursorGoPrevWordBegin(size_t count);
+    void Copy();
 
-    void Copy() { area_.Copy(false); }
-    Result Paste(size_t count);
+    // One line editable peel, Users can input sth to it.
 
-    void SetContent(std::string_view content);
-    std::string_view GetCmdContent();
+    // Start Userinput, Prefix should be readable ascii, will clear content.
+    // cursor will be set too.
+    void UserInputStart(std::string_view prefix);
+    std::string_view GetUserInput();
+    Result DeleteCharacterBeforeCursor();
+    Result DeleteWordBeforeCursor();
+    Result AddStringAtCursor(std::string str);
+    Result Paste();
 
-    // The height of peel needed for rendering its content.
+    // Non editable, but multiple line is ok.
+    void ShowContent(std::string_view content);
+
+    // The height of peel needed for rendering peel.
     size_t NeedHeight(size_t width);
 
    private:
@@ -64,8 +63,11 @@ class MangoPeel {
     }
 
    private:
-    BufferView b_view_;  // And it's view
-    Opts opts_;          // local opts
+    BufferView b_view_;      // And it's view
+    Opts opts_;              // local opts
+    size_t prefix_len_ = 0;  // because prefix is only ascii, so prefix len is
+                             // its width.
+    bool user_inputing_ = false;
 
    public:
     Buffer buffer_;  // Unlike window, Peel owns her nofilebacked buffer

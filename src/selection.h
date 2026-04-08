@@ -17,6 +17,7 @@ struct Selection {
     virtual Range ToDeleteRange(const Buffer* buffer) const {
         return ToSelectRange(buffer);
     }
+    virtual bool LineSemantic() const { return false; }
     virtual ~Selection() {}  // Just quiet compiler warning
 };
 
@@ -44,6 +45,7 @@ struct VimLineSelection : Selection {
 
     Range ToSelectRange(const Buffer* buffer) const override;
     Range ToDeleteRange(const Buffer* buffer) const override;
+    bool LineSemantic() const override { return true; }
 };
 
 }  // namespace mango

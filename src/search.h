@@ -9,6 +9,9 @@ namespace mango {
 
 class Buffer;
 
+std::vector<Range> BufferSearch(const Buffer* buffer, const std::string& pattern,
+                                bool ignore_case);
+
 struct BufferSearchContext {
     std::vector<Range> search_result;
     int64_t current_search = -1;
@@ -22,9 +25,8 @@ struct BufferSearchContext {
     BufferSearchContext(const std::string& pattern, const Buffer* buffer);
     void Destroy();
     bool EnsureSearched(const Buffer* buffer);
-    bool NearestSearchPos(Pos pos, const Buffer* buffer,
-                                        bool next, size_t count,
-                                        bool keep_current_if_one);
+    bool NearestSearchPos(Pos pos, const Buffer* buffer, bool next,
+                          size_t count, bool keep_current_if_one);
 };
 
 struct BufferSearchState {

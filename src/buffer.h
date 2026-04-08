@@ -109,6 +109,7 @@ class Buffer {
         return lines_[line].line_str;
     }
 
+    // Deprecated: No usage.
     // This method is for some op to get a '\0' terminated sub_str but don't
     // want to copy.
     // They must modify a byte to '\0' and then modified back.
@@ -178,11 +179,12 @@ class Buffer {
     Result Redo(Pos& cursor_pos_hint);
     Result Undo(Pos& cursor_pos_hint);
 
-    // Not support regex, only plain text
-    std::vector<Range> Search(const std::string& pattern) const;
-
     int64_t id() const noexcept { return id_; }
-    size_t LineCnt() const noexcept { return lines_.size(); }
+    // Must always >= 1
+    size_t LineCnt() const noexcept {
+        MGO_ASSERT(lines_.size() >= 1);
+        return lines_.size();
+    }
     BufferState& state() { return state_; };
     bool IsLoad() const noexcept {
         return state_ == BufferState::kModified ||
@@ -195,6 +197,7 @@ class Buffer {
     zstring_view filetype() const noexcept { return filetype_; }
     EOLSeq eol_seq() const noexcept { return eol_seq_; }
     Opts& opts() { return opts_; }
+    const Opts& opts() const { return opts_; }
     Completer* completer() { return basic_word_completer_.get(); }
     bool lsp_attached() { return lsp_attached_; }
 

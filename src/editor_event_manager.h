@@ -11,7 +11,8 @@ class Buffer;
 enum class EditorEvent {
     kBufferRemoved,
     kEditCharEdit,
-    kPeelCharEdit,
+    kCommandCharEdit,
+    kSearchCharEdit,
 
     __kCount,
 };

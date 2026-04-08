@@ -215,22 +215,39 @@ static constexpr bool kIsWordSeparator[128] = {
 
 bool IsWordSeperator(char c) { return kIsWordSeparator[static_cast<int>(c)]; }
 
-Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
-                     int& byte_len) {
-    return ThisCharacterInline(str, offset, character, byte_len);
+Result ThisCharacterInner(std::string_view str, int64_t offset,
+                          Character& character, int& byte_len) {
+    MGO_ASSERT(static_cast<size_t>(offset) < str.size());
+    int64_t cur_offset = offset;
+    int64_t end_offset = str.size();
+
+    character.Clear();
+    Codepoint codepoint;
+    Codepoint last_codepoint;
+    utf8proc_int32_t state = 0;
+    while (cur_offset < end_offset) {
+        int byte_eat;
+        Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
+        if (character.CodePointCount() == 0) {
+            character.Push(codepoint);
+        } else {
+            utf8proc_bool is_break = utf8proc_grapheme_break_stateful(
+                last_codepoint, codepoint, &state);
+            if (is_break) {
+                break;
+            }
+            character.Push(codepoint);
+        }
+        last_codepoint = codepoint;
+        cur_offset += byte_eat;
+    }
+    byte_len = cur_offset - offset;
+    return kOk;
 }
 
-Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
-                     int& byte_len) {
+Result PrevCharacterInner(std::string_view str, int64_t offset,
+                          Character& character, int& byte_len) {
     MGO_ASSERT(offset > 0);
-
-    // ascii happy path
-    if ((offset > 1 && IsAscii(str[offset - 2]) && IsAscii(str[offset + 1])) ||
-        offset == 1) {
-        character.Set(str[offset - 1]);
-        byte_len = 1;
-        return kOk;
-    }
 
     character.Clear();
     int64_t cur_offset = offset;

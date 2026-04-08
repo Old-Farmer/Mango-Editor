@@ -78,6 +78,7 @@ enum OptKey {
     kOptLogVerbose,
     kOptMaxJumpHistory,
     kOptScrollRows,
+    kOptSearchIgnoreCase,
     kOptTrueColor,
     kOptVim,
 

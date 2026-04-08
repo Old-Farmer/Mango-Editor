@@ -588,22 +588,6 @@ Result Buffer::Undo(Pos& cursor_pos_hint) {
     return kOk;
 }
 
-std::vector<Range> Buffer::Search(const std::string& pattern) const {
-    std::vector<Range> res;
-    for (size_t line = 0; line < lines_.size(); line++) {
-        size_t pos = 0;
-        while (true) {
-            pos = lines_[line].line_str.find(pattern, pos);
-            if (pos == std::string::npos) {
-                break;
-            }
-            res.push_back({{line, pos}, {line, pos + pattern.size()}});
-            pos += pattern.size();
-        }
-    }
-    return res;
-}
-
 size_t Buffer::OffsetAndInvalidAfterPos(Pos pos) {
     if (offset_per_line_.size() > pos.line + 1) {
         offset_per_line_.resize(pos.line + 1);

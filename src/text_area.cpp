@@ -1310,11 +1310,12 @@ Result TextArea::Undo() {
     return kOk;
 }
 
-void TextArea::Copy(bool lines) {
+void TextArea::Copy() {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         Range range = selection_->ToSelectRange(buffer_);
-        clipboard_->SetContent(buffer_->GetContent(range), lines);
+        clipboard_->SetContent(buffer_->GetContent(range),
+                               selection_->LineSemantic());
         StopSelection();
     } else {
         Range range = {
@@ -1364,11 +1365,12 @@ Result TextArea::Paste(size_t count) {
     }
 }
 
-void TextArea::Cut(bool lines) {
+void TextArea::Cut() {
     b_view_->make_cursor_visible = true;
     if (IsSelectionActive()) {
         Range range = selection_->ToSelectRange(buffer_);
-        clipboard_->SetContent(buffer_->GetContent(range), lines);
+        clipboard_->SetContent(buffer_->GetContent(range),
+                               selection_->LineSemantic());
         DeleteSelection();
     } else {
         Range range = {

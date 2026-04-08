@@ -44,10 +44,9 @@ class Editor {
     static Editor& GetInstance();
 
     void Help(const std::string& doc_name);
-    void Quit();
+    void Quit(bool force);
 
     void GotoPeel(Mode mode = Mode::kPeelCommand);
-    void GotoPeelShow();
     void ExitFromMode();
     void ExitFromModeVim();
     std::function<void()>
@@ -59,7 +58,8 @@ class Editor {
     void SearchCurrentBuffer(const std::string& pattern);
     void PickBuffers();
     void EditFile();
-    void PeelHitEnter();
+    void CommandHitEnter();
+    void SearchHitEnter();
 
     void CursorUp(size_t count);
     void CursorDown(size_t count);
@@ -76,8 +76,8 @@ class Editor {
     // Editor Lifetime
     void InitKeymaps();
     void InitKeymapsVim();
-    void InitCommandsGeneral();
-    void InitCommandsVimSpecific();
+    void InitCommands();
+    void InitCommandsVim();
     void RegisterEditorEventHandlers();
 
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
@@ -144,10 +144,6 @@ class Editor {
     std::unique_ptr<StatusLine> status_line_;
     std::unique_ptr<MangoPeel> peel_;
     std::unique_ptr<CmpMenu> cmp_menu_;
-
-    bool ask_quit_ = false;
-    static constexpr const char* kAskQuitStr =
-        "Some buffers have not saved, force quit(y/[n])? ";
 
     // Cmp context
     Completer* completer_ = nullptr;

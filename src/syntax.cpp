@@ -137,21 +137,23 @@ bool SyntaxParser::QueryPredicate(const TSQueryContext& query_context,
                 query_context.pattern_context[capture->index]->match;
 
             if (range.begin.line == range.end.line) {
-                Buffer* b = const_cast<Buffer*>(buffer);
-                auto str = b->GetLineNonConst(range.begin.line);
-                char tmp = str[range.end.byte_offset];
-                str[range.end.byte_offset] = '\0';
+                auto str = buffer->GetLine(range.begin.line);
+                regmatch_t m;
+                m.rm_so = 0;
+                m.rm_eo = str.size();
                 int exec_ret =
-                    regexec(&regex, str.data() + range.begin.byte_offset, 0,
-                            nullptr, 0);
-                str[range.end.byte_offset] = tmp;
+                    regexec(&regex, str.data() + range.begin.byte_offset, 1, &m,
+                            REG_STARTEND);
                 if (exec_ret == REG_NOMATCH) {
                     return false;
                 }
             } else {
                 std::string str = buffer->GetContent(range);
+                regmatch_t m;
+                m.rm_so = 0;
+                m.rm_eo = str.size();
                 if (REG_NOMATCH ==
-                    regexec(&regex, str.c_str(), 0, nullptr, REG_NOSUB)) {
+                    regexec(&regex, str.c_str(), 1, &m, REG_NOSUB)) {
                     return false;
                 }
             }

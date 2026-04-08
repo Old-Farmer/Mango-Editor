@@ -33,8 +33,10 @@ constexpr std::string_view kBufferStateString[] = {
 
 enum class Mode : int {
     kEdit = 0,     // == kVimInsert
-    kPeelCommand,  // == kVimCommand, user is inputting sth
-    kPeelShow,     // == kVimCommandShow, peel shows some multirow output
+    kPeelCommand,  // == kVimCommand :, user is inputting sth
+    kPeelSearch,   // == kVimCommand / ?, user is searching
+    kPeelShow,     // == kVimCommandShow, peel shows some multirow output and we
+                   // are in it.
 
     // Vi specific mode
     kVimNormal,
@@ -48,26 +50,28 @@ enum class Mode : int {
 };
 
 constexpr std::string_view kViModeString[] = {
-    "INSERT",   "COMMAND",  "COMMAND",    "NORMAL", "VISUAL",
-    "VISUAL-L", "VISUAL-B", "OP-PEND", "",       "",
+    "INSERT",   "COMMAND",  "COMMAND", "COMMAND", "NORMAL", "VISUAL",
+    "VISUAL-L", "VISUAL-B", "OP-PEND", "",        "",
 };
 
-#define MGO_VIM_MODE_WIDTH "8" // WIDTH for showing vim mode
+#define MGO_VIM_MODE_WIDTH "8"  // WIDTH for showing vim mode
 
 inline bool IsPeel(Mode mode) {
-    return mode == Mode::kPeelCommand || mode == Mode::kPeelShow;
+    return mode == Mode::kPeelCommand || mode == Mode::kPeelShow ||
+           mode == Mode::kPeelSearch;
 }
 
 #define MGO_DEFAULT_MODES Mode::kEdit
-#define MGO_ALL_MODES Mode::kEdit, Mode::kPeelCommand, Mode::kPeelShow
+#define MGO_ALL_MODES \
+    Mode::kEdit, Mode::kPeelCommand, Mode::kPeelShow, Mode::kPeelSearch
 
 #define MGO_VIM_VISUAL_MODES \
     Mode::kVimVisual, Mode::kVimVisualLine, Mode::kVimVisualBlock
 #define MGO_VIM_DEFAULT_MODES \
     Mode::kVimNormal, MGO_VIM_VISUAL_MODES, Mode::kVimOperatorPending
-#define MGO_VIM_ALL_MODES                                                 \
-    Mode::kVimNormal, Mode::kEdit, Mode::kVimVisual, Mode::kVimVisualLine,  \
+#define MGO_VIM_ALL_MODES                                                  \
+    Mode::kVimNormal, Mode::kEdit, Mode::kVimVisual, Mode::kVimVisualLine, \
         Mode::kVimVisualBlock, Mode::kVimOperatorPending, Mode::kPeelShow, \
-        Mode::kPeelCommand
+        Mode::kPeelCommand, Mode::kPeelSearch
 
 }  // namespace mango

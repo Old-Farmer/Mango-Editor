@@ -23,7 +23,7 @@ class TextArea {
    public:
     TextArea() = default;
     TextArea(Cursor* cursor, Opts* opts, SyntaxParser* parser,
-          ClipBoard* clipboard) noexcept;
+             ClipBoard* clipboard) noexcept;
     ~TextArea() = default;
     MGO_DELETE_COPY(TextArea);
     MGO_DEFAULT_MOVE(TextArea);
@@ -106,11 +106,9 @@ class TextArea {
     Result Redo();
     Result Undo();
 
-    // If lines == true, clipboard content will be line semantic.
-    void Copy(bool lines);
+    void Copy();
     Result Paste(size_t count);
-    // If lines == true, clipboard content will be line semantic.
-    void Cut(bool lines);
+    void Cut();
 
     void CopyRange(Range range, bool lines);
     void CutRange(Range range, bool lines);
@@ -132,6 +130,8 @@ class TextArea {
     bool BufferViewGoSearchResult(BufferSearchContext& context, bool next,
                                   size_t count, bool keep_current_if_one,
                                   CursorState& state);
+
+    void AfterModify(const Pos& cursor_pos);
 
    private:
     size_t SidebarWidth();
@@ -169,7 +169,6 @@ class TextArea {
     bool SizeValid(size_t sidebar_width);
 
     void UpdateSyntax();
-    void AfterModify(const Pos& cursor_pos);
 
     template <typename T>
     T GetOpt(OptKey key) {

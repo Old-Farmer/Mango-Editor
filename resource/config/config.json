@@ -18,6 +18,7 @@
   "input_idle_timeout": 100,
   "logverbose": false,
   "max_jump_history": 100,
+  "search_ignore_case": true,
   "scroll_rows": 3,
   "truecolor": true,
   "vim": false,

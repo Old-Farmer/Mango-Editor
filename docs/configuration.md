@@ -116,6 +116,11 @@ In `config.json`, Support options:
     default: 100,
     desc: The maximum number of edit history records kept for each window.
 
+- search_ignore_case:  
+    type: bool
+    default: true
+    desc: Ignore case when do search unless using uppercase character.
+
 - scroll_rows:  
     type: integer,
     default: 3,

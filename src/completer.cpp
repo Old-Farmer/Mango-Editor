@@ -66,7 +66,7 @@ static std::vector<std::string> SuggestBuffers(std::string_view hint,
 
 void PeelCompleter::Suggest(const Pos& cursor_pos,
                             std::vector<std::string>& menu_entries) {
-    const std::string_view content_before_cursor{peel_->GetCmdContent().data(),
+    const std::string_view content_before_cursor{peel_->GetUserInput().data(),
                                                  cursor_pos.byte_offset};
     // TODO: Refactor here!
     // Don't add any shit code here before refactor here.
@@ -130,7 +130,7 @@ Result PeelCompleter::Accept(size_t index, Cursor* cursor) {
             suggestions_[index], nullptr, false, pos);
     } else if (type_ == SuggestType::kPath) {
         std::string_view hint = {
-            peel_->GetCmdContent().data() + this_arg_offset_,
+            peel_->GetUserInput().data() + this_arg_offset_,
             cursor->pos.byte_offset - this_arg_offset_};
         int64_t sep_index = Path::LastPathSeperator(hint);
         if (sep_index == static_cast<int64_t>(hint.size() - 1)) {
@@ -254,7 +254,7 @@ std::vector<std::string_view> BufferBasicWordCompleter::GetWords(
     int byte_len;
     char c;
     while (byte_offset < byte_offset_end) {
-        ThisCharacterInline(str, byte_offset, character, byte_len);
+        ThisCharacter(str, byte_offset, character, byte_len);
         if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
                 words.push_back(

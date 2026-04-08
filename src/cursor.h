@@ -33,6 +33,7 @@ struct Cursor {
 
     // The cursor must be visible, means we must adjust the view to make the
     // cursor visible.
+    // Note: Seems not be used
     bool must_visible = true;
 
     Window* in_window;  // nullptr means in MangoPeel

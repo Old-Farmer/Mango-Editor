@@ -125,18 +125,15 @@ bool CheckUtf8Valid(std::string_view str);
 // undefined.
 // offset shouldn't >= str.size().
 // Current only return kOk.
-Result ThisCharacter(std::string_view str, int64_t offset, Character& character,
-                     int& byte_len);
+Result ThisCharacterInner(std::string_view str, int64_t offset,
+                          Character& character, int& byte_len);
 
-// Use this if you really want performance, e.g. in a big loop.
-__always_inline Result ThisCharacterInline(std::string_view str, int64_t offset,
-                                           Character& character,
-                                           int& byte_len) {
+// Wrap of ThisCharacterInner, and ascii friendly
+inline Result ThisCharacter(std::string_view str, int64_t offset,
+                            Character& character, int& byte_len) {
     MGO_ASSERT(static_cast<size_t>(offset) < str.size());
-
     int64_t cur_offset = offset;
     int64_t end_offset = str.size();
-
     // ascii happy path
     if ((cur_offset <= end_offset - 2 && IsAscii(str[cur_offset]) &&
          IsAscii(str[cur_offset + 1])) ||
@@ -145,36 +142,49 @@ __always_inline Result ThisCharacterInline(std::string_view str, int64_t offset,
         byte_len = 1;
         return kOk;
     }
-
-    character.Clear();
-    Codepoint codepoint;
-    Codepoint last_codepoint;
-    utf8proc_int32_t state = 0;
-    while (cur_offset < end_offset) {
-        int byte_eat;
-        Utf8ToUnicode(&str[cur_offset], -1, byte_eat, codepoint);
-        if (character.CodePointCount() == 0) {
-            character.Push(codepoint);
-        } else {
-            utf8proc_bool is_break = utf8proc_grapheme_break_stateful(
-                last_codepoint, codepoint, &state);
-            if (is_break) {
-                break;
-            }
-            character.Push(codepoint);
-        }
-        last_codepoint = codepoint;
-        cur_offset += byte_eat;
-    }
-    byte_len = cur_offset - offset;
-    return kOk;
+    return ThisCharacterInner(str, offset, character, byte_len);
 }
 
 // Make sure that str[offset] must be a character beginnig byte.
 // offset shouldn't <= 0.
 // Current only return kOk
-Result PrevCharacter(std::string_view str, int64_t offset, Character& character,
-                     int& byte_len);
+Result PrevCharacterInner(std::string_view str, int64_t offset,
+                          Character& character, int& byte_len);
+
+// Wrap of PrevCharacterInner, and ascii friendly
+inline Result PrevCharacter(std::string_view str, int64_t offset,
+                            Character& character, int& byte_len) {
+    MGO_ASSERT(offset > 0);
+    // ascii happy path
+    if ((offset > 1 && IsAscii(str[offset - 2]) && IsAscii(str[offset + 1])) ||
+        offset == 1) {
+        character.Set(str[offset - 1]);
+        byte_len = 1;
+        return kOk;
+    }
+    return PrevCharacterInner(str, offset, character, byte_len);
+}
+
+// Check whether between byte_offset - 1 and byte_offset is a valid character
+// boundry. Only context is that byte_offset is a codepoint start.
+inline bool CharacterBoundaryValid(std::string_view str, size_t byte_offset) {
+    if (byte_offset == str.size() || byte_offset == 0) {
+        return true;
+    }
+    // ascii happy path
+    if (IsAscii(str[byte_offset - 1]) && IsAscii(str[byte_offset])) {
+        return true;
+    }
+
+    int byte_len;
+    Codepoint cp;
+    Utf8ToUnicode(str.data() + byte_offset, str.size() - byte_offset, byte_len,
+                  cp);
+    Character c;
+    int new_byte_len;
+    PrevCharacterInner(str, byte_offset + byte_len, c, new_byte_len);
+    return new_byte_len == byte_len;
+}
 
 bool IsWordSeperator(char c);
 
