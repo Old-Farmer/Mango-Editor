@@ -1142,22 +1142,17 @@ void TextArea::CursorGoLine(size_t line) {
 
 void TextArea::StartSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
-    selection_ = std::make_unique<EditSelection>(anchor, cursor_->pos);
+    selection_ = std::make_unique<NormalSelection>(anchor, cursor_->pos);
 }
 
-void TextArea::StartVimSelection(Pos anchor) {
+void TextArea::StartLineSelection(Pos anchor) {
     b_view_->make_cursor_visible = true;
-    selection_ = std::make_unique<VimSelection>(anchor, cursor_->pos);
-}
-
-void TextArea::StartVimLineSelection(Pos anchor) {
-    b_view_->make_cursor_visible = true;
-    selection_ = std::make_unique<VimLineSelection>(anchor, cursor_->pos);
+    selection_ = std::make_unique<LineSelection>(anchor, cursor_->pos);
 }
 
 void TextArea::SelectAll() {
     b_view_->make_cursor_visible = true;
-    selection_ = std::make_unique<EditSelection>();
+    selection_ = std::make_unique<NormalSelection>();
     selection_->anchor = {0, 0};
     selection_->head = {buffer_->LineCnt() - 1,
                         buffer_->GetLine(buffer_->LineCnt() - 1).size()};

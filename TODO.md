@@ -14,10 +14,11 @@
 - Json RPC protocal
 - Lsp Client
 
-## Vi-Mode
+## Modal Editing
 
 - Operator pending mode
 - Text object
+- Multi cursor mode
 
 ## Usability
 
@@ -45,10 +46,12 @@
 ## Performance
 
 - Big file support:
-    - Refactor buffer data structure (line oriented, but rope like, balanced tree)
+    - Refactor buffer data structure (line oriented, utf-8 codepoint aware, rope like, balanced tree)
+        - A better general buffer lookup interface: zero-copy iterator, support codepoint and line semantic
     - treesitter background thread parsing
     - File background thread saving
     - long line optimization
+    - streamed regex engine
 
 ## Code Quality
 

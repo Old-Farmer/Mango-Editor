@@ -22,26 +22,16 @@ struct Selection {
 };
 
 // normal selection
-struct EditSelection : Selection {
-    EditSelection() {}
-    EditSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
-
-    Range ToSelectRange(const Buffer* buffer) const override {
-        (void)buffer;
-        return anchor < head ? Range{anchor, head} : Range{head, anchor};
-    }
-};
-
-// vim visual mode selection
-struct VimSelection : Selection {
-    VimSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
+struct NormalSelection : Selection {
+    NormalSelection() {}
+    NormalSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
 
     Range ToSelectRange(const Buffer* buffer) const override;
 };
 
-// vim visual-line mode selection
-struct VimLineSelection : Selection {
-    VimLineSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
+// Line selection
+struct LineSelection : Selection {
+    LineSelection(Pos _anchor, Pos _head) : Selection(_anchor, _head) {}
 
     Range ToSelectRange(const Buffer* buffer) const override;
     Range ToDeleteRange(const Buffer* buffer) const override;

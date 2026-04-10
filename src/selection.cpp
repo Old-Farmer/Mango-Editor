@@ -4,9 +4,9 @@
 
 namespace mango {
 
-// Vim selection is [begin, end], different with mango, so we tweak the range
-// here.
-Range VimSelection::ToSelectRange(const Buffer* buffer) const {
+// selection is [anchor, head], different with but Range is [begin, end), so we
+// tweak the range here.
+Range NormalSelection::ToSelectRange(const Buffer* buffer) const {
     Range r;
     if (anchor < head) {
         r.begin = anchor;
@@ -31,7 +31,7 @@ Range VimSelection::ToSelectRange(const Buffer* buffer) const {
     return r;
 }
 
-Range VimLineSelection::ToSelectRange(const Buffer* buffer) const {
+Range LineSelection::ToSelectRange(const Buffer* buffer) const {
     Range r;
     if (anchor < head) {
         r.begin = {anchor.line, 0};
@@ -43,7 +43,7 @@ Range VimLineSelection::ToSelectRange(const Buffer* buffer) const {
     return r;
 }
 
-Range VimLineSelection::ToDeleteRange(const Buffer* buffer) const {
+Range LineSelection::ToDeleteRange(const Buffer* buffer) const {
     // Add a '\n' after or before the range if possible
     Range r = ToSelectRange(buffer);
     if (r.end.line < buffer->LineCnt() - 1) {

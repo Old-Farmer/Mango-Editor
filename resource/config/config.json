@@ -21,7 +21,6 @@
   "search_ignore_case": true,
   "scroll_rows": 3,
   "truecolor": true,
-  "vim": false,
 
   "cursor_start_holding_interval": 500,
 

@@ -18,7 +18,6 @@
 #include "syntax.h"
 #include "timer_manager.h"
 #include "utils.h"
-#include "vim.h"
 #include "window.h"
 
 namespace mango {
@@ -48,10 +47,7 @@ class Editor {
 
     void GotoPeel(Mode mode = Mode::kPeelCommand);
     void ExitFromMode();
-    void ExitFromModeVim();
-    std::function<void()>
-        exit_from_mode_;  // init to call ExitFromMode or ExitFromModeVim.
-    void GotoModeVim(Mode mode);
+    void GotoMode(Mode mode);
     void TriggerCompletion(bool autocmp);
     void CancellCompletion();
     bool CompletionTriggered();
@@ -64,7 +60,6 @@ class Editor {
     void CursorUp(size_t count);
     void CursorDown(size_t count);
     void CursorGoSearch(bool next, size_t count, bool keep_current_if_one);
-    void CursorGoSearchVim(bool next, size_t count, bool keep_current_if_one);
 
     void RemoveCurrentBuffer();
     void SaveCurrentBuffer();
@@ -75,9 +70,7 @@ class Editor {
    private:
     // Editor Lifetime
     void InitKeymaps();
-    void InitKeymapsVim();
     void InitCommands();
-    void InitCommandsVim();
     void RegisterEditorEventHandlers();
 
     void HandleBracketedPaste(std::string& bracketed_paste_buffer);
@@ -98,10 +91,9 @@ class Editor {
     size_t Count() { return count_ == 0 ? 1 : count_; }
     // OpPendingCount is at least 1.
     // Used in vim operator pending mode
-    size_t OpPendingCountVim() {
-        return Count() * (state_vim_->op_pending_stored_count == 0
-                              ? 1
-                              : state_vim_->op_pending_stored_count);
+    size_t OpPendingCount() {
+        return Count() *
+               (op_pending_stored_count_ == 0 ? 1 : op_pending_stored_count_);
     }
 
     // helper methods
@@ -155,9 +147,23 @@ class Editor {
     BufferView b_view_stored_for_edit;
 
     bool highlight_search_ = false;
-    size_t count_;
 
-    std::unique_ptr<EditorStateVim> state_vim_;
+    enum class InputState {
+        kNone,
+        kCount,  // count
+    };
+    enum class Operator {
+        kYank,
+        kDelete,
+    };
+
+    size_t count_;
+    size_t op_pending_stored_count_ = 0;
+
+    InputState input_state_ = InputState::kNone;
+    Operator pending_operator_;
+
+    bool search_foward_ = true;
 
     std::unique_ptr<SingleTimer> autocmp_trigger_timer_;
     std::unique_ptr<SingleTimer> search_on_type_timer_;

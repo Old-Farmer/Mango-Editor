@@ -27,23 +27,15 @@ void StatusLine::Draw() {
         b = cursor_->in_window->area_.buffer_;
     }
     std::string left_str;
-    if (global_opts_->GetOpt<bool>(kOptVim)) {
-        left_str =
-            fmt::format("{:<" MGO_VIM_MODE_WIDTH "} {}{}",
-                        kViModeString[static_cast<int>(*mode_)], b->Name(),
-                        kBufferStateString[static_cast<int>(b->state())]);
-    } else {
-        left_str =
-            fmt::format("{}{}", b->Name(),
-                        kBufferStateString[static_cast<int>(b->state())]);
-    }
+    left_str = fmt::format("{:<" MGO_VIM_MODE_WIDTH "} {}{}",
+                           kModeString[static_cast<int>(*mode_)], b->Name(),
+                           kBufferStateString[static_cast<int>(b->state())]);
 
     term_->Print(0, row_, scheme[t], left_str.c_str());
 
     int64_t line, character_in_line;
     if (IsPeel(*mode_)) {
-        line =
-            cursor_->restore_from_peel->area_.b_view_->cursor_state.pos.line;
+        line = cursor_->restore_from_peel->area_.b_view_->cursor_state.pos.line;
         character_in_line = cursor_->restore_from_peel->area_.b_view_
                                 ->cursor_state.character_in_line_;
     } else {
@@ -54,7 +46,7 @@ void StatusLine::Draw() {
     std::string right_str =
         fmt::format("  {},{}  {}  {}{}  {}", line + 1, character_in_line + 1,
                     FiletypeStrRep(b->filetype()),
-                    b->opts().GetOpt<bool>(kOptTabSpace) ? "Spaces:" : "Tab:",
+                    b->opts().GetOpt<bool>(kOptTabSpace) ? "[s]:" : "[t]:",
                     b->opts().GetOpt<int64_t>(kOptTabStop), b->eol_seq());
     // all is ascii character, so str len == width
     term_->Print(width_ - right_str.length(), row_, scheme[t],

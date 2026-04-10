@@ -81,8 +81,7 @@ class TextArea {
     void CursorGoLine(size_t line);
 
     void StartSelection(Pos anchor);
-    void StartVimSelection(Pos anchor);
-    void StartVimLineSelection(Pos anchor);
+    void StartLineSelection(Pos anchor);
     void StopSelection() { selection_.reset(); }
     bool IsSelectionActive() { return selection_.get() != nullptr; }
     void SelectionFollowCursor();

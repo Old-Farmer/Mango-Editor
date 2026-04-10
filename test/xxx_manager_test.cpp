@@ -8,7 +8,7 @@
 using namespace mango;
 
 TEST_CASE("keyseq_manager test") {
-    Mode mode = Mode::kEdit;
+    Mode mode = Mode::kInsert;
     KeyseqManager manager(mode);
 
     Keyseq h([] { throw "hey"; });

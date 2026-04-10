@@ -40,7 +40,6 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
     {"search_ignore_case", kOptSearchIgnoreCase},
     {"scroll_rows", kOptScrollRows},
     {"truecolor", kOptTrueColor},
-    {"vim", kOptVim},
     // private
     {"cursor_start_holding_interval", kOptCursorStartHoldingInterval},
 };
@@ -78,7 +77,6 @@ static void OptStaticInit(const OptInfo*& opt_info) {
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kBool};
         static_opt_info[kOptScrollRows] = {OptScope::kGlobal, Type::kInteger};
         static_opt_info[kOptTrueColor] = {OptScope::kGlobal, Type::kBool};
-        static_opt_info[kOptVim] = {OptScope::kGlobal, Type::kBool};
         // private
         static_opt_info[kOptCursorStartHoldingInterval] = {OptScope::kGlobal,
                                                            Type::kInteger};

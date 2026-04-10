@@ -80,7 +80,6 @@ enum OptKey {
     kOptScrollRows,
     kOptSearchIgnoreCase,
     kOptTrueColor,
-    kOptVim,
 
     // private
     kOptCursorStartHoldingInterval,

@@ -251,7 +251,6 @@ target_sources(
   "${SRC_DIR}/trie.cpp"
   "${SRC_DIR}/utils.h"
   "${SRC_DIR}/utils.cpp"
-  "${SRC_DIR}/vim.h"
   "${SRC_DIR}/window.h"
   "${SRC_DIR}/window.cpp"
 )

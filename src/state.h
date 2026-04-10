@@ -32,46 +32,36 @@ constexpr std::string_view kBufferStateString[] = {
 };
 
 enum class Mode : int {
-    kEdit = 0,     // == kVimInsert
-    kPeelCommand,  // == kVimCommand :, user is inputting sth
-    kPeelSearch,   // == kVimCommand / ?, user is searching
-    kPeelShow,     // == kVimCommandShow, peel shows some multirow output and we
+    kNormal = 0,
+    kInsert,
+    kVisual,
+    kVisualLine,
+    kOperatorPending,
+    kPeelCommand,  // user is inputting sth
+    kPeelSearch,   // user is searching
+    kPeelShow,     // peel shows some multirow output and we
                    // are in it.
-
-    // Vi specific mode
-    kVimNormal,
-    kVimVisual,
-    kVimVisualLine,
-    kVimVisualBlock,
-    kVimOperatorPending,
 
     kNone,    // Used for some situations that don't care about mode.
     _kCount,  // not mode, just for count
 };
 
-constexpr std::string_view kViModeString[] = {
-    "INSERT",   "COMMAND",  "COMMAND", "COMMAND", "NORMAL", "VISUAL",
-    "VISUAL-L", "VISUAL-B", "OP-PEND", "",        "",
+constexpr std::string_view kModeString[] = {
+    "NORMAL",  "INSERT", "VISUAL", "VISUAL-L", "OP-PEND",
+    "COMMAND", "SEARCH", "SHOW",   "",         "",
 };
 
-#define MGO_VIM_MODE_WIDTH "8"  // WIDTH for showing vim mode
+#define MGO_VIM_MODE_WIDTH "8"  // WIDTH for showing mode
 
 inline bool IsPeel(Mode mode) {
     return mode == Mode::kPeelCommand || mode == Mode::kPeelShow ||
            mode == Mode::kPeelSearch;
 }
 
-#define MGO_DEFAULT_MODES Mode::kEdit
-#define MGO_ALL_MODES \
-    Mode::kEdit, Mode::kPeelCommand, Mode::kPeelShow, Mode::kPeelSearch
-
-#define MGO_VIM_VISUAL_MODES \
-    Mode::kVimVisual, Mode::kVimVisualLine, Mode::kVimVisualBlock
-#define MGO_VIM_DEFAULT_MODES \
-    Mode::kVimNormal, MGO_VIM_VISUAL_MODES, Mode::kVimOperatorPending
-#define MGO_VIM_ALL_MODES                                                  \
-    Mode::kVimNormal, Mode::kEdit, Mode::kVimVisual, Mode::kVimVisualLine, \
-        Mode::kVimVisualBlock, Mode::kVimOperatorPending, Mode::kPeelShow, \
-        Mode::kPeelCommand, Mode::kPeelSearch
+#define MGO_VISUAL_MODES Mode::kVisual, Mode::kVisualLine
+#define MGO_DEFAULT_MODES Mode::kNormal, MGO_VISUAL_MODES
+#define MGO_ALL_MODES                                                       \
+    Mode::kNormal, Mode::kInsert, MGO_VISUAL_MODES, Mode::kOperatorPending, \
+        Mode::kPeelShow, Mode::kPeelCommand, Mode::kPeelSearch
 
 }  // namespace mango

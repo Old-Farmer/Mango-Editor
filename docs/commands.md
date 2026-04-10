@@ -10,9 +10,9 @@ Commands are instructions you can execute in the Mango Peel. You can use full fo
     short form: q!
     desc: force quit the editor
 
-- `saveas <path>`  
-    short form: sa
-    desc: save the current content as a file
+- `write [path]`  
+    short form: w
+    desc: save the current content as a file, or save as another file if `path` is specified.
 
 - `help [doc-name]`  
     short form: h
@@ -26,9 +26,9 @@ Commands are instructions you can execute in the Mango Peel. You can use full fo
     short form: b
     desc: goto and edit the buffer
 
-- `goline <line>`
-    short form: g
-    desc: goto the line.
+- `bdelete`
+    short form: bd
+    desc: delete the current buffer
 
 - `smile`
     short form: None

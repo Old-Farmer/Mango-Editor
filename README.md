@@ -1,6 +1,6 @@
-# 🥭Mango
+# Mango
 
-Mango is a modern terminal editor that focuses on simplicity and OOTB.
+A modern text editor that combines modal editing with an intuitive, out-of-the-box experience, so you can code more and configure less.
 
 It's my hobby project. I really don't know how far I could go. Any advice is welcome.
 
@@ -8,7 +8,10 @@ It's my hobby project. I really don't know how far I could go. Any advice is wel
 
 ## Target
 
-Terminal editors are always difficult to use, hard to configure. Most of them were designed decades ago, so they have complex key bindings, wierd interfaces and need tons of community plugins to become user-friendly. This project aims to make users life easier --- no more high learning curves, no more tons of plugins, no more hundreds lines of configuration. All just out of box. Having fun with codes!
+- Modern: Built on modern editor infrastructure.
+- Intuitive: Behaves the way most people would naturally expect.
+- Out of the box: Works well from the start, with no need for hundreds of lines of configuration.
+- Consistency: Feels predictable and coherent, so similar actions lead to similar results throughout the editor.
 
 ## Note
 
@@ -21,12 +24,12 @@ This project is far from mature, so:
 
 ## Features
 
-- rich unicode support(utf-8)
-- mouse support
-- syntax highlighting with tree-sitter(c, c++, json)
-- basic word-based auto completion
-- colorscheme
-- home-like Vim mode
+- Modal editing: Mostly like Vim/Neovim but have some differences. No Vi-compatiblility.
+- Rich unicode support(utf-8)
+- Mouse support
+- Syntax highlighting with tree-sitter(c, c++, json)
+- Basic word-based auto completion
+- Colorscheme
 
 See [help](./docs/help.md) for more infomation.
 
