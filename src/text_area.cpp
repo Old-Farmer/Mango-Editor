@@ -66,8 +66,8 @@ void TextArea::Draw(BufferSearchContext* search_context) {
             search_hl.push_back(
                 {search_context->search_result[i],
                  search_context->current_search == static_cast<int64_t>(i)
-                     ? scheme[kSearchCurrent]
-                     : scheme[kSearch]});
+                     ? kSearchCurrent
+                     : kSearch});
         }
         highlights.push_back(&search_hl);
     }
@@ -77,7 +77,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
     if (IsSelectionActive()) {
         selection_hl.resize(1);
         selection_hl[0].range = selection_->ToSelectRange(buffer_);
-        selection_hl[0].attr = scheme[kSelection];
+        selection_hl[0].hl_type = kSelection;
         highlights.push_back(&selection_hl);
     }
 
@@ -109,7 +109,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
             if (i != static_cast<int64_t>(line.size())) {
                 trailing_white_hl.push_back(
                     {{{l, static_cast<size_t>(i)}, {l, line.size()}},
-                     scheme[kTrailingWhite]});
+                     kTrailingWhite});
             }
         }
         if (!trailing_white_hl.empty()) {
@@ -177,7 +177,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
             byte_offset =
                 DrawLine(*term_, line_str, {line, byte_offset}, 0,
                          content_width, i + row_, content_s_col, &highlights,
-                         scheme[kNormal], trailing_white_begin, tabstop, true);
+                         scheme, kNormal, trailing_white_begin, tabstop, true);
             if (byte_offset == line_str.size()) {
                 line++;
                 byte_offset = 0;
@@ -204,7 +204,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                     : trailing_white_begin_pre_line[line -
                                                     render_range.begin.line];
             DrawLine(*term_, line_str, {line, 0}, b_view_->col, content_width,
-                     cur_s_row, content_s_col, &highlights, scheme[kNormal],
+                     cur_s_row, content_s_col, &highlights, scheme, kNormal,
                      trailing_white_begin, tabstop, false);
         }
     }

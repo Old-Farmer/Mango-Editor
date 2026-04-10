@@ -46,7 +46,7 @@ void StatusLine::Draw() {
     std::string right_str =
         fmt::format("  {},{}  {}  {}{}  {}", line + 1, character_in_line + 1,
                     FiletypeStrRep(b->filetype()),
-                    b->opts().GetOpt<bool>(kOptTabSpace) ? "[s]:" : "[t]:",
+                    b->opts().GetOpt<bool>(kOptTabSpace) ? "Sp" : "Tb",
                     b->opts().GetOpt<int64_t>(kOptTabStop), b->eol_seq());
     // all is ascii character, so str len == width
     term_->Print(width_ - right_str.length(), row_, scheme[t],

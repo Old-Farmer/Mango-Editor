@@ -46,12 +46,11 @@
 ## Performance
 
 - Big file support:
-    - Refactor buffer data structure (line oriented, utf-8 codepoint aware, rope like, balanced tree)
-        - A better general buffer lookup interface: zero-copy iterator, support codepoint and line semantic
+    - Refactor buffer data structure (vector of lines -> line-oriented, balanced tree)
     - treesitter background thread parsing
     - File background thread saving
-    - long line optimization
-    - streamed regex engine
+
+- long line optimization(seems never)
 
 ## Code Quality
 

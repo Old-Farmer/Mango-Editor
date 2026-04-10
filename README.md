@@ -1,10 +1,8 @@
 # Mango
 
-A modern text editor that combines modal editing with an intuitive, out-of-the-box experience, so you can code more and configure less.
+A modern text editor that combines modal editing with an intuitive, out-of-the-box experience.
 
-It's my hobby project. I really don't know how far I could go. Any advice is welcome.
-
-![Current ScreenShot](./img/Screenshot2.png)
+![Current ScreenShot](./img/Screenshot.png)
 
 ## Target
 
@@ -17,7 +15,7 @@ It's my hobby project. I really don't know how far I could go. Any advice is wel
 
 Linux only now.
 
-This project is far from mature, so:
+!!! This project is far from mature, so:
 
 - May not be safe for production.
 - Breaking changes affecting configurations, keymaps, and related components may be introduced frequently.

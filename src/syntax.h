@@ -18,7 +18,7 @@ struct TSQueryCapture;
 namespace mango {
 struct Highlight {
     Range range;
-    Terminal::AttrPair attr;
+    ColorSchemeType hl_type;
 };
 
 struct SyntaxContext {

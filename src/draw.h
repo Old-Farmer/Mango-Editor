@@ -15,8 +15,8 @@ size_t DrawLine(Terminal& term, std::string_view line, const Pos& begin_pos,
                 size_t begin_view_col, size_t width, size_t screen_row,
                 size_t screen_col,
                 const std::vector<const std::vector<Highlight>*>* highlights,
-                Terminal::AttrPair fallback_attr, int64_t trailing_white_begin,
-                int tabstop, bool wrap);
+                ColorScheme scheme, ColorSchemeType fallback_type,
+                int64_t trailing_white_begin, int tabstop, bool wrap);
 
 // Nearly Same as the above, but not draw at terminal.
 // If target_byte_offset != nullptr, if corresponding character can be drawed in

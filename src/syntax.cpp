@@ -100,6 +100,7 @@ SyntaxParser::SyntaxParser(GlobalOpts* global_opts)
     : parser_(ts_parser_new()),
       query_cursor_(ts_query_cursor_new()),
       global_opts_(global_opts) {
+    (void)global_opts_;
     // TODO: refactor here
     filetype_to_language_["c"] = tree_sitter_c();
     filetype_to_language_["cpp"] = tree_sitter_cpp();
@@ -139,8 +140,10 @@ bool SyntaxParser::QueryPredicate(const TSQueryContext& query_context,
             if (range.begin.line == range.end.line) {
                 auto str = buffer->GetLine(range.begin.line);
                 regmatch_t m;
+                // We use m.rm_so = 0 and str.data() + range.begin.byte_offset
+                // to make '^' have effect
                 m.rm_so = 0;
-                m.rm_eo = str.size();
+                m.rm_eo = range.end.byte_offset - range.begin.byte_offset;
                 int exec_ret =
                     regexec(&regex, str.data() + range.begin.byte_offset, 1, &m,
                             REG_STARTEND);
@@ -153,7 +156,7 @@ bool SyntaxParser::QueryPredicate(const TSQueryContext& query_context,
                 m.rm_so = 0;
                 m.rm_eo = str.size();
                 if (REG_NOMATCH ==
-                    regexec(&regex, str.c_str(), 1, &m, REG_NOSUB)) {
+                    regexec(&regex, str.c_str(), 1, &m, REG_STARTEND)) {
                     return false;
                 }
             }
@@ -191,8 +194,6 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
     context.syntax_highlight.clear();
     context.syntax_priority.clear();
 
-    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
-
     while (true) {
         bool match_ok = ts_query_cursor_next_match(query_cursor_, &match);
         if (!match_ok) {
@@ -223,19 +224,19 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
             }
 
             // TODO: Maybe optimize string compare
-            Terminal::AttrPair attr;
+            ColorSchemeType hl_type;
             int64_t priority;
             auto iter = ts_query_capture_name_to_character_type_->find(name);
             if (iter == ts_query_capture_name_to_character_type_->end()) {
-                attr = scheme[kNormal];
+                hl_type = kNormal;
                 priority = -1;
             } else {
-                attr = scheme[iter->second];
+                hl_type = iter->second;
                 priority = match.captures[i].index;
             }
 
             if (context.syntax_highlight.empty()) {
-                context.syntax_highlight.push_back({range, attr});
+                context.syntax_highlight.push_back({range, hl_type});
                 context.syntax_priority.push_back(priority);
                 continue;
             }
@@ -248,14 +249,14 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
             while (!context.syntax_highlight.empty()) {
                 Highlight& prev_hl = context.syntax_highlight.back();
                 if (prev_hl.range.RangeAfterMe(range)) {
-                    context.syntax_highlight.push_back({range, attr});
+                    context.syntax_highlight.push_back({range, hl_type});
                     context.syntax_priority.push_back(priority);
                     break;
                 } else if (prev_hl.range.RangeEqualMe(range)) {
                     if (context.syntax_priority.back() > priority) {
                         break;
                     }
-                    prev_hl.attr = attr;
+                    prev_hl.hl_type = hl_type;
                     context.syntax_priority.back() = priority;
                     break;
                 }
@@ -358,7 +359,7 @@ void SyntaxParser::InitQueryContex(TSQueryContext& query_context) {
                 query_context.pattern_context[i] =
                     std::make_unique<TSQueryPatternContext>();
                 int ret = regcomp(&query_context.pattern_context[i]->match,
-                                  regex_pattern, REG_EXTENDED | REG_NOSUB);
+                                  regex_pattern, REG_EXTENDED);
                 if (ret != 0) {
                     char buf[128];
                     regerror(ret, &query_context.pattern_context[i]->match, buf,
