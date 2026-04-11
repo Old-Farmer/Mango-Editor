@@ -40,9 +40,7 @@ class Window {
     void CursorGoHome() { area_.CursorGoHome(); }
     void CursorGoFirstNonBlank() { area_.CursorGoFirstNonBlank(); }
     void CursorGoEnd() { area_.CursorGoEnd(); }
-    void CursorGoNextWordEnd(size_t count, bool one_more_character) {
-        area_.CursorGoNextWordEnd(count, one_more_character);
-    }
+    void CursorGoNextWordEnd(size_t count) { area_.CursorGoNextWordEnd(count); }
     void CursorGoWordBegin(size_t count) { area_.CursorGoPrevWordBegin(count); }
     void CursorGoNextWordBegin(size_t count) {
         area_.CursorGoNextWordBegin(count);

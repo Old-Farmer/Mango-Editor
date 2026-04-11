@@ -194,9 +194,8 @@ Result NextWordBegin(std::string_view str, size_t offset,
                      size_t& next_word_offset);
 
 // next word offset will set to the this/next word end.
-// one_more_character means it will stop one character after the end.
 // Current only return kOk
-Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
+Result NextWordEnd(std::string_view str, size_t offset,
                    size_t& next_word_end_offset);
 
 // prev word offset will set to the this/prev word end

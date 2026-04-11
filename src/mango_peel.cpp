@@ -62,8 +62,8 @@ void MangoPeel::CursorGoHome() {
     s.SetCursor(area_.cursor_);
 }
 void MangoPeel::CursorGoEnd() { area_.CursorGoEnd(); }
-void MangoPeel::CursorGoNextWordEnd(size_t count, bool one_more_character) {
-    area_.CursorGoNextWordEnd(count, one_more_character);
+void MangoPeel::CursorGoNextWordEnd(size_t count) {
+    area_.CursorGoNextWordEnd(count);
 }
 void MangoPeel::CursorGoPrevWordBegin(size_t count) {
     area_.b_view_->make_cursor_visible = true;

@@ -228,9 +228,8 @@ void Editor::InitKeymaps() {
                {MGO_DEFAULT_MODES});
     MGO_KEYMAP("b", {[this] { cursor_.in_window->CursorGoWordBegin(Count()); }},
                {MGO_DEFAULT_MODES});
-    MGO_KEYMAP("e", {[this] {
-                   cursor_.in_window->CursorGoNextWordEnd(Count(), false);
-               }},
+    MGO_KEYMAP("e",
+               {[this] { cursor_.in_window->CursorGoNextWordEnd(Count()); }},
                {MGO_DEFAULT_MODES});
     MGO_KEYMAP("w",
                {[this] { cursor_.in_window->CursorGoNextWordBegin(Count()); }},
@@ -342,8 +341,7 @@ void Editor::InitKeymaps() {
                {Mode::kPeelCommand, Mode::kPeelSearch});
     MGO_KEYMAP("<c-left>", {[this] { peel_->CursorGoPrevWordBegin(Count()); }},
                {Mode::kPeelCommand, Mode::kPeelSearch});
-    MGO_KEYMAP("<c-right>",
-               {[this] { peel_->CursorGoNextWordEnd(Count(), true); }},
+    MGO_KEYMAP("<c-right>", {[this] { peel_->CursorGoNextWordEnd(Count()); }},
                {Mode::kPeelCommand, Mode::kPeelSearch});
     MGO_KEYMAP("<home>", {[this] { peel_->CursorGoHome(); }},
                {Mode::kPeelCommand, Mode::kPeelSearch});
@@ -951,7 +949,6 @@ void Editor::ExitFromMode() {
             highlight_search_ = false;
             break;
         case Mode::kInsert: {
-            cursor_.in_window->CursorGoLeft(Count());
             term_.SetCursorStyle(Terminal::CursorStyle::kBlock);
             break;
         }
@@ -984,8 +981,12 @@ void Editor::GotoMode(Mode mode) {
     if (mode_ != Mode::kNormal) {
         ExitFromMode();
     }
-    if (mode == Mode::kInsert) {
-        term_.SetCursorStyle(Terminal::CursorStyle::kLine);
+    switch (mode) {
+        case Mode::kInsert:
+            term_.SetCursorStyle(Terminal::CursorStyle::kLine);
+            break;
+        default:
+            break;
     }
     mode_ = mode;
 }

@@ -62,8 +62,7 @@ class TextArea {
     bool CursorGoHomeState(CursorState& state);
     bool CursorGoFirstNonBlankState(CursorState& state);
     bool CursorGoEndState(CursorState& state);
-    bool CursorGoNextWordEndState(size_t count, bool one_more_character,
-                                  CursorState& state);
+    bool CursorGoNextWordEndState(size_t count, CursorState& state);
     bool CursorGoPrevWordBeginState(size_t count, CursorState& state);
     bool CursorGoNextWordBeginState(size_t count, CursorState& state);
     bool CursorGoLineState(size_t line, CursorState& state);
@@ -75,7 +74,7 @@ class TextArea {
     void CursorGoHome();
     void CursorGoFirstNonBlank();
     void CursorGoEnd();
-    void CursorGoNextWordEnd(size_t count, bool one_more_character);
+    void CursorGoNextWordEnd(size_t count);
     void CursorGoPrevWordBegin(size_t count);
     void CursorGoNextWordBegin(size_t count);
     void CursorGoLine(size_t line);

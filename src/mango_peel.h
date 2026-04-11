@@ -29,7 +29,7 @@ class MangoPeel {
     void CursorGoLeft(size_t count);
     void CursorGoHome();
     void CursorGoEnd();
-    void CursorGoNextWordEnd(size_t count, bool one_more_character);
+    void CursorGoNextWordEnd(size_t count);
     void CursorGoPrevWordBegin(size_t count);
     void Copy();
 

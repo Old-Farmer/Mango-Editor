@@ -336,7 +336,7 @@ Result NextWordBegin(std::string_view str, size_t offset,
     return kOk;
 }
 
-Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
+Result NextWordEnd(std::string_view str, size_t offset,
                    size_t& next_word_end_offset) {
     if (offset == str.size()) {
         return kOk;
@@ -346,35 +346,21 @@ Result NextWordEnd(std::string_view str, size_t offset, bool one_more_character,
     int byte_len;
     bool found_word_character = false;
     ThisCharacter(str, offset, character, byte_len);
-    size_t prev_offset = offset;
     offset += byte_len;
     while (offset < str.size()) {
         ThisCharacter(str, offset, character, byte_len);
         char c;
         if (character.Ascii(c) && IsWordSeperator(c)) {
             if (found_word_character) {
-                if (one_more_character) {
-                    next_word_end_offset = offset;
-                } else {
-                    next_word_end_offset = prev_offset;
-                }
+                next_word_end_offset = offset;
                 return kOk;
             }
         } else {
             found_word_character = true;
         }
-        prev_offset = offset;
         offset += byte_len;
     }
-    if (found_word_character) {
-        if (one_more_character) {
-            next_word_end_offset = str.size();
-        } else {
-            next_word_end_offset = str.size() - prev_offset;
-        }
-    } else {
-        next_word_end_offset = str.size();
-    }
+    next_word_end_offset = str.size();
     return kOk;
 }
 

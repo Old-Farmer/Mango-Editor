@@ -952,8 +952,7 @@ bool TextArea::CursorGoEndState(CursorState& state) {
     state.DontHoldColWant();
     return true;
 }
-bool TextArea::CursorGoNextWordEndState(size_t count, bool one_more_character,
-                                        CursorState& state) {
+bool TextArea::CursorGoNextWordEndState(size_t count, CursorState& state) {
     MGO_ASSERT(buffer_);
     MGO_ASSERT(count != 0);
     size_t i = 0;
@@ -967,8 +966,7 @@ bool TextArea::CursorGoNextWordEndState(size_t count, bool one_more_character,
             state.pos.byte_offset = 0;
             cur_line = buffer_->GetLine(state.pos.line);
         }
-        NextWordEnd(cur_line, state.pos.byte_offset, one_more_character,
-                    state.pos.byte_offset);
+        NextWordEnd(cur_line, state.pos.byte_offset, state.pos.byte_offset);
     }
     if (i == 0) {
         return false;
@@ -1104,10 +1102,10 @@ void TextArea::CursorGoEnd() {
     }
 }
 
-void TextArea::CursorGoNextWordEnd(size_t count, bool one_more_character) {
+void TextArea::CursorGoNextWordEnd(size_t count) {
     b_view_->make_cursor_visible = true;
     CursorState state(cursor_);
-    if (CursorGoNextWordEndState(count, one_more_character, state)) {
+    if (CursorGoNextWordEndState(count, state)) {
         state.SetCursor(cursor_);
         SelectionFollowCursor();
     }

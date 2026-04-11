@@ -4,31 +4,13 @@
 
 namespace mango {
 
-// selection is [anchor, head], different with but Range is [begin, end), so we
-// tweak the range here.
 Range NormalSelection::ToSelectRange(const Buffer* buffer) const {
-    Range r;
+    (void)buffer;
     if (anchor < head) {
-        r.begin = anchor;
-        r.end = head;
+        return Range{anchor, head};
     } else {
-        r.begin = head;
-        r.end = anchor;
+        return Range{head, anchor};
     }
-    const auto& line = buffer->GetLine(r.end.line);
-    if (r.end.byte_offset == line.size()) {
-        if (buffer->LineCnt() - 1 == r.end.line) {
-            return r;
-        }
-        r.end.line++;
-        r.end.byte_offset = 0;
-        return r;
-    }
-    Character c;
-    int byte_len;
-    ThisCharacter(line, r.end.byte_offset, c, byte_len);
-    r.end.byte_offset += byte_len;
-    return r;
 }
 
 Range LineSelection::ToSelectRange(const Buffer* buffer) const {
