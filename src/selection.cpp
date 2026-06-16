@@ -18,8 +18,13 @@ Range NormalSelection::ToSelectRange(const Buffer* buffer) const {
         auto iter = buffer->Find(res.end);
         if (iter != buffer->End()) {
             Character c;
-            iter = NextCharacter(iter, buffer->End(), c);
-            res.end = *buffer->OffsetToPos(iter.offset());
+            auto next = NextCharacter(iter, buffer->End(), c);
+            if (char ascii_c; c.Ascii(ascii_c) && ascii_c == '\n') {
+                res.end.line++;
+                res.end.byte_offset = 0;
+            } else {
+                res.end.byte_offset += next.offset() - iter.offset();
+            }
         }
     }
     return res;

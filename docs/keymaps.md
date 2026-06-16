@@ -98,7 +98,9 @@ Examples:
 | `Y` | Copy to line end | Normal | Editor |
 | `d` | Cut selection / prepare delete operation | Select, Select-L, Normal | Editor |
 | `D` | Delete to line end | Normal | Editor |
-| `p` | Paste | Normal | Editor |
+| `p` | Paste just after cursor | Normal | Editor |
+| `P` | Paste at cursor | Normal | Editor |
+| `p`,`P` | Replace selection | Select, Select-L | Editor |
 | `u` | Undo | Normal | Editor |
 | `<c-r>` | Redo | Normal | Editor |
 | `i` | Enter insert mode at cursor | Normal | Editor |
@@ -110,7 +112,7 @@ Examples:
 | `<enter>` | Add newline | Insert | Editor |
 | `<bs>` | Delete character before cursor | Insert | Editor |
 | `<c-w>` | Delete word before cursor | Insert | Editor |
-| `<c-r>` | Paste from clipboard | Insert | Editor |
+| `<c-r>` | Paste | Insert | Editor |
 | `<space>f` | Call clang-format to format the current buffer(really unstable) | Normal | Editor |
 | `>` | Indent | Select, Select-L, Op-Pend | Editor |
 | `<` | Unindent | Select-L, Select-L, Op-Pend | Editor |

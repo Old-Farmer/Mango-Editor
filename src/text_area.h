@@ -176,7 +176,7 @@ class TextArea {
     Result Undo();
 
     void Copy();
-    Result Paste(size_t count);
+    Result Paste(size_t count, bool after_cursor);
     void Cut();
 
     Result IndentSelection(size_t count);

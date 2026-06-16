@@ -104,7 +104,9 @@ class TextWindow : public Window {
     Result GotoFile();
 
     void Copy() { area_.Copy(); }
-    Result Paste(size_t count) { return area_.Paste(count); }
+    Result Paste(size_t count, bool after_cursor) {
+        return area_.Paste(count, after_cursor);
+    }
     void Cut() { area_.Cut(); }
 
     Result IndentSelection(size_t count) {

@@ -366,7 +366,8 @@ void Editor::InitKeymaps() {
                {Mode::kInsert});
     CHX_KEYMAP("<enter>", {[this] { cursor_.t_win->AddStringAtCursor("\n"); }},
                {Mode::kInsert});
-    CHX_KEYMAP("<c-r>", {[this] { cursor_.t_win->Paste(1); }}, {Mode::kInsert});
+    CHX_KEYMAP("<c-r>", {[this] { cursor_.t_win->Paste(1, false); }},
+               {Mode::kInsert});
     CHX_KEYMAP("i", {[this] { GotoMode(Mode::kInsert); }}, {Mode::kNormal});
     CHX_KEYMAP("I", {[this] {
                    cursor_.t_win->CursorGoFirstNonBlank();
@@ -413,7 +414,12 @@ void Editor::InitKeymaps() {
                }},
                {Mode::kNormal});
     CHX_KEYMAP("p", {[this] {
-                   cursor_.t_win->Paste(Count());
+                   cursor_.t_win->Paste(Count(), true);
+                   ExitFromMode();
+               }},
+               {CHX_DEFAULT_MODES});
+    CHX_KEYMAP("P", {[this] {
+                   cursor_.t_win->Paste(Count(), false);
                    ExitFromMode();
                }},
                {CHX_DEFAULT_MODES});

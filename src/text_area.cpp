@@ -1602,7 +1602,7 @@ void TextArea::Copy() {
     }
 }
 
-Result TextArea::Paste(size_t count) {
+Result TextArea::Paste(size_t count, bool after_cursor) {
     CHX_ASSERT(count != 0);
     b_view_->make_cursor_visible = true;
     bool lines;
@@ -1627,12 +1627,13 @@ Result TextArea::Paste(size_t count) {
         }
     }
     if (IsSelectionActive()) {
+        (void)after_cursor;
         return ReplaceSelection(content, lines);
     } else {
         Pos pos;
         Result res;
+        Pos insert_pos;
         if (lines) {
-            pos.line = cursor_->pos.line + 1;
             pos.byte_offset = 0;
             // try put cursor at the first non blank.
             // use codepoint here for convenience.
@@ -1640,13 +1641,33 @@ Result TextArea::Paste(size_t count) {
                 if (c != '\t' && c != kSpaceChar) break;
                 pos.byte_offset++;
             }
-            content.insert(0, 1, '\n');
-            res = buffer_->Add({cursor_->pos.line,
-                                buffer_->GetLineView(cursor_->pos.line).Size()},
-                               content, &cursor_->pos, true, pos);
+            if (after_cursor) {
+                pos.line = cursor_->pos.line + 1;
+                content.insert(0, 1, '\n');
+                insert_pos = {cursor_->pos.line,
+                              buffer_->GetLineView(cursor_->pos.line).Size()};
+            } else {
+                pos.line = cursor_->pos.line;
+                content.append(1, '\n');
+                insert_pos = {cursor_->pos.line, 0};
+            }
         } else {
-            res = buffer_->Add(cursor_->pos, content, nullptr, false, pos);
+            insert_pos = cursor_->pos;
+            if (after_cursor) {
+                auto iter = buffer_->Find(insert_pos);
+                if (iter != buffer_->End()) {
+                    Character c;
+                    auto next = NextCharacter(iter, buffer_->End(), c);
+                    if (char ascii_c; c.Ascii(ascii_c) && ascii_c == '\n') {
+                        insert_pos.line++;
+                        insert_pos.byte_offset = 0;
+                    } else {
+                        insert_pos.byte_offset += next.offset() - iter.offset();
+                    }
+                }
+            }
         }
+        res = buffer_->Add(insert_pos, content, &cursor_->pos, lines, pos);
         if (res != kOk) return res;
         AfterModify(pos);
         return kOk;
