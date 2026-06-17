@@ -173,7 +173,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
 
-# TODO: use ICU and support grapheme cluster
+# TODO: maybe use ICU to support more unicode features
 # # ICU
 # find_package(ICU REQUIRED COMPONENTS uc i18n data)
 

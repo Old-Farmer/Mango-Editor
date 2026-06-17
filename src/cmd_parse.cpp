@@ -14,7 +14,7 @@ namespace {
 
 constexpr const char* KUsageTemplate =
     "Usage:\n"
-    "  mgo [options] [file ...]\n"
+    "  chx [options] [file ...]\n"
     "\n"
     "Options:\n"
     "   -h(--help) Show usage";
@@ -24,9 +24,9 @@ void PrintUsage(int status = EXIT_SUCCESS) {
     exit(status);
 }
 
-void PrintVersion(int status = EXIT_SUCCESS) {
+void PrintVersion() {
     puts(kVersionInfo);
-    exit(status);
+    exit(EXIT_SUCCESS);
 }
 
 }  // namespace
