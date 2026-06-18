@@ -44,17 +44,17 @@ const char* MyTSRead(void* payload, uint32_t byte_offset, TSPoint position,
 }
 
 struct CharacterTypeCaptureNameMappingItem {
-    ColorSchemeType t;
+    ThemeType t;
     std::vector<std::string_view> capture_names;
 };
 
 static void SyntaxParserStaticInit(
-    const std::unordered_map<std::string_view, ColorSchemeType>*&
+    const std::unordered_map<std::string_view, ThemeType>*&
         ts_query_capture_name_to_character_type) {
-    static std::unordered_map<std::string_view, ColorSchemeType>*
+    static std::unordered_map<std::string_view, ThemeType>*
         static_ts_query_capture_name_to_character_type = [] {
             auto ret =
-                new std::unordered_map<std::string_view, ColorSchemeType>();
+                new std::unordered_map<std::string_view, ThemeType>();
             const std::vector<CharacterTypeCaptureNameMappingItem>
                 kCharacterTypeToTSQueryCaptureName = {
                     {kFunction, {"function", "funtion.special"}},
@@ -215,7 +215,7 @@ void SyntaxParser::GenerateHighlight(const Buffer* buffer, const Range& range) {
             }
 
             // TODO: Maybe optimize string compare
-            ColorSchemeType hl_type;
+            ThemeType hl_type;
             int64_t priority;
             auto iter = ts_query_capture_name_to_character_type_->find(name);
             if (iter == ts_query_capture_name_to_character_type_->end()) {

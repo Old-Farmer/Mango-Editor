@@ -23,7 +23,7 @@ class Buffer;
 
 struct Highlight {
     Range range;
-    ColorSchemeType hl_type;
+    ThemeType hl_type;
 };
 
 // TODO: maybe we don't need pre buffer hl context? remove it?
@@ -90,7 +90,7 @@ class SyntaxParser {
         filetype_to_query_[static_cast<int>(FileType::_kCount)];
     const TSLanguage* filetype_to_language_[static_cast<int>(
         FileType::_kCount)] = {};  // all nullptr
-    const std::unordered_map<std::string_view, ColorSchemeType>*
+    const std::unordered_map<std::string_view, ThemeType>*
         ts_query_capture_name_to_character_type_;
 
     static constexpr int kTSCaptureNamePropertyLowest = INT_MAX;

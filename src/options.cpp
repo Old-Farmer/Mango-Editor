@@ -11,8 +11,7 @@ namespace charxed {
 
 namespace {
 constexpr const char* kDefaultConfigPath = "resource/config/config.json";
-constexpr const char* kDefaultColorschemePath =
-    "resource/config/colorscheme.json";
+constexpr const char* kDefaultThemePath = "resource/config/theme.json";
 
 // clang-format off
 static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
@@ -23,10 +22,10 @@ static const std::unordered_map<std::string_view, OptKey> kStrRepToOptKey{
 #undef X
 };
 
-static std::unordered_map<std::string_view, ColorSchemeType>
-    kStrToColorSchemeType{
+static std::unordered_map<std::string_view, ThemeType>
+    kStrToThemeType{
 #define X(t, str) {#str, t},
-    CHX_COLOR_SCHEME_TABLE
+    CHX_THEME_TABLE
 #undef X
 };
 // clang-format on
@@ -53,7 +52,7 @@ const std::unordered_map<std::string_view, Terminal::Effect> kEffects = {
     {"invisible", Terminal::kInvisible},
 };
 
-const std::unordered_set<ColorSchemeType> kColorSchemeTypeFgBgMustAllExist = {
+const std::unordered_set<ThemeType> kThemeTypeFgBgMustAllExist = {
     kNormal,
     kStatusLine,
     kMenu,
@@ -63,32 +62,31 @@ const std::unordered_set<ColorSchemeType> kColorSchemeTypeFgBgMustAllExist = {
 constexpr Terminal::Attr kTruecolorBegin = 0x000000;
 constexpr Terminal::Attr kTruecolorEnd = 0xFFFFFF;
 
-void GetColorScheme(bool truecolor, const Json& colorscheme_json,
-                    ColorSchemeElement* colorscheme) {
-    // Every colorscheme type should have fg and bg.
+void GetTheme(bool truecolor, const Json& theme_json, ThemeElement* theme) {
+    // Every theme type should have fg and bg.
     // Fg and bg should have a color and >=0 effects.
     // We ignore unknown keys and values.
-    int colorscheme_type_cnt = 0;
-    for (const auto& [k, v] : colorscheme_json.items()) {
-        const auto iter = kStrToColorSchemeType.find(k);
-        if (iter == kStrToColorSchemeType.end()) {
+    int theme_type_cnt = 0;
+    for (const auto& [k, v] : theme_json.items()) {
+        const auto iter = kStrToThemeType.find(k);
+        if (iter == kStrToThemeType.end()) {
             continue;
         }
-        colorscheme_type_cnt++;
+        theme_type_cnt++;
 
-        ColorSchemeType type = iter->second;
+        ThemeType type = iter->second;
 
         std::string_view attr_locs[2] = {"fg", "bg"};
         for (std::string_view attr_loc : attr_locs) {
             auto iter_attr = v.find(attr_loc);
             if (iter_attr == v.end()) {
-                // allow don't have fg or bg in some colorscheme type
+                // allow don't have fg or bg in some theme type
                 continue;
             }
 
             if (!iter_attr->is_array()) {
                 throw OptionLoadException(
-                    "Option colorscheme{}/{}/{} is not "
+                    "Option theme{}/{}/{} is not "
                     "array",
                     truecolor ? "_truecolor" : "", k, attr_loc);
             }
@@ -98,16 +96,16 @@ void GetColorScheme(bool truecolor, const Json& colorscheme_json,
                 const std::string& str = attr.get_ref<const std::string&>();
                 if (kEffects.find(str) != kEffects.end()) {
                     if (attr_loc == "fg") {
-                        colorscheme[type].fg |= kEffects.find(str)->second;
+                        theme[type].fg |= kEffects.find(str)->second;
                     } else {
-                        colorscheme[type].bg |= kEffects.find(str)->second;
+                        theme[type].bg |= kEffects.find(str)->second;
                     }
                 } else if (kBasedColors.find(str) != kBasedColors.end() &&
                            !truecolor) {
                     if (attr_loc == "fg") {
-                        colorscheme[type].fg |= kBasedColors.find(str)->second;
+                        theme[type].fg |= kBasedColors.find(str)->second;
                     } else {
-                        colorscheme[type].bg |= kBasedColors.find(str)->second;
+                        theme[type].bg |= kBasedColors.find(str)->second;
                     }
                     colors_cnt++;
                 } else if (truecolor) {
@@ -121,41 +119,41 @@ void GetColorScheme(bool truecolor, const Json& colorscheme_json,
                             color = Terminal::kHiBlack;
                         }
                         if (attr_loc == "fg") {
-                            colorscheme[type].fg |= color;
+                            theme[type].fg |= color;
                         } else {
-                            colorscheme[type].bg |= color;
+                            theme[type].bg |= color;
                         }
                     }
                 }
             }
             if (colors_cnt != 1) {
                 throw OptionLoadException(
-                    "{}", "In colorscheme, Color cnt wrong, expect one");
+                    "{}", "In theme, Color cnt wrong, expect one");
             }
             if (attr_loc == "fg") {
-                colorscheme[type].fg_exist = true;
+                theme[type].fg_exist = true;
             } else {
-                colorscheme[type].bg_exist = true;
+                theme[type].bg_exist = true;
             }
         }
 
-        if (kColorSchemeTypeFgBgMustAllExist.find(type) !=
-            kColorSchemeTypeFgBgMustAllExist.end()) {
-            if (!colorscheme[type].bg_exist || !colorscheme[type].fg_exist) {
+        if (kThemeTypeFgBgMustAllExist.find(type) !=
+            kThemeTypeFgBgMustAllExist.end()) {
+            if (!theme[type].bg_exist || !theme[type].fg_exist) {
                 throw OptionLoadException(
-                    "Option colorscheme{}/{} must both has \"bg\" and \"fg\" "
+                    "Option theme{}/{} must both has \"bg\" and \"fg\" "
                     "color",
                     truecolor ? "_truecolor" : "", k);
             }
         }
     }
 
-    colorscheme[kNormalFg] = colorscheme[kNormal];
-    colorscheme[kNormalFg].bg_exist = false;
-    colorscheme_type_cnt++;
+    theme[kNormalFg] = theme[kNormal];
+    theme[kNormalFg].bg_exist = false;
+    theme_type_cnt++;
 
-    if (colorscheme_type_cnt != __kColorSchemeTypeCount) {
-        throw OptionLoadException("{}", "Colorscheme type cnt wrong");
+    if (theme_type_cnt != _kThemeTypeCount) {
+        throw OptionLoadException("{}", "Theme type cnt wrong");
     }
 }
 
@@ -184,7 +182,7 @@ OptInfo GlobalOpts::GetOptInfo(OptKey key) {
     }
 }
 
-void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
+void GlobalOpts::TryApply(const Json& config, const Json& theme_config) {
     for (const auto& [k, v] : config.items()) {
         auto filetype = InnerStrRepToFileType(k);
         if (filetype.has_value()) {
@@ -233,22 +231,22 @@ void GlobalOpts::TryApply(const Json& config, const Json& colorscheme_config) {
         }
     }
 
-    // Colorscheme
-    const Json* colorscheme_json = nullptr;
+    // Theme
+    const Json* theme_json = nullptr;
     bool truecolor = GetOpt<bool>(kOptTrueColor);
-    std::string colorscheme_str = config.at("colorscheme");
-    if (colorscheme_str != "default") {
-        colorscheme_json = &colorscheme_config.at(colorscheme_str);
+    std::string theme_str = config.at("theme");
+    if (theme_str != "default") {
+        theme_json = &theme_config.at(theme_str);
     } else {
-        colorscheme_json = &colorscheme_config.at(
-            std::string("default") + (truecolor ? "_truecolor" : "8"));
+        theme_json = &theme_config.at(std::string("default") +
+                                      (truecolor ? "_truecolor" : "8"));
     }
 
-    auto colorscheme = new ColorSchemeElement[__kColorSchemeTypeCount];
-    bzero(colorscheme, sizeof(ColorSchemeElement) *
-                           __kColorSchemeTypeCount);  // For attr bit wise or
-    GetColorScheme(truecolor, *colorscheme_json, colorscheme);
-    opts_[kOptColorScheme] = colorscheme;
+    auto theme = new ThemeElement[_kThemeTypeCount];
+    bzero(theme,
+          sizeof(ThemeElement) * _kThemeTypeCount);  // For attr bit wise or
+    GetTheme(truecolor, *theme_json, theme);
+    opts_[kOptTheme] = theme;
 }
 
 // We try to first load users config and merge with default.
@@ -260,8 +258,8 @@ void GlobalOpts::LoadConfig() {
     std::string default_config_str =
         File(std::string(Path::GetAppRoot() + kDefaultConfigPath), "r")
             .ReadAll(eol_seq);
-    std::string default_colorscheme_str =
-        File(std::string(Path::GetAppRoot() + kDefaultColorschemePath), "r")
+    std::string default_theme_str =
+        File(std::string(Path::GetAppRoot() + kDefaultThemePath), "r")
             .ReadAll(eol_seq);
 
     try {
@@ -269,24 +267,23 @@ void GlobalOpts::LoadConfig() {
         if (File::FileReadable(kUserConfigPath)) {
             user_config_str = File(kUserConfigPath, "r").ReadAll(eol_seq);
         }
-        std::string user_colorscheme_str;
-        if (File::FileReadable(kUserColorschemePath)) {
-            user_colorscheme_str =
-                File(kUserColorschemePath, "r").ReadAll(eol_seq);
+        std::string user_theme_str;
+        if (File::FileReadable(kUserThemePath)) {
+            user_theme_str = File(kUserThemePath, "r").ReadAll(eol_seq);
         }
 
         // We merge with user config
         Json config = Json::parse(default_config_str);
-        Json colorscheme = Json::parse(default_colorscheme_str);
+        Json theme = Json::parse(default_theme_str);
         if (!user_config_str.empty()) {
             Json user_config = Json::parse(user_config_str);
             config.update(user_config, true);
         }
-        if (!user_colorscheme_str.empty()) {
-            Json user_colorscheme = Json::parse(user_colorscheme_str);
-            colorscheme.update(user_colorscheme, true);
+        if (!user_theme_str.empty()) {
+            Json user_theme = Json::parse(user_theme_str);
+            theme.update(user_theme, true);
         }
-        TryApply(config, colorscheme);
+        TryApply(config, theme);
         user_config_valid_ = true;
         return;
     } catch (Exception& e) {
@@ -298,19 +295,18 @@ void GlobalOpts::LoadConfig() {
     }
 
     Json config = Json::parse(default_config_str);
-    Json colorscheme = Json::parse(default_colorscheme_str);
-    TryApply(config, colorscheme);
+    Json theme = Json::parse(default_theme_str);
+    TryApply(config, theme);
 }
 
 GlobalOpts::GlobalOpts()
     : kUserConfigPath(Path::GetXDGPath(XDGPath::kConfig) + "config.json"),
-      kUserColorschemePath(Path::GetXDGPath(XDGPath::kConfig) +
-                           "colorscheme.json") {
+      kUserThemePath(Path::GetXDGPath(XDGPath::kConfig) + "theme.json") {
     LoadConfig();
 }
 
 GlobalOpts::~GlobalOpts() {
-    delete[] reinterpret_cast<ColorScheme*>(opts_[kOptColorScheme]);
+    delete[] reinterpret_cast<Theme*>(opts_[kOptTheme]);
 }
 
 Opts::Opts(GlobalOpts* global_options) : global_opts_(global_options) {}

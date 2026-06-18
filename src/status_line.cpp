@@ -17,9 +17,9 @@ StatusLine::StatusLine(Cursor* cursor, GlobalOpts* global_opts, Mode* mode,
       context_(context) {}
 
 void StatusLine::Draw() {
-    ColorSchemeType t = kStatusLine;
+    ThemeType t = kStatusLine;
 
-    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
+    auto theme = global_opts_->GetOpt<Theme>(kOptTheme);
 
     left_str_.clear();
     right_str_.clear();
@@ -62,11 +62,11 @@ void StatusLine::Draw() {
             break;
     }
 
-    DrawLine(*term_, left_str_, {0, 0}, 0, width_, row_, 0, nullptr, scheme,
-             scheme[t], left_str_.size(), 0, false, true);
+    DrawLine(*term_, left_str_, {0, 0}, 0, width_, row_, 0, nullptr, theme,
+             theme[t], left_str_.size(), 0, false, true);
 
     // all is ascii character, so str len == width
-    term_->Print(width_ - right_str_.length(), row_, scheme[t],
+    term_->Print(width_ - right_str_.length(), row_, theme[t],
                  right_str_.c_str());
 }
 

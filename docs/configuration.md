@@ -1,8 +1,8 @@
 # Configuration
 
-Mango currently uses json for user configuration: 
+Charxed currently uses json for user configuration: 
     All config files are in `$XDG_CONFIG_HOME/charxed/`.
-    Current support files: `config.json`, `colorscheme.json`.
+    Current support files: `config.json`, `theme.json`.
 
 ## Options
 
@@ -101,10 +101,10 @@ In `config.json`, Support options:
     default: 100
     desc: Max width(rows) of a completion menu.
 
-- colorscheme:  
+- theme:  
     type: string,
     default: "default",
-    desc: A colorscheme. When truecolor not enabled, default is a clean 8 color colorscheme; Otherwise, Default is a Catpuccin-like colorscheme(See [Colorscheme](./colorscheme.md) for more info).
+    desc: A theme. When truecolor not enabled, default is a clean 8 color theme; Otherwise, Default is a Catpuccin-like theme(See [theme](./theme.md) for more info).
 
 -  explorer_indent:  
     type: integer,
@@ -151,6 +151,6 @@ In `config.json`, Support options:
     default: true,
     desc: Truecolor support. If enabled, all ui will use the terminal truecolor ability, otherwise all ui use the terminal 8 color.
 
-## Colorscheme
+## Theme
 
-See [colorscheme](./colorscheme.md)
+See [theme](./theme.md)

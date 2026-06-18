@@ -20,7 +20,7 @@ enum class Type {
     kPtr,      // void*
 };
 
-#define CHX_COLOR_SCHEME_TABLE        \
+#define CHX_THEME_TABLE               \
     X(kNormal, normal)                \
     X(kSelection, selection)          \
     X(kMenu, menu)                    \
@@ -48,12 +48,12 @@ enum class Type {
     X(kLabel, label)
 
 // clang-format off
-enum ColorSchemeType : int {
+enum ThemeType : int {
 #define X(t, str) t,
-    CHX_COLOR_SCHEME_TABLE
+    CHX_THEME_TABLE
 #undef X
     kNormalFg,  // Will be extract from kNormal
-    __kColorSchemeTypeCount,
+    _kThemeTypeCount,
 };
 // clang-format on
 
@@ -82,7 +82,7 @@ enum class LineNumberType {
     X(kOptBasicWordCompletion, basic_word_completion, kBool) \
     X(kOptCmpMenuMaxHeight, cmp_menu_max_height, kInteger)   \
     X(kOptCmpMenuMaxWidth, cmp_menu_max_width, kInteger)     \
-    X(kOptColorScheme, __color_scheme, kPtr)                 \
+    X(kOptTheme, _theme, kPtr)                               \
     X(kOptExplorerIndent, explorer_indent, kInteger)         \
     X(kOptHighlightOnSearch, highlight_on_search, kBool)     \
     X(kOptInputIdleTimeout, input_idle_timeout, kInteger)    \
@@ -103,7 +103,7 @@ enum OptKey {
     CHX_WINDOW_OPT_TABLE
     CHX_GLOBAL_OPT_TABLE
 #undef X
-    __kOptKeyCount,
+    _kOptKeyCount,
 };
 // clang-format on
 
@@ -123,8 +123,8 @@ struct OptInfo {
     Type type;
 };
 
-using ColorScheme = Terminal::AttrPair*;
-using ColorSchemeElement = Terminal::AttrPair;
+using Theme = Terminal::AttrPair*;
+using ThemeElement = Terminal::AttrPair;
 
 class Opts;
 
@@ -187,10 +187,10 @@ class GlobalOpts {
 
    private:
     // throw OptionLoadException
-    void TryApply(const Json& config, const Json& colorscheme_config);
+    void TryApply(const Json& config, const Json& theme_config);
 
    private:
-    void* opts_[__kOptKeyCount];
+    void* opts_[_kOptKeyCount];
     std::unordered_map<OptKey, void*>
         filetype_opts_[static_cast<int>(FileType::_kCount)];
 
@@ -198,7 +198,7 @@ class GlobalOpts {
     std::string user_config_error_reason_;
 
     const std::string kUserConfigPath;
-    const std::string kUserColorschemePath;
+    const std::string kUserThemePath;
 };
 
 // Opts is a option table that store some local opts.

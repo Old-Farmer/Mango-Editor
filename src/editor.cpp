@@ -1013,9 +1013,9 @@ void Editor::StartupScreen() {
 
     term_.Clear();
     term_.HideCursor();
-    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
+    auto theme = global_opts_->GetOpt<Theme>(kOptTheme);
     for (size_t r = row0; r < row0 + kStartupHeight; r++) {
-        term_.Print(col0, r, scheme[kNormal], kStartup[r - row0]);
+        term_.Print(col0, r, theme[kNormal], kStartup[r - row0]);
     }
     term_.Present();
 

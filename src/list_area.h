@@ -30,7 +30,7 @@ class ListArea {
     ~ListArea() = default;
 
     void Draw(bool highlight_search) {
-        auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
+        auto theme = GetOpt<Theme>(kOptTheme);
         auto hl_seach = GetOpt<bool>(kOptHighlightOnSearch) && highlight_search;
 
         std::string buf;
@@ -64,9 +64,9 @@ class ListArea {
             bool list_current_highlight =
                 view_begin_ + i ==
                 (stored_cursor_ == -1 ? cursor_->pos.line : stored_cursor_);
-            ColorSchemeElement fallback_attr = scheme[kNormal];
+            ThemeElement fallback_attr = theme[kNormal];
             if (list_current_highlight) {
-                scheme[kListCurrent].MergeTo(fallback_attr);
+                theme[kListCurrent].MergeTo(fallback_attr);
             }
             bool hl_seach_this_line = false;
             if (hl_seach &&
@@ -88,7 +88,7 @@ class ListArea {
                 hl_seach_this_line = true;
             }
             DrawLine(*term_, str, {0, 0}, 0, width_, row, col_,
-                     hl_seach_this_line ? &highlights : nullptr, scheme,
+                     hl_seach_this_line ? &highlights : nullptr, theme,
                      fallback_attr, INT64_MAX, 0, false,
                      list_current_highlight);
         }

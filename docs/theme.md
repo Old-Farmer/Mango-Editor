@@ -1,17 +1,17 @@
-# Colorscheme
+# Theme
 
-A colorscheme is a mapping that map a colorscheme type to a color.
+A theme is a mapping that map a theme type to a color.
 
 You can configure it in config.
 
-Key is a colorscheme type(normal, ui element, or language syntax type), value is a json object with a fg(foreground) and bg(background) keys.
+Key is a theme type(normal, ui element, or language syntax type), value is a json object with a fg(foreground) and bg(background) keys.
 
 For every fg and bg key, value is an array of strings, which represents color and styles of text. For truecolor, you can specify an rgb value, like "#cdd6g4"; For 8 color, you can specify only 8 colors + default: ("default", "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white").
 
 You can also specify >= 0 style with a color, ("bold", "underline", "reverse", "italic", "blink", "brighter", "dim", 
 "strikeout", "underline2", "overline", "invisible")
 
-Notice that you can only specify "fg" or "bg" to one colorscheme type, but following types should have both:
+Notice that you can only specify "fg" or "bg" to one theme type, but following types should have both:
 
 - "normal"
 - "menu"
@@ -19,9 +19,9 @@ Notice that you can only specify "fg" or "bg" to one colorscheme type, but follo
 - "sidbar"
 - "statusline"
 
-You can check [colorscheme.json](../resource/colorscheme.json) to have a look at all provided colorscheme.
+You can check [theme.json](../resource/theme.json) to have a look at all provided theme.
 
-Below is a truecolor colorscheme example, and not all colorscheme types are showed.
+Below is a truecolor theme example, and not all theme types are showed.
 
 ```json
   "default_truecolor": {
@@ -51,4 +51,4 @@ Below is a truecolor colorscheme example, and not all colorscheme types are show
 
 ## Config
 
-Now we only have 2 default colorscheme: one for 8 colors, one for truecolor. Users can create a `colorscheme.json` in the config directory, provide a colorscheme like above, and set "colorscheme" to your colorscheme name. Note that "default8" and "default_truecolor" is reserved.
+Now we only have 2 default themes: one for 8 colors, one for truecolor. Users can create a `theme.json` in the config directory, provide a theme like above, and set "theme" to your theme name. Note that "default8" and "default_truecolor" is reserved.

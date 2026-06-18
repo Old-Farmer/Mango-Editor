@@ -59,7 +59,7 @@ void Terminal::Init(GlobalOpts* global_opts) {
         CHX_LOG_ERROR("{}", tb_strerror(ret));
         throw TermException("{}", tb_strerror(ret));
     }
-    SetClearAttr(global_opts->GetOpt<ColorScheme>(kOptColorScheme)[kNormal]);
+    SetClearAttr(global_opts->GetOpt<Theme>(kOptTheme)[kNormal]);
 
     // Enable Bracketed Paste
     tb_sendf("\e[?2004h");

@@ -68,11 +68,11 @@ void CmpMenu::Draw() {
 
     DecideLocAndSize();
 
-    auto scheme = global_opts_->GetOpt<ColorScheme>(kOptColorScheme);
+    auto theme = global_opts_->GetOpt<Theme>(kOptTheme);
     for (size_t r = 0; r < height_; r++) {
         const Terminal::AttrPair& attr = r + menu_view_line_ == menu_cursor_
-                                             ? scheme[kMenuSelection]
-                                             : scheme[kMenu];
+                                             ? theme[kMenuSelection]
+                                             : theme[kMenu];
 
         const std::string& str = entries_[menu_view_line_ + r];
         size_t offset = 0;

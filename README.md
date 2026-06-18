@@ -27,7 +27,7 @@ Linux only now.
 - Mouse support
 - Syntax highlighting with tree-sitter(c, c++, json)
 - Basic word-based auto completion
-- Colorscheme
+- Theme
 - File Watching
 
 See [help](./docs/help.md) for more infomation.

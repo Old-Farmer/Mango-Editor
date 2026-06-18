@@ -37,7 +37,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
     size_t content_s_col = col_ + sidebar_width;
     size_t content_width = width_ - sidebar_width;
 
-    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
+    auto theme = GetOpt<Theme>(kOptTheme);
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
     auto wrap = GetOpt<bool>(kOptWrap);
     auto eob_mark = GetOpt<bool>(kOptEndOfBufferMark);
@@ -153,7 +153,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                 if (!eob_mark) break;
                 Codepoint codepoint = '~';
                 term_->SetCell(content_s_col, i + row_, &codepoint, 1,
-                               scheme[kNormal]);
+                               theme[kNormal]);
                 line++;
                 continue;
             }
@@ -171,27 +171,27 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                            kSublineIndicator.data(), kSublineIndicator.size());
                     // If first row is a subline, we draw a <<< at the
                     // sidebar
-                    term_->Print(0, row_ + i, scheme[kSidebar],
+                    term_->Print(0, row_ + i, theme[kSidebar],
                                  subline_ind_sidebar);
                 } else {
-                    term_->Print(0, row_ + i, scheme[kSidebar], empty_sidebar);
+                    term_->Print(0, row_ + i, theme[kSidebar], empty_sidebar);
                 }
             }
             bool hl_cur_line_for_cursor =
                 need_hl_cursor_line && cursor_line == line;
-            auto fallback_attr = scheme[kNormal];
+            auto fallback_attr = theme[kNormal];
             if (hl_cur_line_for_cursor) {
-                if (scheme[kCursorLine].fg_exist) {
-                    fallback_attr.fg = scheme[kCursorLine].fg;
+                if (theme[kCursorLine].fg_exist) {
+                    fallback_attr.fg = theme[kCursorLine].fg;
                 }
-                if (scheme[kCursorLine].bg_exist) {
-                    fallback_attr.bg = scheme[kCursorLine].bg;
+                if (theme[kCursorLine].bg_exist) {
+                    fallback_attr.bg = theme[kCursorLine].bg;
                 }
             }
             size_t end_view_col;
             std::tie(iter, end_view_col) = DrawLine(
                 *term_, line, line_view, iter, 0, content_width, i + row_,
-                content_s_col, &highlights, scheme, fallback_attr,
+                content_s_col, &highlights, theme, fallback_attr,
                 trailing_white_begin, tabstop, true, hl_cur_line_for_cursor);
             if (iter == line_view.end) {
                 if (IsSelectionActive() && end_view_col < content_width &&
@@ -199,7 +199,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                     // cursor_line don't hl if selection is active, so just use
                     // kSelection is ok
                     term_->SetCell(content_s_col + end_view_col, i + row_,
-                                   &kSpaceChar, 1, scheme[kSelection]);
+                                   &kSpaceChar, 1, theme[kSelection]);
                 }
                 line++;
                 if (line < buffer_->LineCnt()) {
@@ -223,7 +223,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                 if (!eob_mark) break;
                 Codepoint codepoint = '~';
                 term_->SetCell(content_s_col, cur_s_row, &codepoint, 1,
-                               scheme[kNormal]);
+                               theme[kNormal]);
                 continue;
             }
             DrawSidebar(cur_s_row, line, sidebar_width);
@@ -235,19 +235,19 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                                                     render_range.begin.line];
             bool hl_cur_line_for_cursor =
                 need_hl_cursor_line && cursor_line == line;
-            auto fallback_attr = scheme[kNormal];
+            auto fallback_attr = theme[kNormal];
             if (hl_cur_line_for_cursor) {
-                if (scheme[kCursorLine].fg_exist) {
-                    fallback_attr.fg = scheme[kCursorLine].fg;
+                if (theme[kCursorLine].fg_exist) {
+                    fallback_attr.fg = theme[kCursorLine].fg;
                 }
-                if (scheme[kCursorLine].bg_exist) {
-                    fallback_attr.bg = scheme[kCursorLine].bg;
+                if (theme[kCursorLine].bg_exist) {
+                    fallback_attr.bg = theme[kCursorLine].bg;
                 }
             }
             auto [iter, end_view_col] =
                 DrawLine(*term_, line, line_view, line_view.begin, b_view_->col,
                          content_width, cur_s_row, content_s_col, &highlights,
-                         scheme, fallback_attr, trailing_white_begin, tabstop,
+                         theme, fallback_attr, trailing_white_begin, tabstop,
                          false, hl_cur_line_for_cursor);
             if (IsSelectionActive() && iter == line_view.end &&
                 end_view_col - b_view_->col < content_width &&
@@ -255,7 +255,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
                 // cursor_line don't hl if selection is active, so just use
                 // kSelection is ok
                 term_->SetCell(content_s_col + end_view_col - b_view_->col,
-                               cur_s_row, &kSpaceChar, 1, scheme[kSelection]);
+                               cur_s_row, &kSpaceChar, 1, theme[kSelection]);
             }
         }
     }
@@ -1981,7 +1981,7 @@ void TextArea::DrawSidebar(int s_row, size_t absolute_line,
 
     char sidebar_buf[kMaxSizeTWidth + 3 + 1];
 
-    auto scheme = GetOpt<ColorScheme>(kOptColorScheme);
+    auto theme = GetOpt<Theme>(kOptTheme);
     size_t line_number;
     if (line_number_type == LineNumberType::kAboslute) {
         line_number = absolute_line + 1;
@@ -2006,7 +2006,7 @@ void TextArea::DrawSidebar(int s_row, size_t absolute_line,
            line_number_str.size());
     sidebar_buf[left_space + line_number_str.size()] = kSpaceChar;
     sidebar_buf[left_space + line_number_str.size() + 1] = '\0';
-    term_->Print(col_, s_row, scheme[kSidebar], sidebar_buf);
+    term_->Print(col_, s_row, theme[kSidebar], sidebar_buf);
 }
 
 Range TextArea::CalcWrapRange(size_t content_width) {
