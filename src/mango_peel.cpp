@@ -152,12 +152,12 @@ Result MangoPeel::DeleteWordBeforeCursor() {
     return kOk;
 }
 
-Result MangoPeel::AddStringAtCursor(std::string str) {
+Result MangoPeel::AddStringAtCursor(std::string_view str) {
     if (!user_inputing_) {
         return kFail;
     }
     CHX_ASSERT(area_.cursor_->pos.line == 0);
-    return area_.AddStringAtCursorNoSelection(std::move(str));
+    return area_.AddStringAtCursorNoSelection(str);
 }
 
 Result MangoPeel::Paste() {
@@ -185,7 +185,7 @@ void MangoPeel::PrevHistoryItem(HistoryType history) {
     }
     if (history_[i].MoveCursorBackward()) {
         ClearUserInput();
-        AddStringAtCursor(*history_[i].GetItemAtCursor());
+        AddStringAtCursor(history_[i].GetItemAtCursor()->get());
     }
 }
 
@@ -197,7 +197,7 @@ void MangoPeel::NextHistoryItem(HistoryType history) {
         ClearUserInput();
         auto item_optional = history_[i].GetItemAtCursor();
         if (item_optional.has_value()) {
-            AddStringAtCursor(*item_optional);
+            AddStringAtCursor(item_optional->get());
         } else {
             AddStringAtCursor(current_input_);
         }

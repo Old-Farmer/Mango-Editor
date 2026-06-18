@@ -98,6 +98,11 @@ class Editor {
     void StartSearchOnTypeTimer();
     void TrySearchOnType();
 
+    // A nice method that combine codepoints in the input stream to a grapheme.
+    // But due to limitation of terminal protocal, we don't know whether it's
+    // really a grapheme produced by users once a time. So best effort.
+    Character CombineACharacterFromInput(Codepoint init_cp);
+
     void Draw();
     void PreProcess();
 

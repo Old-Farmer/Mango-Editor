@@ -15,7 +15,7 @@ NOTE: Don't support self-defined keymaps now.
 - `<end>` means End key
 - `<left>` means Left arrow key
 - `<right>` means Right arrow key
-- `<any-cp>` means any single codepoint character
+- `<character>` means any character
 
 ## Mode Reference
 
@@ -74,13 +74,12 @@ Examples:
 | `gg` | Move to beginning | Normal, Select, Select-L | Editor |
 | `G` | Move to end of file (or go to line {count}) | Normal, Select, Select-L | Editor |
 | `gf` | Go to file at cursor | Normal, Select, Select-L | Editor |
-| `f<any-cp>` | Go to the next positon of the character in the current line | Normal, Select, Select-L | Editor |
-| `F<any-cp>` | Go to the prev positon of the character in the current line | Normal, Select, Select-L | Editor |
+| `f<character>` | Go to the next positon of the character in the current line | Normal, Select, Select-L | Editor |
+| `F<character>` | Go to the prev positon of the character in the current line | Normal, Select, Select-L | Editor |
 | `<c-o>` | Jump to previous cursor position | Normal | Editor |
 | `<c-i>` | Jump to next cursor position | Normal | Editor |
 | `]b` | Go to next buffer | Normal | Editor |
 | `[b` | Go to previous buffer | Normal | Editor |
-| `q` | Quit explorer | Normal | Explorer |
 
 ## Selection
 
@@ -162,7 +161,6 @@ operator support:
 | `N` | Go to previous search match | Normal | All |
 | `:` | Enter command mode | Normal | All |
 | `<enter>` | Open Peel show mode | Normal | Editor |
-| `<enter>` | Open Peel show mode or Expand/Collapse dirs or Open files | Normal | Explorer |
 
 ## Peel Input (Command & Search)
 
@@ -182,3 +180,10 @@ operator support:
 | `<enter>` | Execute command or search | Command, Search | All |
 
 
+## Explorer
+
+| Key | Description | Mode(s) | Context |
+| --- | --- | --- | --- |
+| `<space>e` | Open explorer | Normal | Edit |
+| `<enter>` | Expand/Collapse dirs or Open files | Normal | Explorer |
+| `q` | Quit explorer | Normal | Explorer |

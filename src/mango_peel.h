@@ -62,7 +62,7 @@ class MangoPeel {
     std::string_view GetUserInput();
     Result DeleteCharacterBeforeCursor();
     Result DeleteWordBeforeCursor();
-    Result AddStringAtCursor(std::string str);
+    Result AddStringAtCursor(std::string_view str);
     Result Paste();
 
     // History manipulate

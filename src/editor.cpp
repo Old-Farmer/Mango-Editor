@@ -350,9 +350,7 @@ void Editor::HandleKey() {
 
     Result res = kKeyseqError;
     Keyseq* handler;
-    if (key_info.IsSpecialKey() || key_info.codepoint <= CHAR_MAX) {
-        res = keymap_manager_.FeedKey(key_info, handler);
-    }
+    res = keymap_manager_.FeedKey(key_info, handler);
     if (res == kKeyseqDone) {
         Mode last_mode = mode_;
         handler->f();
@@ -401,24 +399,25 @@ void Editor::HandleKey() {
         }
 
         // Pure codepoints that are not handled by the keymap manager.
-        // Use single codepoint to edit buffers is quite safe here.
+        // Use single codepoint to edit buffers is quite safe here because we
+        // insert codepoints one after another just like we insert a grapheme.
 
         // We may use a codepoint as grapheme when we meet some ascii
         // characters, like '(', '[' '{', because they're very very rare as a
         // part of multi-codepoint graphemes.
         if (InsertLike(mode_)) {
-            char c[kMaxBytesUtf8Codepoint + 1];
+            char c[kMaxBytesUtf8Codepoint];
             int len = UnicodeToUtf8(key_info.codepoint, c);
-            c[len] = '\0';
             CHX_ASSERT(len > 0);
             Result res;
             if (IsPeel(mode_)) {
-                res = peel_->AddStringAtCursor(c);
+                res = peel_->AddStringAtCursor(std::string_view(c, len));
                 layout_manager_->ArrangeLayout();
             } else {
                 // We only support insert mode in kEditor context.
                 CHX_ASSERT(context_ == Context::kEditor);
-                res = cursor_.t_win->AddStringAtCursor(c);
+                res =
+                    cursor_.t_win->AddStringAtCursor(std::string_view(c, len));
             }
             if (res != kOk) {
                 return;
@@ -986,6 +985,31 @@ void Editor::TrySearchOnType() {
         return;
     }
     SearchCurrentWindow(std::string(peel_->GetUserInput()));
+}
+
+Character Editor::CombineACharacterFromInput(Codepoint init_cp) {
+    Character c;
+    utf8proc_int32_t state = 0;
+    c.Push(init_cp);
+    while (term_.Poll(0)) {
+        if (term_.WhatEvent() != Terminal::EventType::kKey) {
+            term_.PendCurrentEvent();
+            break;
+        }
+        auto key_info = term_.EventKeyInfo();
+        if (key_info.IsSpecialKey()) {
+            term_.PendCurrentEvent();
+            break;
+        }
+        if (utf8proc_grapheme_break_stateful(
+                c.Codepoints()[c.CodePointCount() - 1], key_info.codepoint,
+                &state)) {
+            term_.PendCurrentEvent();
+            break;
+        }
+        c.Push(key_info.codepoint);
+    }
+    return c;
 }
 
 void Editor::Prompt(const std::string& prefix, const PromptHandler& handler) {

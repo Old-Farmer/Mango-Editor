@@ -2,9 +2,20 @@
 
 namespace charxed {
 
-int Character::Width() {
+int Character::Width() const {
     CHX_ASSERT(codepoints_cnt_ != 0);
     return CharacterWidth(Codepoints(), CodePointCount());
+}
+
+std::string Character::ToString() const {
+    std::string str;
+    char c[kMaxBytesUtf8Codepoint];
+    for (size_t i = 0; i < CodePointCount(); i++) {
+        int len = UnicodeToUtf8(Codepoints()[i], c);
+        CHX_ASSERT(len > 0);
+        str.append(c, len);
+    }
+    return str;
 }
 
 // TODO: I haven't decide a totally right way to calc character width,

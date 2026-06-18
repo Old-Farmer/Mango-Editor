@@ -163,14 +163,15 @@ void Editor::InitKeymaps() {
     // TODO: op pending?
     CHX_KEYMAP("f<any-cp>", {[this] {
                    find_forward_ = true;
-                   // For simplicity, currently we only find one codepoint.
-                   c_to_find_.Set(term_.EventKeyInfo().codepoint);
+                   c_to_find_ = CombineACharacterFromInput(
+                       term_.EventKeyInfo().codepoint);
                    cursor_.t_win->FindNextCharacterAndCursorGoInCurrentLine(
                        c_to_find_);
                }});
     CHX_KEYMAP("F<any-cp>", {[this] {
                    find_forward_ = false;
-                   c_to_find_.Set(term_.EventKeyInfo().codepoint);
+                   c_to_find_ = CombineACharacterFromInput(
+                       term_.EventKeyInfo().codepoint);
                    cursor_.t_win->FindPrevCharacterAndCursorGoInCurrentLine(
                        c_to_find_);
                }});

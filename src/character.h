@@ -79,9 +79,12 @@ class Character {
 
     size_t CodePointCount() const { return codepoints_cnt_; }
 
-    int Width();
+    int Width() const;
 
-    bool operator==(const Character& other) {
+    // Useful when logging
+    std::string ToString() const;
+
+    bool operator==(const Character& other) const {
         if (CodePointCount() != other.CodePointCount()) {
             return false;
         }
