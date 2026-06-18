@@ -47,7 +47,15 @@ class Editor {
     void Help(const std::string& doc_name);
     void Quit(bool force);
 
-    void GotoPeel(Mode mode = Mode::kPeelCommand);
+    // require: not in peel
+    void GotoPeel(Mode mode);
+
+    using PromptHandler = std::function<void(std::string_view)>;
+    // goto peel command mode and emmit a prompt.
+    // Useful when we need a simple yes/no.
+    // require: not in peel
+    void Prompt(const std::string& prefix, const PromptHandler& handler);
+
     void ExitFromMode();
     void GotoMode(Mode mode);
     void TriggerCompletion(bool autocmp);
@@ -112,6 +120,8 @@ class Editor {
 
     Mode mode_ = Mode::kNormal;
     Context context_ = Context::kEditor;
+    bool command_prompt_ = false;  // Is in prompt sub mode when command mode?
+    PromptHandler prompt_handler_;
 
     std::unique_ptr<BufferManager> buffer_manager_;
     KeyseqManager keymap_manager_{mode_, context_};

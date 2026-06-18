@@ -15,13 +15,14 @@ constexpr int8_t kMaxCommandArgCnt = 6;
 using CommandArg = std::optional<std::variant<bool, int64_t, std::string>>;
 using CommandArgs = std::array<CommandArg, kMaxCommandArgCnt>;
 using CommandArgTypes = std::array<Type, kMaxCommandArgCnt>;
+using CommandHandler = std::function<void(const CommandArgs&)>;
 
 struct Command {
     std::string name;
     std::string short_name;
     std::string description;
     CommandArgTypes types;  // Types of arguments
-    std::function<void(const CommandArgs&)> f;
+    CommandHandler f;
     int8_t argc = 0;
     int8_t optional_argc = 0;  // optional argument count, optional args must
                                // all be the righmost ones.

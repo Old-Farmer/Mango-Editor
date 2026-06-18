@@ -6,10 +6,6 @@ Commands are instructions you can execute in the Charxed Peel. You can use full 
     short form: q
     desc: quit the editor
 
-- `quit!`  
-    short form: q!
-    desc: force quit the editor
-
 - `saveas <path>`  
     short form: sa
     desc: save as `path` file.
@@ -26,14 +22,34 @@ Commands are instructions you can execute in the Charxed Peel. You can use full 
     short form: b
     desc: goto and edit the buffer
 
-- `bdelete`
+- `bdelete`  
     short form: bd
     desc: delete the current buffer
 
-- `smile`
+- `smile`  
     short form: /
     desc: print a smile.
 
-- `about`
+- `about`  
     short form: /
     desc: show version info.
+
+- `create <path>`  
+    short form: /
+    desc: create a file.
+
+- `remove <path>`  
+    short form: rm
+    desc: delete a file.
+
+- `move <old-path> <new-path>`  
+    short form: mv
+    desc: rename a file.
+
+- `mkdir <path>`  
+    short form: /
+    desc: create a directory.
+
+- `rmdir <path>`  
+    short form: /
+    desc: delete a directory.

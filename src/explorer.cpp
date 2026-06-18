@@ -25,7 +25,11 @@ Explorer::Explorer(GlobalOpts* global_opts, Cursor* cursor, Context* context,
             }) {
     root_ = {{Path::GetCwd(), nullptr, 0}, {}, false};
     // TODO: lazy expand?
-    ExpandDirEntry(0);
+    try {
+        ExpandDirEntry(0);
+    } catch (FSException& e) {
+        CHX_LOG_ERROR("expand dir entry error: {}", e.what());
+    }
 }
 
 void Explorer::Init(LayoutManager* layout_manager) {
@@ -85,7 +89,7 @@ size_t Explorer::ExpandDirEntry(size_t flattern_index) {
         !static_cast<DirEntry*>(flattern_entries_[flattern_index])->expanded);
 
     auto path = EntryPath(flattern_entries_[flattern_index]);
-    auto entries = Path::ListUnderPath(path);
+    auto entries = ListUnderDirectory(path);
     auto dir_e = static_cast<DirEntry*>(flattern_entries_[flattern_index]);
     dir_e->entries.reserve(entries.size());
     for (auto& name : entries) {

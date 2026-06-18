@@ -62,12 +62,6 @@ class Path {
 
     static int64_t LastPathSeperator(std::string_view path);
 
-    // list all entries under this path,
-    // if a entry is a directory, append a kPathSeperator.
-    // throws FSException
-    // if path is not a dir, return empty vector.
-    static std::vector<std::string> ListUnderPath(const std::string& path);
-
     static bool IsAbsolutePath(std::string_view path);
     static bool HaveHomeSymbol(std::string_view path);
     // Must have home symbol
@@ -106,6 +100,12 @@ class Path {
                                    // where xxx can build, build-debug whatever.
 };
 
+// list all entries under this path,
+// if a entry is a directory, append a kPathSeperator.
+// throws FSException
+// if path is not a dir, return empty vector.
+std::vector<std::string> ListUnderDirectory(const std::string& path);
+
 constexpr uint32_t kFMRead = 1 << 0;
 constexpr uint32_t kFMWrite = 1 << 1;
 constexpr uint32_t kFMExec = 1 << 2;
@@ -121,10 +121,10 @@ struct FileStat {
 Result GetFileStat(const std::string& path, FileStat& file_stat);
 
 // throw FSException
-void Create(const std::string& path);
+void CreateFile(const std::string& path);
 
 // throw FSException
-void Remove(const std::string& path);
+void RemoveFile(const std::string& path);
 
 // throw FSException
 void MakeDirectory(const std::string& path);
@@ -132,6 +132,6 @@ void MakeDirectory(const std::string& path);
 // Recursively remove directory
 // path must have trailing path sepeator
 // throw FSException
-void RemoveDirectory(const std::string& path);
+void RemoveDirectory(const std::string& path, bool recursive);
 
 }  // namespace charxed

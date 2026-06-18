@@ -24,13 +24,13 @@ static std::vector<std::string> SuggestFilePath(std::string_view hint) {
     int64_t sep_index = Path::LastPathSeperator(hint);
     std::vector<std::string> paths;
     if (sep_index == -1) {
-        paths = Path::ListUnderPath(".");
+        paths = ListUnderDirectory(".");
     } else {
         auto dir = hint.substr(0, sep_index + 1);
         if (!Path::HaveHomeSymbol(dir)) {
-            paths = Path::ListUnderPath(std::string(dir));
+            paths = ListUnderDirectory(std::string(dir));
         } else {
-            paths = Path::ListUnderPath(Path::ReplaceHomeSymbol(dir));
+            paths = ListUnderDirectory(Path::ReplaceHomeSymbol(dir));
         }
     }
     if (paths.empty()) {
@@ -90,6 +90,26 @@ PeelCompleter::PeelCompleter(MangoPeel* peel, BufferManager* buffer_manager,
         cmd_name_to_cmp_handler_["edit"] = handler;
         cmd_name_to_cmp_handler_["saveas"] = handler;
         cmd_name_to_cmp_handler_["sa"] = handler;
+        cmd_name_to_cmp_handler_["create"] = handler;
+        cmd_name_to_cmp_handler_["remove"] = handler;
+        cmd_name_to_cmp_handler_["rm"] = handler;
+        cmd_name_to_cmp_handler_["mkdir"] = handler;
+        cmd_name_to_cmp_handler_["rmdir"] = handler;
+    }
+    {
+        auto handler = [this](int arg_index, std::string_view arg_hint) {
+            if (arg_index == 1 || arg_index == 2) {
+                try {
+                    suggestions_ = SuggestFilePath(arg_hint);
+                } catch (FSException& e) {
+                    // TODO: maybe we can throw catch the outer?
+                    CHX_LOG_ERROR("{}", e.what());
+                }
+                type_ = SuggestType::kPath;
+            };
+        };
+        cmd_name_to_cmp_handler_["move"] = handler;
+        cmd_name_to_cmp_handler_["mv"] = handler;
     }
     {
         auto handler = [this](int arg_index, std::string_view arg_hint) {
@@ -106,7 +126,7 @@ PeelCompleter::PeelCompleter(MangoPeel* peel, BufferManager* buffer_manager,
             if (arg_index == 1) {
                 try {
                     suggestions_ =
-                        Path::ListUnderPath(Path::GetAppRoot() + kDocsPath);
+                        ListUnderDirectory(Path::GetAppRoot() + kDocsPath);
                     if (!arg_hint.empty()) {
                         for (auto iter = suggestions_.begin();
                              iter != suggestions_.end();) {

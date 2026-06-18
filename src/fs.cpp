@@ -221,42 +221,6 @@ int64_t Path::LastPathSeperator(std::string_view path) {
     return loc == std::string_view::npos ? -1 : loc;
 }
 
-std::vector<std::string> Path::ListUnderPath(const std::string& path) {
-    std::vector<std::string> ret;
-
-    DIR* dir = opendir(path.c_str());
-    if (dir == nullptr) {
-        if (errno == ENOTDIR) {
-            return {};
-        }
-        throw FSException("opendir error: {}", strerror(errno));
-    }
-    struct dirent* ent;
-    errno = 0;
-    while ((ent = readdir(dir)) != NULL) {
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
-            continue;
-        }
-
-        if (ent->d_type == DT_DIR) {
-            auto child_path = std::string(ent->d_name);
-            child_path.append(1, kPathSeperator);
-            ret.push_back(std::move(child_path));
-        } else if (ent->d_type == DT_REG) {
-            auto child_path = std::string(ent->d_name);
-            ret.push_back(std::move(child_path));
-        }
-        // We ignore other type file.
-        // TODO: maybe we shouldn't ignore them?
-    }
-    closedir(dir);  // If dir is not bad, closedir will never fail, so it will
-                    // not effect errno.
-    if (errno != 0) {
-        throw FSException("readdir error: {}", strerror(errno));
-    }
-    return ret;
-}
-
 bool Path::IsAbsolutePath(std::string_view path) {
     CHX_ASSERT(!path.empty());
     return path[0] == kPathSeperator;
@@ -303,6 +267,42 @@ int64_t Path::cwd_version_ = 0;
 
 std::string Path::app_root_ = "";
 
+std::vector<std::string> ListUnderDirectory(const std::string& path) {
+    std::vector<std::string> ret;
+
+    DIR* dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        if (errno == ENOTDIR) {
+            return {};
+        }
+        throw FSException("opendir error: {}", strerror(errno));
+    }
+    struct dirent* ent;
+    errno = 0;
+    while ((ent = readdir(dir)) != NULL) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+            continue;
+        }
+
+        if (ent->d_type == DT_DIR) {
+            auto child_path = std::string(ent->d_name);
+            child_path.append(1, kPathSeperator);
+            ret.push_back(std::move(child_path));
+        } else if (ent->d_type == DT_REG) {
+            auto child_path = std::string(ent->d_name);
+            ret.push_back(std::move(child_path));
+        }
+        // We ignore other type file.
+        // TODO: maybe we shouldn't ignore them?
+    }
+    closedir(dir);  // If dir is not bad, closedir will never fail, so it will
+                    // not effect errno.
+    if (errno != 0) {
+        throw FSException("readdir error: {}", strerror(errno));
+    }
+    return ret;
+}
+
 Result GetFileStat(const std::string& path, FileStat& file_stat) {
     CHX_ASSERT(!path.empty());
     struct stat sta;
@@ -320,7 +320,7 @@ Result GetFileStat(const std::string& path, FileStat& file_stat) {
     return kOk;
 }
 
-void Create(const std::string& path) {
+void CreateFile(const std::string& path) {
     int fd = open(path.c_str(), O_CREAT, kDefaultCreateMode);
     if (fd == -1) {
         throw FSException("open {} error: {}", path, strerror(errno));
@@ -328,7 +328,7 @@ void Create(const std::string& path) {
     close(fd);
 }
 
-void Remove(const std::string& path) {
+void RemoveFile(const std::string& path) {
     if (unlink(path.c_str()) == -1) {
         throw FSException("unlink {} error: {}", path, strerror(errno));
     }
@@ -340,20 +340,26 @@ void MakeDirectory(const std::string& path) {
     }
 }
 
-void RemoveDirectory(const std::string& path) {
+void RemoveDirectory(const std::string& path, bool recursive) {
     CHX_ASSERT(!path.empty());
-    CHX_ASSERT(path.back() == kPathSeperator);
 
-    auto entries = Path::ListUnderPath(path);
-    if (entries.empty()) {
-        rmdir(path.c_str());
+    std::vector<std::string> entries;
+    if (recursive) {
+        entries = ListUnderDirectory(path);
     }
     for (auto& e : entries) {
+        auto new_path = path.back() == kPathSeperator
+                            ? path + e
+                            : path + kPathSeperator + e;
         if (e.back() == kPathSeperator) {
-            RemoveDirectory(path + e);
+            RemoveDirectory(new_path, true);
         } else {
-            Remove(e);
+            RemoveFile(new_path);
         }
+    }
+    int ret = rmdir(path.c_str());
+    if (ret == -1) {
+        throw FSException("rmdir {} error: {}", path, strerror(errno));
     }
 }
 

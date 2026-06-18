@@ -131,7 +131,8 @@ void Editor::RegisterEditorEventHandlers() {
     editor_event_manager_.AddHandler(EditorEvent::kCommandCharEdit,
                                      [this](void* arg) {
                                          (void)arg;
-                                         StartAutoCompletionTimer();
+                                         if (!command_prompt_)
+                                             StartAutoCompletionTimer();
                                      });
     editor_event_manager_.AddHandler(EditorEvent::kSearchCharEdit,
                                      [this](void* arg) {
@@ -661,7 +662,7 @@ void Editor::Help(const std::string& doc_name) {
     if (b == nullptr) {
         try {
             std::vector<std::string> all_docs =
-                Path::ListUnderPath(Path::GetAppRoot() + kDocsPath);
+                ListUnderDirectory(Path::GetAppRoot() + kDocsPath);
             bool found = false;
             for (const auto& doc : all_docs) {
                 if (doc == doc_name) {
@@ -694,7 +695,12 @@ void Editor::Quit(bool force) {
     if (!have_not_saved || force) {
         loop_->EndLoop();
     } else {
-        NotifyUser("Some buffers have not saved, force quit with 'q!'");
+        Prompt("Some buffers have not saved, force quit?[y/n]",
+               [this](std::string_view s) {
+                   if (s == "y") {
+                       loop_->EndLoop();
+                   }
+               });
     }
 }
 
@@ -856,6 +862,13 @@ void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
 
 void Editor::CommandHitEnter() {
     std::string_view input = peel_->GetUserInput();
+    if (command_prompt_) {
+        prompt_handler_(input);
+        command_prompt_ = false;
+        ExitFromMode();
+        return;
+    }
+
     CommandArgs args;
     Command* c;
     Result res = command_manager_.EvalCommand(input, args, c);
@@ -973,6 +986,13 @@ void Editor::TrySearchOnType() {
         return;
     }
     SearchCurrentWindow(std::string(peel_->GetUserInput()));
+}
+
+void Editor::Prompt(const std::string& prefix, const PromptHandler& handler) {
+    GotoPeel(Mode::kPeelCommand);
+    peel_->UserInputStart(prefix);
+    command_prompt_ = true;
+    prompt_handler_ = handler;
 }
 
 void Editor::StartupScreen() {

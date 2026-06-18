@@ -24,10 +24,6 @@ void Editor::InitCommands() {
                  (void)args;
                  Quit(false);
              }});
-    CHX_CMD({"quit!", "q!", "", {}, [this](const CommandArgs& args) {
-                 (void)args;
-                 Quit(true);
-             }});
     CHX_CMD({"help",
              "h",
              "",
@@ -85,10 +81,94 @@ void Editor::InitCommands() {
                  (void)args;
                  NotifyUser(kSmile);
              }});
-    CHX_CMD({"about", "", "", {Type::kString}, [this](const CommandArgs& args) {
+    CHX_CMD({"about", "", "", {}, [this](const CommandArgs& args) {
                  (void)args;
                  NotifyUser(kVersionInfo);
              }});
+
+    // FS op
+    CHX_CMD({"create",
+             "",
+             "",
+             {Type::kString},
+             [this](const CommandArgs& args) {
+                 CHX_ENSURE_ARGEXITS(0);
+                 try {
+                     CreateFile(std::get<std::string>(*args[0]));
+                 } catch (FSException& e) {
+                     NotifyUser(e.what());
+                 }
+             },
+             1});
+    CHX_CMD({"remove",
+             "rm",
+             "",
+             {Type::kString},
+             [this](const CommandArgs& args) {
+                 CHX_ENSURE_ARGEXITS(0);
+                 auto path = std::get<std::string>(*args[0]);
+                 Prompt(fmt::format("Remove file \"{}\"?[y/n]", path),
+                        [this, path](std::string_view s) {
+                            if (s != "y") {
+                                return;
+                            }
+                            try {
+                                RemoveFile(path);
+                            } catch (FSException& e) {
+                                NotifyUser(e.what());
+                            }
+                        });
+             },
+             1});
+    CHX_CMD({"move",
+             "mv",
+             "",
+             {Type::kString, Type::kString},
+             [this](const CommandArgs& args) {
+                 CHX_ENSURE_ARGEXITS(0);
+                 CHX_ENSURE_ARGEXITS(1);
+                 int ret = rename(std::get<std::string>(*args[0]).c_str(),
+                                  std::get<std::string>(*args[1]).c_str());
+                 if (ret == -1) {
+                     NotifyUser(strerror(ret));
+                 }
+             },
+             2});
+    CHX_CMD({"mkdir",
+             "",
+             "",
+             {Type::kString},
+             [this](const CommandArgs& args) {
+                 CHX_ENSURE_ARGEXITS(0);
+                 try {
+                     MakeDirectory(std::get<std::string>(*args[0]));
+                 } catch (FSException& e) {
+                     NotifyUser(e.what());
+                 }
+             },
+             1});
+    CHX_CMD({"rmdir",
+             "",
+             "",
+             {Type::kString},
+             [this](const CommandArgs& args) {
+                 CHX_ENSURE_ARGEXITS(0);
+                 auto path = std::get<std::string>(*args[0]);
+                 Prompt(
+                     fmt::format("Remove directory \"{}\"?[r(recursively)/y/n]",
+                                 path),
+                     [this, path](std::string_view s) {
+                         if (s != "r" && s != "y") {
+                             return;
+                         }
+                         try {
+                             RemoveDirectory(path, s == "r");
+                         } catch (FSException& e) {
+                             NotifyUser(e.what());
+                         }
+                     });
+             },
+             1});
 #undef CHX_ENSURE_ARGEXITS
 }
 

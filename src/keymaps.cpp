@@ -225,7 +225,7 @@ void Editor::InitKeymaps() {
     CHX_KEYMAP("n",
                {[this] { CursorGoSearch(search_foward_, Count(), false); }},
                {Mode::kNormal}, {CHX_ALL_CONTEXTS});
-    CHX_KEYMAP(":", {[this] { GotoPeel(); }}, {Mode::kNormal},
+    CHX_KEYMAP(":", {[this] { GotoPeel(Mode::kPeelCommand); }}, {Mode::kNormal},
                {CHX_ALL_CONTEXTS});
     CHX_KEYMAP("<enter>", {[this] { GotoPeel(Mode::kPeelShow); }},
                {Mode::kNormal});
@@ -575,14 +575,19 @@ void Editor::InitKeymaps() {
     CHX_KEYMAP("<space>e", {[this] { OpenExplorer(); }}, {Mode::kNormal});
     CHX_KEYMAP("q", {[this] { QuitExplorer(); }}, {Mode::kNormal},
                {Context::kExplorer});
-    CHX_KEYMAP("<enter>", {[this] {
-                   if (peel_->area_.height_ != 1) {
-                       GotoPeel(Mode::kPeelShow);
-                       return;
-                   }
-                   explorer_->EnterCurrentEntry();
-               }},
-               {Mode::kNormal}, {Context::kExplorer});
+    CHX_KEYMAP(
+        "<enter>", {[this] {
+            if (peel_->area_.height_ != 1) {
+                GotoPeel(Mode::kPeelShow);
+                return;
+            }
+            try {
+                explorer_->EnterCurrentEntry();
+            } catch (FSException& e) {
+                NotifyUser(fmt::format("expand dir entry error: {}", e.what()));
+            }
+        }},
+        {Mode::kNormal}, {Context::kExplorer});
 }
 
 }  // namespace charxed

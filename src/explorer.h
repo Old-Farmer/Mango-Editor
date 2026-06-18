@@ -36,6 +36,7 @@ class Explorer : public Window {
 
     void Draw(bool highlight_search) { area_.Draw(highlight_search); }
 
+    // throws FSException if expand dir entry error
     void EnterCurrentEntry();
 
     // return absolute path if it's cwd,
@@ -98,6 +99,7 @@ class Explorer : public Window {
 
     // Expand collapsed flatten_index DirEntry
     // return expanded count.
+    // throw FSException
     // NOTE: should fix list_area view_begin and cursor_ if necessary.
     size_t ExpandDirEntry(size_t flattern_index);
 
