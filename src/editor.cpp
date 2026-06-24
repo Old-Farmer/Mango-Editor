@@ -176,13 +176,13 @@ void Editor::Loop() {
         }
 
         // We use a while to eat all events.
-        // Usually, there will be only one event.
-        // Bracketed Paste and multi-codepoint grapheme will lead to mult
+        // Usually, there will be only one event a time.
+        // Bracketed Paste and multi-codepoint grapheme will lead to multiple
         // events; Otherwise, multiple events usually means that we meet a slow
-        // machine, bad network or bad routines executing too long. I think we
-        // should handle it(A lot of event-based system usually handle all
-        // events in one frame/iteration, e.g. SDL3 manual recommand users to do
-        // so https://wiki.libsdl.org/SDL3/SDL_PollEvent).
+        // machine, bad network or bad routines executing in the main thread too
+        // long, and we should handle it(A lot of event-based system
+        // usually handle all events in one frame/iteration, e.g. SDL3 manual
+        // recommand users to do so https://wiki.libsdl.org/SDL3/SDL_PollEvent).
         while (term_.Poll(0)) {
             show_cmp_menu_ = false;
             if (autocmp_trigger_timer_ &&
@@ -195,27 +195,23 @@ void Editor::Loop() {
 
             // Handle it and do sth
             switch (term_.WhatEvent()) {
-                case Terminal::EventType::kKey: {
+                case Terminal::EventType::kKey:
                     if (in_bracketed_paste) {
                         HandleBracketedPaste(bracketed_paste_buffer);
                     } else {
                         HandleKey();
                     }
                     break;
-                }
-                case Terminal::EventType::kMouse: {
+                case Terminal::EventType::kMouse:
                     HandleMouse();
                     break;
-                }
-                case Terminal::EventType::kResize: {
+                case Terminal::EventType::kResize:
                     HandleResize();
                     break;
-                }
-                case Terminal::EventType::kBracketedPasteOpen: {
+                case Terminal::EventType::kBracketedPasteOpen:
                     in_bracketed_paste = true;
                     break;
-                }
-                case Terminal::EventType::kBracketedPasteClose: {
+                case Terminal::EventType::kBracketedPasteClose:
                     in_bracketed_paste = false;
                     if (IsPeel(mode_)) {
                         peel_->AddStringAtCursor(
@@ -227,9 +223,9 @@ void Editor::Loop() {
                     }
                     bracketed_paste_buffer = "";
                     break;
-                }
             }
         }
+        term_.PolledOutUnset();
 
         // If autocmp trigger timer has started,
         // don't cancel it to avoid flash of cmp menu.
@@ -332,13 +328,6 @@ void Editor::HandleKey() {
     }
 #endif  // !NDEBUG
 
-    // We treat one codepoint as a key event instead of one grapheme.
-    // 1. It's a limitation on terminals now. We can't detect graphemes on
-    // input event reliably, especially on ssh.
-    // 2. Users can input single codepoints.
-    // 3. Our keymaps only use special keys, or just ascii characters, which
-    // users will be aware of.
-
     // If the editor is in count state, means user have already input a seq of
     // numbers, we calc the input here.
     // FIXME: count can be calc in kKeyseqMatched
@@ -348,6 +337,13 @@ void Editor::HandleKey() {
         return;
     }
 
+    // If key info is a pure codepoint, we treat one codepoint as a key event,
+    // not a grapheme cluster.
+    // 1. It's a limitation on terminals now. We can't detect graphemes on
+    // input event reliably, especially on ssh.
+    // 2. Users can input single codepoints.
+    // 3. Our keymaps usually use special keys or ascii characters, which
+    // users will be aware of.
     Result res = kKeyseqError;
     Keyseq* handler;
     res = keymap_manager_.FeedKey(key_info, handler);
@@ -399,25 +395,61 @@ void Editor::HandleKey() {
         }
 
         // Pure codepoints that are not handled by the keymap manager.
-        // Use single codepoint to edit buffers is quite safe here because we
-        // insert codepoints one after another just like we insert a grapheme.
-
-        // We may use a codepoint as grapheme when we meet some ascii
-        // characters, like '(', '[' '{', because they're very very rare as a
-        // part of multi-codepoint graphemes.
         if (InsertLike(mode_)) {
+            // We try to collect all pure codepoints in one string and commit it
+            // to the buffer.
+
+            // Optimize for single codepoint input, most cases.
+            size_t len;
             char c[kMaxBytesUtf8Codepoint];
-            int len = UnicodeToUtf8(key_info.codepoint, c);
+            len = UnicodeToUtf8(key_info.codepoint, c);
             CHX_ASSERT(len > 0);
-            Result res;
+
+            std::string long_input;
+            Result feed_key_res = kKeyseqError;
+            while (term_.Poll(0)) {
+                if (term_.WhatEvent() != Terminal::EventType::kKey) {
+                    term_.PendCurrentEvent();
+                    break;
+                }
+                key_info = term_.EventKeyInfo();
+                if (key_info.IsSpecialKey()) {
+                    term_.PendCurrentEvent();
+                    break;
+                }
+
+                // Multiple codepoint arrive at a time, we should filter them
+                // with keymaps, then treat them as pure input.
+                feed_key_res = keymap_manager_.FeedKey(key_info, handler);
+                if (feed_key_res == kKeyseqDone) {
+                    break;
+                } else if (feed_key_res == kKeyseqMatched) {
+                    // Encounter a sequnce, we let multirow peel stay.
+                    if (!IsPeel(mode_) && peel_->area_.height_ > 1) {
+                        multirow_peel_keep_ = true;
+                    }
+                    break;
+                } else if (feed_key_res == kKeyseqError) {
+                    if (long_input.size() == 0) {
+                        long_input.append(c, len);
+                    }
+                    int codepoint_len = UnicodeToUtf8(key_info.codepoint, c);
+                    long_input.append(c, codepoint_len);
+                    len += codepoint_len;
+                } else {
+                    CHX_ASSERT(false);
+                }
+            }
+
+            const char* buf = long_input.empty() ? c : long_input.data();
             if (IsPeel(mode_)) {
-                res = peel_->AddStringAtCursor(std::string_view(c, len));
+                res = peel_->AddStringAtCursor(std::string_view(buf, len));
                 layout_manager_->ArrangeLayout();
             } else {
                 // We only support insert mode in kEditor context.
                 CHX_ASSERT(context_ == Context::kEditor);
-                res =
-                    cursor_.t_win->AddStringAtCursor(std::string_view(c, len));
+                res = cursor_.t_win->AddStringAtCursor(
+                    std::string_view(buf, len));
             }
             if (res != kOk) {
                 return;
@@ -439,6 +471,10 @@ void Editor::HandleKey() {
                     break;
             }
             editor_event_manager_.EmitEvent(ev, nullptr);
+
+            if (feed_key_res == kKeyseqDone) {
+                handler->f();
+            }
         } else if (key_info.codepoint >= '1' && key_info.codepoint <= '9' &&
                    count_ == 0) {
             count_ = count_ * 10 + key_info.codepoint - '0';
@@ -694,7 +730,7 @@ void Editor::Quit(bool force) {
     if (!have_not_saved || force) {
         loop_->EndLoop();
     } else {
-        Prompt("Some buffers have not saved, force quit?[y/n]",
+        Prompt("Some buffers have not saved, force quit[y/n]?",
                [this](std::string_view s) {
                    if (s == "y") {
                        loop_->EndLoop();

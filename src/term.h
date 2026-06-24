@@ -215,9 +215,17 @@ class Terminal {
     void HandleEsc();
 
    public:
-    // throws TermException
-    // timeout == -1 means infinite blocking
+    // Poll a terminal event, and the event will be stored in this class.
+    // Set timeout_ms == -1 to block infinite, timeout_ms == 0 to have a
+    // nonblocking semantic.
+    // throws TermException.
+    // return true if an event is ready, and you can use WhatEvent() to
+    // determine the event type and EventXxInfo() get the corresponding event
+    // info; else return false.
     bool Poll(int timeout_ms);
+    // After a nonblocking Poll return false, this method should be called to
+    // make nonblocking Poll have effect again.
+    void PolledOutUnset() { polled_out_ = false; }
 
     enum class EventType : uint8_t {
         kResize = TB_EVENT_RESIZE,
@@ -367,10 +375,17 @@ class Terminal {
                 static_cast<Mod>(event_.mod)};
     }
 
-    void PendCurrentEvent() { pendding_events_.push_front(event_); }
+    void PendCurrentEvent() {
+        pendding_events_.push_front(event_);
+        polled_out_ = false;
+    }
 
    private:
     tb_event event_;
+    bool polled_out_ =
+        false;  // nonblocking poll return false will set this to true, and all
+                // following nonblocking poll will quickly return false if
+                // polled_out_ is not reset to false.
 
     // When parsing escape key seq, some events occurs and interrupt it, we
     // should kept it in left_events and report them later.

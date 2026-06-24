@@ -120,6 +120,10 @@ bool Terminal::PollInner(int timeout_ms) {
 }
 
 bool Terminal::Poll(int timeout_ms) {
+    if (timeout_ms == 0 && polled_out_) {
+        return false;
+    }
+
     // Try pendding events.
     while (!pendding_events_.empty()) {
         event_ = pendding_events_.front();
@@ -129,6 +133,7 @@ bool Terminal::Poll(int timeout_ms) {
 
     bool res = PollInner(timeout_ms);
     if (!res) {
+        if (timeout_ms == 0) polled_out_ = true;
         return false;
     }
     if (event_.type != TB_EVENT_KEY) {

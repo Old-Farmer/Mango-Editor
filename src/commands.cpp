@@ -94,7 +94,9 @@ void Editor::InitCommands() {
              [this](const CommandArgs& args) {
                  CHX_ENSURE_ARGEXITS(0);
                  try {
-                     CreateFile(std::get<std::string>(*args[0]));
+                     auto p = std::get<std::string>(*args[0]);
+                     CreateFile(p);
+                     NotifyUser(fmt::format("File \"{}\" created", p));
                  } catch (FSException& e) {
                      NotifyUser(e.what());
                  }
@@ -107,13 +109,15 @@ void Editor::InitCommands() {
              [this](const CommandArgs& args) {
                  CHX_ENSURE_ARGEXITS(0);
                  auto path = std::get<std::string>(*args[0]);
-                 Prompt(fmt::format("Remove file \"{}\"?[y/n]", path),
+                 Prompt(fmt::format("Remove file \"{}\"[y/n]?", path),
                         [this, path](std::string_view s) {
                             if (s != "y") {
                                 return;
                             }
                             try {
                                 RemoveFile(path);
+                                NotifyUser(
+                                    fmt::format("File \"{}\" removed", path));
                             } catch (FSException& e) {
                                 NotifyUser(e.what());
                             }
@@ -127,11 +131,15 @@ void Editor::InitCommands() {
              [this](const CommandArgs& args) {
                  CHX_ENSURE_ARGEXITS(0);
                  CHX_ENSURE_ARGEXITS(1);
-                 int ret = rename(std::get<std::string>(*args[0]).c_str(),
-                                  std::get<std::string>(*args[1]).c_str());
+                 auto p_old = std::get<std::string>(*args[0]);
+                 auto p_new = std::get<std::string>(*args[0]);
+                 int ret = rename(p_old.c_str(), p_new.c_str());
                  if (ret == -1) {
                      NotifyUser(strerror(ret));
+                     return;
                  }
+                 NotifyUser(
+                     fmt::format("File \"{}\" moved to \"{}\"", p_old, p_new));
              },
              2});
     CHX_CMD({"mkdir",
@@ -141,7 +149,9 @@ void Editor::InitCommands() {
              [this](const CommandArgs& args) {
                  CHX_ENSURE_ARGEXITS(0);
                  try {
-                     MakeDirectory(std::get<std::string>(*args[0]));
+                     auto p = std::get<std::string>(*args[0]);
+                     MakeDirectory(p);
+                     NotifyUser(fmt::format("Directory \"{}\" created", p));
                  } catch (FSException& e) {
                      NotifyUser(e.what());
                  }
@@ -155,7 +165,7 @@ void Editor::InitCommands() {
                  CHX_ENSURE_ARGEXITS(0);
                  auto path = std::get<std::string>(*args[0]);
                  Prompt(
-                     fmt::format("Remove directory \"{}\"?[r(recursively)/y/n]",
+                     fmt::format("Remove directory \"{}\"[r(recursively)/y/n]?",
                                  path),
                      [this, path](std::string_view s) {
                          if (s != "r" && s != "y") {
@@ -163,6 +173,8 @@ void Editor::InitCommands() {
                          }
                          try {
                              RemoveDirectory(path, s == "r");
+                             NotifyUser(
+                                 fmt::format("Directory \"{}\" removed", path));
                          } catch (FSException& e) {
                              NotifyUser(e.what());
                          }
