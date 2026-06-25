@@ -115,6 +115,7 @@ Examples:
 | `<space>f` | Call clang-format to format the current buffer(really unstable) | Normal | Editor |
 | `>` | Indent | Select, Select-L, Op-Pend | Editor |
 | `<` | Unindent | Select-L, Select-L, Op-Pend | Editor |
+| `x` | Delete character | Normal | Editor |
 
 ## Operator Pending Motions / Text Objects
 

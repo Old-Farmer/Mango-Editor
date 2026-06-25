@@ -30,7 +30,7 @@ TextTree::~TextTree() { Clear(); }
 void TextTree::Init() {
     root_ = new LeafNode;
     root_->bytes = 0;
-    root_->lines = 0;
+    root_->new_lines = 0;
     root_->parent = nullptr;
     auto leaf = static_cast<LeafNode*>(root_);
     leaf->next = nullptr;
@@ -131,14 +131,14 @@ size_t TextTree::LoadLeafNodes(File& file, EOLSeq& eol_seq) {
             node = new LeafNode;
             begin_leaf_ = node;
             node->prev = nullptr;
-            node->lines = 0;
+            node->new_lines = 0;
             node->bytes = 0;
             leaf_cnt++;
         }
         if (node->bytes != kDataSize) {
             node->data[node->bytes] = c;
             node->bytes++;
-            node->lines += c == '\n' ? 1 : 0;
+            node->new_lines += c == '\n' ? 1 : 0;
             continue;
         }
         node->next = new LeafNode;
@@ -148,7 +148,7 @@ size_t TextTree::LoadLeafNodes(File& file, EOLSeq& eol_seq) {
         if (IsUtf8BeginByte(c)) {
             node->data[0] = c;
             node->bytes = 1;
-            node->lines = c == '\n' ? 1 : 0;
+            node->new_lines = c == '\n' ? 1 : 0;
             continue;
         }
 
@@ -163,7 +163,7 @@ size_t TextTree::LoadLeafNodes(File& file, EOLSeq& eol_seq) {
         prev->bytes = i;
         node->data[node->bytes] = c;
         node->bytes++;
-        node->lines = 0;  // '\n' can't be multi-byte
+        node->new_lines = 0;  // '\n' can't be multi-byte
     }
     if (node == nullptr) {
         return 0;
@@ -206,7 +206,7 @@ size_t TextTree::LoadLeafNodes(std::string_view str) {
         }
         memcpy(node->data, str.data() + i, e - i);
         node->bytes = e - i;
-        node->lines = std::count(str.data() + i, str.data() + e, '\n');
+        node->new_lines = std::count(str.data() + i, str.data() + e, '\n');
         leaf_cnt++;
         i = e;
     }
@@ -236,20 +236,20 @@ void TextTree::RedistributeNodes(LeafNode* sibling, LeafNode* node) {
     size_t moved_lines = std::count(sibling->data + redist_i,
                                     sibling->data + sibling->bytes, '\n');
     node->bytes += sibling->bytes - redist_i;
-    node->lines += moved_lines;
+    node->new_lines += moved_lines;
     sibling->bytes = redist_i;
-    sibling->lines -= moved_lines;
+    sibling->new_lines -= moved_lines;
 }
 
 void TextTree::FillInternalNode(InternalNode* node,
                                 const std::vector<Node*>& nodes,
                                 size_t nodes_begin_index, size_t size) {
     node->bytes = 0;
-    node->lines = 0;
+    node->new_lines = 0;
     for (size_t i = 0; i < size; i++) {
-        node->infos[i] = {nodes[nodes_begin_index + i]->lines,
+        node->infos[i] = {nodes[nodes_begin_index + i]->new_lines,
                           nodes[nodes_begin_index + i]->bytes};
-        node->lines += node->infos[i].lines;
+        node->new_lines += node->infos[i].new_lines;
         node->bytes += node->infos[i].bytes;
         node->children[i] = nodes[nodes_begin_index + i];
         nodes[nodes_begin_index + i]->parent = node;
@@ -354,9 +354,9 @@ TextTree::Iterator TextTree::Find(Pos pos) const {
         auto internal = static_cast<InternalNode*>(node);
         size_t i = 0;
         for (; i < internal->size &&
-               acc_lines + internal->infos[i].lines < pos.line;
+               acc_lines + internal->infos[i].new_lines < pos.line;
              i++) {
-            acc_lines += internal->infos[i].lines;
+            acc_lines += internal->infos[i].new_lines;
             acc_bytes += internal->infos[i].bytes;
         }
         CHX_ASSERT(i < internal->size);
@@ -436,7 +436,7 @@ TextTree::Iterator TextTree::Find(size_t offset) const {
     return iter;
 }
 
-std::optional<Pos> TextTree::OffsetToPos(size_t offset) const {
+Pos TextTree::OffsetToPos(size_t offset) const {
     Node* node = root_;
     size_t acc_bytes = 0;
     size_t acc_lines = 0;
@@ -447,10 +447,11 @@ std::optional<Pos> TextTree::OffsetToPos(size_t offset) const {
                acc_bytes + internal->infos[i].bytes <= offset;
              i++) {
             acc_bytes += internal->infos[i].bytes;
-            acc_lines += internal->infos[i].lines;
+            acc_lines += internal->infos[i].new_lines;
         }
         if (i == internal->size) {
-            return {};
+            auto iter = Find({LineCnt() - 1, 0});
+            return {LineCnt() - 1, root_->bytes - iter.offset()};
         }
         node = internal->children[i];
     }
@@ -472,7 +473,7 @@ std::optional<Pos> TextTree::OffsetToPos(size_t offset) const {
     }
     // We find '\n' in this leaf, meaning byte_offset is correct
     if (cur_node_lines > 0) {
-        return Pos{cur_node_lines + acc_lines, byte_offset};
+        return {cur_node_lines + acc_lines, byte_offset};
     }
 
     // If we can't find any '\n' in this node, we should search leaves backward
@@ -488,7 +489,7 @@ std::optional<Pos> TextTree::OffsetToPos(size_t offset) const {
         }
         leaf = leaf->prev;
     }
-    return Pos{acc_lines, byte_offset};
+    return {acc_lines, byte_offset};
 }
 
 // If str is too large, we split it too some substrs and insert it to the trees
@@ -590,11 +591,12 @@ void TextTree::UpdateInfoToRoot(Node* node) {
                              internal->children + internal->size, node) -
                    internal->children;
         CHX_ASSERT(i < kChildSize);
-        internal->lines += static_cast<int64_t>(node->lines) -
-                           static_cast<int64_t>(internal->infos[i].lines);
+        internal->new_lines +=
+            static_cast<int64_t>(node->new_lines) -
+            static_cast<int64_t>(internal->infos[i].new_lines);
         internal->bytes += static_cast<int64_t>(node->bytes) -
                            static_cast<int64_t>(internal->infos[i].bytes);
-        internal->infos[i] = {node->lines, node->bytes};
+        internal->infos[i] = {node->new_lines, node->bytes};
         node = internal;
     }
 }
@@ -606,7 +608,7 @@ void TextTree::AddSplitUptoOneNode(Iterator pos, std::string_view str) {
                 pos.node_->data + pos.index_, pos.node_->bytes - pos.index_);
         memcpy(pos.node_->data + pos.index_, str.data(), str.size());
         pos.node_->bytes = bytes;
-        pos.node_->lines += std::count(str.begin(), str.end(), '\n');
+        pos.node_->new_lines += std::count(str.begin(), str.end(), '\n');
         UpdateInfoToRoot(pos.node_);
         return;
     }
@@ -619,17 +621,18 @@ void TextTree::AddSplitUptoOneNode(Iterator pos, std::string_view str) {
                              internal->children + internal->size, node) -
                    internal->children;
         CHX_ASSERT(i < kChildSize);
-        internal->lines += static_cast<int64_t>(node->lines + new_node->lines) -
-                           static_cast<int64_t>(internal->infos[i].lines);
+        internal->new_lines +=
+            static_cast<int64_t>(node->new_lines + new_node->new_lines) -
+            static_cast<int64_t>(internal->infos[i].new_lines);
         internal->bytes += static_cast<int64_t>(node->bytes + new_node->bytes) -
                            static_cast<int64_t>(internal->infos[i].bytes);
-        internal->infos[i] = {node->lines, node->bytes};
+        internal->infos[i] = {node->new_lines, node->bytes};
         std::move(internal->infos + i + 1, internal->infos + internal->size,
                   internal->infos + i + 2);
         std::move(internal->children + i + 1,
                   internal->children + internal->size,
                   internal->children + i + 2);
-        internal->infos[i + 1] = {new_node->lines, new_node->bytes};
+        internal->infos[i + 1] = {new_node->new_lines, new_node->bytes};
         internal->children[i + 1] = new_node;
         internal->size++;
         if (internal->size <= kChildSize) {
@@ -644,13 +647,13 @@ void TextTree::AddSplitUptoOneNode(Iterator pos, std::string_view str) {
     // root is splited
     root_ = new InternalNode;
     root_->parent = nullptr;
-    root_->lines = node->lines + new_node->lines;
+    root_->new_lines = node->new_lines + new_node->new_lines;
     root_->bytes = node->bytes + new_node->bytes;
 
     internal = static_cast<InternalNode*>(root_);
     internal->size = 2;
-    internal->infos[0] = {node->lines, node->bytes};
-    internal->infos[1] = {new_node->lines, new_node->bytes};
+    internal->infos[0] = {node->new_lines, node->bytes};
+    internal->infos[1] = {new_node->new_lines, new_node->bytes};
     internal->children[0] = node;
     internal->children[1] = new_node;
     node->parent = internal;
@@ -660,7 +663,7 @@ void TextTree::AddSplitUptoOneNode(Iterator pos, std::string_view str) {
 void TextTree::DeleteInOneNode(LeafNode* node, size_t begin_index,
                                size_t end_index) {
     size_t bytes = node->bytes - (end_index - begin_index);
-    node->lines -=
+    node->new_lines -=
         std::count(node->data + begin_index, node->data + end_index, '\n');
     memmove(node->data + begin_index, node->data + end_index,
             node->bytes - end_index);
@@ -679,7 +682,7 @@ void TextTree::DeleteInOneNode(LeafNode* node, size_t begin_index,
                          internal->children + internal->size, node) -
                internal->children;
     CHX_ASSERT(i != internal->size);
-    internal->lines -= internal->infos[i].lines - node->lines;
+    internal->new_lines -= internal->infos[i].new_lines - node->new_lines;
     internal->bytes -= internal->infos[i].bytes - node->bytes;
     // We don't update internal->infos[i] here becuse redistribute or merge will
     // update it.
@@ -698,7 +701,7 @@ void TextTree::DeleteInOneNode(LeafNode* node, size_t begin_index,
         i = std::find(p->children, p->children + p->size, internal) -
             p->children;
         CHX_ASSERT(i != internal->size);
-        p->lines -= p->infos[i].lines - internal->lines;
+        p->new_lines -= p->infos[i].new_lines - internal->new_lines;
         p->bytes -= p->infos[i].bytes - internal->bytes;
         if (TryRedistributeIntenalNode(internal, i)) {
             UpdateInfoToRoot(p);
@@ -740,7 +743,7 @@ TextTree::Node* TextTree::SplitLeafNode(LeafNode* node, size_t insert_index,
 
 #ifndef NDEBUG
     size_t _total_lines =
-        node->lines + std::count(str.begin(), str.end(), '\n');
+        node->new_lines + std::count(str.begin(), str.end(), '\n');
     size_t _total_bytes = node->bytes + str.size();
 #endif
 
@@ -757,10 +760,10 @@ TextTree::Node* TextTree::SplitLeafNode(LeafNode* node, size_t insert_index,
         new_leaf->bytes = node->bytes - split_i + str.size();
         size_t old_leaf_lines =
             std::count(node->data, node->data + split_i, '\n');
-        new_leaf->lines = node->lines - old_leaf_lines +
-                          std::count(str.begin(), str.end(), '\n');
+        new_leaf->new_lines = node->new_lines - old_leaf_lines +
+                              std::count(str.begin(), str.end(), '\n');
         node->bytes = split_i;
-        node->lines = old_leaf_lines;
+        node->new_lines = old_leaf_lines;
     } else if (insert_index + str.size() < bytes / 2) {  // split after the str
         // CHX_LOG_DEBUG("after");
         size_t split_pos =
@@ -770,14 +773,15 @@ TextTree::Node* TextTree::SplitLeafNode(LeafNode* node, size_t insert_index,
         }
         memcpy(new_leaf->data, node->data + split_pos, node->bytes - split_pos);
         new_leaf->bytes = node->bytes - split_pos;
-        new_leaf->lines =
+        new_leaf->new_lines =
             std::count(new_leaf->data, new_leaf->data + new_leaf->bytes, '\n');
         memmove(node->data + insert_index + str.size(),
                 node->data + insert_index, split_pos - insert_index);
         memcpy(node->data + insert_index, str.data(), str.size());
         node->bytes = node->bytes + str.size() - new_leaf->bytes;
-        node->lines = node->lines + std::count(str.begin(), str.end(), '\n') -
-                      new_leaf->lines;
+        node->new_lines = node->new_lines +
+                          std::count(str.begin(), str.end(), '\n') -
+                          new_leaf->new_lines;
     } else {  // split the str
         // CHX_LOG_DEBUG("in");
         size_t split_pos = bytes / 2 - insert_index;
@@ -790,17 +794,18 @@ TextTree::Node* TextTree::SplitLeafNode(LeafNode* node, size_t insert_index,
         new_leaf->bytes = str.size() - split_pos + node->bytes - insert_index;
         size_t line_cnt = std::count(new_leaf->data + str.size() - split_pos,
                                      new_leaf->data + new_leaf->bytes, '\n');
-        new_leaf->lines =
+        new_leaf->new_lines =
             std::count(new_leaf->data, new_leaf->data + str.size() - split_pos,
                        '\n') +
             line_cnt;
         memcpy(node->data + insert_index, str.data(), split_pos);
         node->bytes = insert_index + split_pos;
-        node->lines = std::count(str.begin(), str.begin() + split_pos, '\n') +
-                      node->lines - line_cnt;
+        node->new_lines =
+            std::count(str.begin(), str.begin() + split_pos, '\n') +
+            node->new_lines - line_cnt;
     }
 
-    CHX_ASSERT(_total_lines == node->lines + new_leaf->lines);
+    CHX_ASSERT(_total_lines == node->new_lines + new_leaf->new_lines);
     CHX_ASSERT(_total_bytes == node->bytes + new_leaf->bytes);
     CHX_ASSERT(node->bytes <= kDataSize &&
                node->bytes >= kDataSizeMergeThreshold);
@@ -818,14 +823,14 @@ TextTree::Node* TextTree::SplitInternalNode(InternalNode* node) {
     std::move(node->children + kChildSize / 2 + 1,
               node->children + kChildSize + 1, new_node->children);
     new_node->size = (kChildSize + 1) - (kChildSize / 2 + 1);
-    new_node->lines = 0;
+    new_node->new_lines = 0;
     new_node->bytes = 0;
     for (size_t i = 0; i < new_node->size; i++) {
-        new_node->lines += new_node->infos[i].lines;
+        new_node->new_lines += new_node->infos[i].new_lines;
         new_node->bytes += new_node->infos[i].bytes;
     }
     node->size -= new_node->size;
-    node->lines -= new_node->lines;
+    node->new_lines -= new_node->new_lines;
     node->bytes -= new_node->bytes;
     for (size_t i = 0; i < new_node->size; i++) {
         new_node->children[i]->parent = new_node;
@@ -848,7 +853,7 @@ bool TextTree::TryRedistributeLeafNode(LeafNode* node, size_t index) {
         if (bytes > kDataSize) {
 #ifndef NDEBUG
             size_t _total_bytes = node->bytes + sibling->bytes;
-            size_t _total_lines = node->lines + sibling->lines;
+            size_t _total_lines = node->new_lines + sibling->new_lines;
 #endif
             size_t redst_i = bytes / 2;
             for (; redst_i < sibling->bytes; redst_i++) {
@@ -861,18 +866,18 @@ bool TextTree::TryRedistributeLeafNode(LeafNode* node, size_t index) {
             size_t moved_lines = std::count(
                 sibling->data + redst_i, sibling->data + sibling->bytes, '\n');
             node->bytes += sibling->bytes - redst_i;
-            node->lines += moved_lines;
+            node->new_lines += moved_lines;
             sibling->bytes = redst_i;
-            sibling->lines -= moved_lines;
-            p->infos[index] = {node->lines, node->bytes};
-            p->infos[index - 1] = {sibling->lines, sibling->bytes};
+            sibling->new_lines -= moved_lines;
+            p->infos[index] = {node->new_lines, node->bytes};
+            p->infos[index - 1] = {sibling->new_lines, sibling->bytes};
 
             CHX_ASSERT(node->bytes >= kDataSizeMergeThreshold &&
                        node->bytes <= kDataSize);
             CHX_ASSERT(sibling->bytes >= kDataSizeMergeThreshold &&
                        sibling->bytes <= kDataSize);
             CHX_ASSERT(_total_bytes == node->bytes + sibling->bytes);
-            CHX_ASSERT(_total_lines == node->lines + sibling->lines);
+            CHX_ASSERT(_total_lines == node->new_lines + sibling->new_lines);
             return true;
         }
     }
@@ -884,7 +889,7 @@ bool TextTree::TryRedistributeLeafNode(LeafNode* node, size_t index) {
         if (bytes > kDataSize) {
 #ifndef NDEBUG
             size_t _total_bytes = node->bytes + sibling->bytes;
-            size_t _total_lines = node->lines + sibling->lines;
+            size_t _total_lines = node->new_lines + sibling->new_lines;
 #endif
             size_t redst_i = bytes / 2 - node->bytes;
             for (; redst_i < sibling->bytes; redst_i++) {
@@ -896,18 +901,18 @@ bool TextTree::TryRedistributeLeafNode(LeafNode* node, size_t index) {
             memmove(sibling->data, sibling->data + redst_i,
                     sibling->bytes - redst_i);
             node->bytes += redst_i;
-            node->lines += moved_lines;
+            node->new_lines += moved_lines;
             sibling->bytes -= redst_i;
-            sibling->lines -= moved_lines;
-            p->infos[index] = {node->lines, node->bytes};
-            p->infos[index + 1] = {sibling->lines, sibling->bytes};
+            sibling->new_lines -= moved_lines;
+            p->infos[index] = {node->new_lines, node->bytes};
+            p->infos[index + 1] = {sibling->new_lines, sibling->bytes};
 
             CHX_ASSERT(node->bytes >= kDataSizeMergeThreshold &&
                        node->bytes <= kDataSize);
             CHX_ASSERT(sibling->bytes >= kDataSizeMergeThreshold &&
                        sibling->bytes <= kDataSize);
             CHX_ASSERT(_total_bytes == node->bytes + sibling->bytes);
-            CHX_ASSERT(_total_lines == node->lines + sibling->lines);
+            CHX_ASSERT(_total_lines == node->new_lines + sibling->new_lines);
             return true;
         }
     }
@@ -941,11 +946,11 @@ void TextTree::MergeLeafNode(LeafNode* node, size_t index) {
     auto another_leaf = static_cast<LeafNode*>(p->children[merged_i + 1]);
 #ifndef NDEBUG
     size_t _total_bytes = merged_leaf->bytes + another_leaf->bytes;
-    size_t _total_lines = merged_leaf->lines + another_leaf->lines;
+    size_t _total_lines = merged_leaf->new_lines + another_leaf->new_lines;
 #endif
     memcpy(merged_leaf->data + merged_leaf->bytes, another_leaf->data,
            another_leaf->bytes);
-    merged_leaf->lines += another_leaf->lines;
+    merged_leaf->new_lines += another_leaf->new_lines;
     merged_leaf->bytes += another_leaf->bytes;
 
     // tweak list
@@ -960,10 +965,10 @@ void TextTree::MergeLeafNode(LeafNode* node, size_t index) {
     CHX_ASSERT(merged_leaf->bytes >= kDataSizeMergeThreshold &&
                merged_leaf->bytes <= kDataSize);
     CHX_ASSERT(merged_leaf->bytes == _total_bytes);
-    CHX_ASSERT(merged_leaf->lines == _total_lines);
+    CHX_ASSERT(merged_leaf->new_lines == _total_lines);
 
     // tweak the parent
-    p->infos[merged_i] = {merged_leaf->lines, merged_leaf->bytes};
+    p->infos[merged_i] = {merged_leaf->new_lines, merged_leaf->bytes};
     std::move(p->infos + merged_i + 2, p->infos + p->size,
               p->infos + merged_i + 1);
     std::move(p->children + merged_i + 2, p->children + p->size,
@@ -990,18 +995,18 @@ bool TextTree::TryRedistributeIntenalNode(InternalNode* node, size_t index) {
             size_t moved_lines = 0;
             size_t moved_bytes = 0;
             for (size_t i = redst_i; i < sibling->size; i++) {
-                moved_lines += sibling->infos[i].lines;
+                moved_lines += sibling->infos[i].new_lines;
                 moved_bytes += sibling->infos[i].bytes;
                 sibling->children[i]->parent = node;
             }
             node->bytes += moved_bytes;
-            node->lines += moved_lines;
+            node->new_lines += moved_lines;
             sibling->bytes -= moved_bytes;
-            sibling->lines -= moved_lines;
+            sibling->new_lines -= moved_lines;
             sibling->size = redst_i;
             node->size = size - sibling->size;
-            p->infos[index] = {node->lines, node->bytes};
-            p->infos[index - 1] = {sibling->lines, sibling->bytes};
+            p->infos[index] = {node->new_lines, node->bytes};
+            p->infos[index - 1] = {sibling->new_lines, sibling->bytes};
             return true;
         }
     }
@@ -1014,7 +1019,7 @@ bool TextTree::TryRedistributeIntenalNode(InternalNode* node, size_t index) {
             size_t moved_lines = 0;
             size_t moved_bytes = 0;
             for (size_t i = 0; i < redst_i; i++) {
-                moved_lines += sibling->infos[i].lines;
+                moved_lines += sibling->infos[i].new_lines;
                 moved_bytes += sibling->infos[i].bytes;
                 sibling->children[i]->parent = node;
             }
@@ -1027,13 +1032,13 @@ bool TextTree::TryRedistributeIntenalNode(InternalNode* node, size_t index) {
             std::move(sibling->children + redst_i,
                       sibling->children + sibling->size, sibling->children);
             node->bytes += moved_bytes;
-            node->lines += moved_lines;
+            node->new_lines += moved_lines;
             sibling->bytes -= moved_bytes;
-            sibling->lines -= moved_lines;
+            sibling->new_lines -= moved_lines;
             node->size += redst_i;
             sibling->size -= redst_i;
-            p->infos[index] = {node->lines, node->bytes};
-            p->infos[index + 1] = {sibling->lines, sibling->bytes};
+            p->infos[index] = {node->new_lines, node->bytes};
+            p->infos[index + 1] = {sibling->new_lines, sibling->bytes};
             return true;
         }
     }
@@ -1068,13 +1073,13 @@ void TextTree::MergeInternalNode(InternalNode* node, size_t index) {
     std::move(another_internal->children,
               another_internal->children + another_internal->size,
               merged_internal->children + merged_internal->size);
-    merged_internal->lines += another_internal->lines;
+    merged_internal->new_lines += another_internal->new_lines;
     merged_internal->bytes += another_internal->bytes;
     merged_internal->size += another_internal->size;
     delete another_internal;
 
     // tweak the parent
-    p->infos[merged_i] = {merged_internal->lines, merged_internal->bytes};
+    p->infos[merged_i] = {merged_internal->new_lines, merged_internal->bytes};
     std::move(p->infos + merged_i + 2, p->infos + p->size,
               p->infos + merged_i + 1);
     std::move(p->children + merged_i + 2, p->children + p->size,
@@ -1126,10 +1131,10 @@ std::string TextTree::Check() {
     LeafNode* last_n = nullptr;
     for (auto n = begin_leaf_; n != nullptr; n = n->next) {
         size_t lines = std::count(n->data, n->data + n->bytes, '\n');
-        if (lines != n->lines) {
+        if (lines != n->new_lines) {
             return fmt::format(
                 "Line cnt mismatch in leaf node: {}, record: {}, actual: {}",
-                (void*)n, n->lines, lines);
+                (void*)n, n->new_lines, lines);
         }
         if (n->bytes > kDataSize) {
             return fmt::format("Leaf node {} data bytes overflow", (void*)n);
@@ -1199,20 +1204,20 @@ std::string TextTree::Check() {
             size_t lines = 0;
             size_t bytes = 0;
             for (size_t j = 0; j < n->size; j++) {
-                lines += n->infos[j].lines;
+                lines += n->infos[j].new_lines;
                 bytes += n->infos[j].bytes;
                 if (n->children[j]->bytes != n->infos[j].bytes) {
                     return fmt::format(
                         "Internal node {} child {} bytes mismatch", (void*)n,
                         j);
                 }
-                if (n->children[j]->lines != n->infos[j].lines) {
+                if (n->children[j]->new_lines != n->infos[j].new_lines) {
                     return fmt::format(
                         "Internal node {} child {} lines mismatch", (void*)n,
                         j);
                 }
             }
-            if (lines != n->lines) {
+            if (lines != n->new_lines) {
                 return fmt::format("Internal node {} lines mismatch", (void*)n);
             }
             if (bytes != n->bytes) {
@@ -1231,18 +1236,18 @@ std::string TextTree::Check() {
     size_t lines = 0;
     size_t bytes = 0;
     for (size_t j = 0; j < n->size; j++) {
-        lines += n->infos[j].lines;
+        lines += n->infos[j].new_lines;
         bytes += n->infos[j].bytes;
         if (n->children[j]->bytes != n->infos[j].bytes) {
             return fmt::format("root node {} child {} bytes mismatch", (void*)n,
                                j);
         }
-        if (n->children[j]->lines != n->infos[j].lines) {
+        if (n->children[j]->new_lines != n->infos[j].new_lines) {
             return fmt::format("root node {} child {} lines mismatch", (void*)n,
                                j);
         }
     }
-    if (lines != n->lines) {
+    if (lines != n->new_lines) {
         return fmt::format("root node {} lines mismatch", (void*)n);
     }
     if (bytes != n->bytes) {

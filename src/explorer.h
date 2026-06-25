@@ -91,6 +91,8 @@ class Explorer : public Window {
         return area_.ViewGoSearchResult(next, count, keep_current_if_one);
     }
 
+    void Refresh();
+
    private:
     struct Entry;
     // return absolute path if it's cwd,
@@ -145,6 +147,8 @@ class Explorer : public Window {
     T GetOpt(OptKey key) {
         return global_opts_->GetOpt<T>(key);
     }
+
+    void RefreshRoot(DirEntry& dir_entry);
 
     DirEntry root_;
     std::vector<Entry*> flattern_entries_ = {&root_};

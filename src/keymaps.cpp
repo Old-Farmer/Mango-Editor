@@ -461,6 +461,9 @@ void Editor::InitKeymaps() {
                    pending_operator_ = Operator::kUnindent;
                }},
                {Mode::kNormal});
+    CHX_KEYMAP("x",
+               {[this] { cursor_.t_win->DeleteCharacterFromCursor(Count()); }},
+               {Mode::kNormal});
 
     // A inner format, not exposed
     CHX_KEYMAP(
@@ -589,6 +592,8 @@ void Editor::InitKeymaps() {
             }
         }},
         {Mode::kNormal}, {Context::kExplorer});
+    CHX_KEYMAP("R", {[this] { explorer_->Refresh(); }}, {Mode::kNormal},
+               {Context::kExplorer});
 }
 
 }  // namespace charxed

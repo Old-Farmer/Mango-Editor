@@ -186,6 +186,7 @@ class TextArea {
     void CutRange(Range range, bool lines);
 
     Result DeleteCharacterBeforeCursor();
+    Result DeleteCharacterFromCursor(size_t count);
     Result DeleteSelection();
 
     // inclusice end_line

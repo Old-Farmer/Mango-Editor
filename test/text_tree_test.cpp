@@ -79,10 +79,9 @@ TEST_CASE("TextTree test") {
 
     SECTION("OffsetToPos test") {
         const size_t offset = 100;
-        auto pos = tree.OffsetToPos(offset);
-        REQUIRE(pos.has_value());
-        // fmt::print("pos {}:{}", pos->line, pos->line);
-        auto iter = tree.Find(*pos);
+        Pos pos = tree.OffsetToPos(offset);
+        // fmt::print("pos {}:{}", pos.line, pos.line);
+        auto iter = tree.Find(pos);
         REQUIRE(iter != tree.End());
         REQUIRE(iter.offset() == offset);
     }

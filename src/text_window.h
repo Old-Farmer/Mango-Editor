@@ -85,6 +85,9 @@ class TextWindow : public Window {
     void SelectionFollowCursor() override { area_.SelectionFollowCursor(); };
 
     Result DeleteAtCursor();
+    Result DeleteCharacterFromCursor(size_t count) {
+        return area_.DeleteCharacterFromCursor(count);
+    }
     Result DeleteSelection() { return area_.DeleteSelection(); }
     Result DeleteWordBeforeCursor() { return area_.DeleteWordBeforeCursor(); }
     // raw means do not treat it as keystroke

@@ -47,7 +47,7 @@ void Explorer::EnterCurrentEntry() {
     } else {
         auto name = CurrentEntryPath();
 
-        // Editor->QuitExplorer()
+        // == Editor->QuitExplorer()
         SaveView();
         *context_ = Context::kEditor;
         cursor_->focused = cursor_->t_win;
@@ -68,6 +68,8 @@ std::string Explorer::CurrentEntryPath() {
 bool Explorer::IsCurrentEntryDir() {
     return flattern_entries_[cursor_->pos.line]->IsDir();
 }
+
+void Explorer::Refresh() {}
 
 std::string Explorer::EntryPath(const Entry* e) {
     if (e->parent == nullptr) {

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <vector>
 
 #include "file.h"
@@ -33,7 +32,7 @@ class TextTree {
 
    private:
     struct ChildInfo {
-        size_t lines;
+        size_t new_lines;
         size_t bytes;
     };
 
@@ -49,8 +48,8 @@ class TextTree {
     struct Node {
         bool is_leaf;
         InternalNode* parent;
-        size_t bytes;  // byte count belonging to this node
-        size_t lines;  // line count belonging to this node
+        size_t bytes;      // byte count belonging to this node
+        size_t new_lines;  // new line count belonging to this node
 
         Node(bool _is_leaf) : is_leaf(_is_leaf) {}
     };
@@ -214,7 +213,8 @@ class TextTree {
     Iterator Find(size_t offset) const;
 
     // Transfer global offset to pos
-    std::optional<Pos> OffsetToPos(size_t offset) const;
+    // if offset can't be found, return the pos just after the last byte
+    Pos OffsetToPos(size_t offset) const;
 
     Iterator Begin() const {
         Iterator iter;
@@ -316,7 +316,7 @@ class TextTree {
     }
     size_t LineCnt() const {
         CHX_ASSERT(root_);
-        return root_->lines + 1;
+        return root_->new_lines + 1;
     }
 
     size_t Size() const {

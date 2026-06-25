@@ -219,7 +219,7 @@ void TextArea::Draw(BufferSearchContext* search_context) {
             int cur_s_row = win_r + row_;
             size_t line = win_r + b_view_->line;
 
-            if (line_cnt <= line) {
+            if (line >= line_cnt) {
                 if (!eob_mark) break;
                 Codepoint codepoint = '~';
                 term_->SetCell(content_s_col, cur_s_row, &codepoint, 1,
@@ -1178,11 +1178,9 @@ bool TextArea::CursorGoNextWordEndState(size_t count, CursorState& state) {
         iter = NextWordEnd(iter, end);
     }
     if (i == 0) {
-        return 0;
+        return false;
     }
-    auto pos = buffer_->OffsetToPos(iter.offset());
-    CHX_ASSERT(pos.has_value());
-    state.pos = *pos;
+    state.pos = buffer_->OffsetToPos(iter.offset());
     state.DontHoldColWant();
     return true;
 }
@@ -1196,11 +1194,9 @@ bool TextArea::CursorGoPrevWordBeginState(size_t count, CursorState& state) {
         iter = PrevWordBegin(iter, begin);
     }
     if (i == 0) {
-        return 0;
+        return false;
     }
-    auto pos = buffer_->OffsetToPos(iter.offset());
-    CHX_ASSERT(pos.has_value());
-    state.pos = *pos;
+    state.pos = buffer_->OffsetToPos(iter.offset());
     state.DontHoldColWant();
     return true;
 }
@@ -1215,11 +1211,9 @@ bool TextArea::CursorGoNextWordBeginState(size_t count, CursorState& state) {
         iter = NextWordBegin(iter, end);
     }
     if (i == 0) {
-        return 0;
+        return false;
     }
-    auto pos = buffer_->OffsetToPos(iter.offset());
-    CHX_ASSERT(pos.has_value());
-    state.pos = *pos;
+    state.pos = buffer_->OffsetToPos(iter.offset());
     state.DontHoldColWant();
     return true;
 }
@@ -1282,7 +1276,7 @@ bool TextArea::CursorGoBracketState(CursorState& state) {
     }
 
     if (found_iter != iter) {
-        state.pos = *buffer_->OffsetToPos(found_iter.offset());
+        state.pos = buffer_->OffsetToPos(found_iter.offset());
         state.DontHoldColWant();
         return true;
     }
@@ -1297,7 +1291,7 @@ bool TextArea::CursorGoBracketState(CursorState& state) {
     if (v.Size() == 0) {
         return false;
     }
-    state.pos = *buffer_->OffsetToPos(
+    state.pos = buffer_->OffsetToPos(
         is_open ? v.end.offset() - 1
                 : v.begin.offset());  // 1 is because bracket is now char
     state.DontHoldColWant();
@@ -1440,8 +1434,8 @@ bool TextArea::SelectPair(char open, bool inner) {
             return false;
         }
         selection_ = std::make_unique<NormalSelection>(
-            *buffer_->OffsetToPos(brackets.begin.offset()),
-            *buffer_->OffsetToPos(brackets.end.offset()));
+            buffer_->OffsetToPos(brackets.begin.offset()),
+            buffer_->OffsetToPos(brackets.end.offset()));
     }
 
     if (inner) {
@@ -1751,6 +1745,31 @@ Result TextArea::DeleteCharacterBeforeCursor() {
         return res;
     }
     AfterModify(pos);
+    return kOk;
+}
+
+Result TextArea::DeleteCharacterFromCursor(size_t count) {
+    CHX_ASSERT(!IsSelectionActive());
+    CHX_ASSERT(count != 0);
+    b_view_->make_cursor_visible = true;
+    auto iter = buffer_->Find(cursor_->pos);
+    auto end = buffer_->End();
+    size_t i = 0;
+    for (; i < count && iter != end; i++) {
+        Character c;
+        iter = NextCharacter(iter, end, c);
+    }
+    if (i == 0) {
+        return kFail;
+    }
+
+    Pos pos = buffer_->OffsetToPos(iter.offset());
+    Result res;
+    if ((res = buffer_->Delete({cursor_->pos, pos}, &cursor_->pos, true,
+                               cursor_->pos)) != kOk) {
+        return res;
+    }
+    AfterModify(cursor_->pos);
     return kOk;
 }
 

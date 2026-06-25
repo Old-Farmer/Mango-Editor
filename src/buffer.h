@@ -188,9 +188,7 @@ class Buffer {
     using Iterator = TextTree::Iterator;
     Iterator Find(Pos pos) const { return tree_.Find(pos); }
     Iterator Find(size_t offset) const { return tree_.Find(offset); }
-    std::optional<Pos> OffsetToPos(size_t offset) const {
-        return tree_.OffsetToPos(offset);
-    }
+    Pos OffsetToPos(size_t offset) const { return tree_.OffsetToPos(offset); }
 
     Iterator LineEnd(size_t line) {
         CHX_ASSERT(LineCnt() > line);
@@ -246,8 +244,8 @@ class Buffer {
     //      1) we always want to copy the string and don't care about whether it
     //      is a rvalue. 2) Usually we want to insert a char[] to a buffer, use
     //      string_view can eliminate a string ctor.
-    // 2. cursor_pos and cursor_pos_hint should point to the same address,
-    // otherwise behavior is undefined.
+    // 2. cursor_pos and cursor_pos_hint should point to the same address if
+    // use_given_pos_hint == true, otherwise behavior is undefined.
     Result Add(Pos pos, std::string_view str, const Pos* cursor_pos,
                bool use_given_pos_hint, Pos& cursor_pos_hint);
     Result Delete(const Range& range, const Pos* cursor_pos,
