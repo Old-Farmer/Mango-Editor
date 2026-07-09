@@ -40,6 +40,9 @@ foreach(I RANGE 0 ${LAST} 2)
     list(APPEND TS_GRAMMAR_LANGS ${LANG})
 endforeach()
 
+# Default static lib for convenience
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+
 # termbox2
 FetchContent_Declare(
     termbox2
