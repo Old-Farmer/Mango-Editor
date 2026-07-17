@@ -136,20 +136,6 @@ class Editor {
     std::unique_ptr<LayoutManager> layout_manager_;
     std::unique_ptr<BufferFSMonitor> buffer_monitor_;
 
-    enum class ContextID : int {};
-    class ContextManager {
-        std::unordered_map<ContextID, void*> contexts_;
-
-       public:
-        CHX_DEFAULT_CONSTRUCT_DESTRUCT(ContextManager);
-        CHX_DELETE_COPY(ContextManager);
-        CHX_DELETE_MOVE(ContextManager);
-
-        void*& GetContext(ContextID id);
-        void FreeContext(ContextID id);
-    };
-    ContextManager contexts_manager_;
-
     std::unique_ptr<ClipBoard> clipboard_;
 
     Mouse mouse_;

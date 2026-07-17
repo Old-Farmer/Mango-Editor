@@ -903,11 +903,6 @@ void Editor::CancellCompletion() {
 
 bool Editor::CompletionTriggered() { return completer_ != nullptr; }
 
-void*& Editor::ContextManager::GetContext(ContextID id) {
-    return contexts_[id];
-}
-void Editor::ContextManager::FreeContext(ContextID id) { contexts_.erase(id); }
-
 void Editor::CommandHitEnter() {
     std::string_view input = peel_->GetUserInput();
     if (command_prompt_) {
