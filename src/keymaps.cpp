@@ -204,6 +204,7 @@ void Editor::InitKeymaps() {
     CHX_KEYMAP("<esc>", {[this] {
                    if (IsPeel(mode_)) {
                        NotifyUser("");
+                       selection_range_for_seach_or_cmd_.reset();
                    }
                    ExitFromMode();
                }},
@@ -214,20 +215,20 @@ void Editor::InitKeymaps() {
                    search_foward_ = true;
                    GotoPeel(Mode::kPeelSearch);
                }},
-               {Mode::kNormal}, {CHX_ALL_CONTEXTS});
+               {CHX_DEFAULT_MODES}, {CHX_ALL_CONTEXTS});
     CHX_KEYMAP("?", {[this] {
                    search_foward_ = false;
                    GotoPeel(Mode::kPeelSearch);
                }},
-               {Mode::kNormal}, {CHX_ALL_CONTEXTS});
+               {CHX_DEFAULT_MODES}, {CHX_ALL_CONTEXTS});
     CHX_KEYMAP("N",
                {[this] { CursorGoSearch(!search_foward_, Count(), false); }},
                {Mode::kNormal}, {CHX_ALL_CONTEXTS});
     CHX_KEYMAP("n",
                {[this] { CursorGoSearch(search_foward_, Count(), false); }},
                {Mode::kNormal}, {CHX_ALL_CONTEXTS});
-    CHX_KEYMAP(":", {[this] { GotoPeel(Mode::kPeelCommand); }}, {Mode::kNormal},
-               {CHX_ALL_CONTEXTS});
+    CHX_KEYMAP(":", {[this] { GotoPeel(Mode::kPeelCommand); }},
+               {CHX_DEFAULT_MODES}, {CHX_ALL_CONTEXTS});
     CHX_KEYMAP("<enter>", {[this] { GotoPeel(Mode::kPeelShow); }},
                {Mode::kNormal});
     CHX_KEYMAP("<c-r>", {[this] {

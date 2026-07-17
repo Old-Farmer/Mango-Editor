@@ -2,6 +2,7 @@
 
 #include <regex.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,8 +22,9 @@ class Buffer;
 bool BuildRegContext(const std::string& pattern, bool ignore_case,
                      regex_t& regex);
 
-std::vector<Range> BufferSearch(const Buffer* buffer,
-                                const std::string& pattern, bool ignore_case);
+std::vector<Range> BufferSearch(const Buffer* buffer, const Range* range,
+                                const std::string& pattern, bool ignore_case,
+                                bool ensure_grapheme_cluster_boundary);
 
 struct BufferSearchContext {
     std::vector<Range> search_result;
@@ -31,10 +33,12 @@ struct BufferSearchContext {
     int64_t search_buffer_version = -1;
     int64_t search_buffer_id = -1;
     Buffer* b;
+    std::optional<Range> range;
 
     BufferSearchContext() = default;
     // if the pattern is a empty string, context will in empty state
-    BufferSearchContext(const std::string& pattern, const Buffer* buffer);
+    BufferSearchContext(const std::string& pattern, const Buffer* buffer,
+                        const Range* range);
     void Destroy();
     bool EnsureSearched(const Buffer* buffer);
     bool NearestSearchPos(Pos pos, const Buffer* buffer, bool next,

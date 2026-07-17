@@ -83,6 +83,10 @@ class TextWindow : public Window {
     };
     void StopSelection() override { area_.StopSelection(); };
     void SelectionFollowCursor() override { area_.SelectionFollowCursor(); };
+    Range SelectionRange() override {
+        return area_.selection_ ? area_.selection_->ToSelectRange(area_.buffer_)
+                                : Range{{0, 0}, {0, 0}};
+    }
 
     Result DeleteAtCursor();
     Result DeleteCharacterFromCursor(size_t count) {
@@ -130,8 +134,9 @@ class TextWindow : public Window {
     void OnBufferDelete(const Buffer* buffer);
 
     // Search relevant
-    void BuildSearchContext(const std::string& pattern) override {
-        b_search_context_ = BufferSearchContext{pattern, area_.buffer_};
+    void BuildSearchContext(const std::string& pattern,
+                            const Range* range) override {
+        b_search_context_ = BufferSearchContext{pattern, area_.buffer_, range};
     }
     void DestorySearchContext() { b_search_context_.Destroy(); }
     const std::string& GetSearchPattern() override {

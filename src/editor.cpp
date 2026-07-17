@@ -781,6 +781,7 @@ void Editor::ExitFromMode() {
         case Mode::kPeelSearch:
             term_.SetCursorStyle(Terminal::CursorStyle::kBlock);
             peel_->SetHistoryCursorToEnd();
+            cursor_.focused->StopSelection();
             [[fallthrough]];
         case Mode::kPeelShow: {
             cursor_.focused->RestoreView();
@@ -794,18 +795,28 @@ void Editor::ExitFromMode() {
 }
 
 void Editor::GotoMode(Mode mode) {
-    if (mode_ != Mode::kNormal) {
-        ExitFromMode();
-    }
     switch (mode) {
         case Mode::kInsert:
-            [[fallthrough]];
+            if (mode_ != Mode::kNormal) {
+                ExitFromMode();
+            }
+            term_.SetCursorStyle(Terminal::CursorStyle::kLine);
+            break;
         case Mode::kPeelCommand:
             [[fallthrough]];
         case Mode::kPeelSearch:
+            if (mode_ == Mode::kSelect || mode_ == Mode::kSelectLine) {
+                selection_range_for_seach_or_cmd_ =
+                    cursor_.focused->SelectionRange();
+            } else if (mode_ != Mode::kNormal) {
+                ExitFromMode();
+            }
             term_.SetCursorStyle(Terminal::CursorStyle::kLine);
             break;
         default:
+            if (mode_ != Mode::kNormal) {
+                ExitFromMode();
+            }
             break;
     }
     mode_ = mode;
@@ -814,11 +825,13 @@ void Editor::GotoMode(Mode mode) {
 void Editor::SearchCurrentWindow(const std::string& pattern) {
     // TODO: Maybe we can eliminate duplicate searching?
     if (!IsPeel(mode_)) {
-        cursor_.focused->BuildSearchContext(pattern);
+        cursor_.focused->BuildSearchContext(
+            pattern, OptionalToPtr(selection_range_for_seach_or_cmd_));
         CursorGoSearch(search_foward_, 1, true);
     } else {
         auto w = cursor_.focused;
-        w->BuildSearchContext(pattern);
+        w->BuildSearchContext(pattern,
+                              OptionalToPtr(selection_range_for_seach_or_cmd_));
         highlight_search_ = w->ViewGoSearchResult(search_foward_, 1, true);
     }
 }
@@ -922,10 +935,10 @@ void Editor::CommandHitEnter() {
         return;
     }
 
-    // We first exit from peel, so we can use cursor_->in_window to get the
-    // current window.
+    // We first exit from peel
     ExitFromMode();
     c->f(args);
+    selection_range_for_seach_or_cmd_.reset();
 }
 
 void Editor::SearchHitEnter() {
@@ -935,6 +948,7 @@ void Editor::SearchHitEnter() {
         peel_->AppendHistoryItem(MangoPeel::HistoryType::kSearch);
     }
     SearchCurrentWindow(std::string(input));
+    selection_range_for_seach_or_cmd_.reset();
 }
 
 void Editor::RemoveCurrentBuffer() {

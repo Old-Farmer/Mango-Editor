@@ -191,6 +191,8 @@ class Editor {
 
     bool need_redraw_ = true;
 
+    std::optional<Range> selection_range_for_seach_or_cmd_;
+
     std::unique_ptr<GlobalOpts> global_opts_;
 
     Terminal& term_ = Terminal::GetInstance();

@@ -20,6 +20,7 @@ class Window {
     };
     virtual void StopSelection() {}
     virtual void SelectionFollowCursor() {}
+    virtual Range SelectionRange() { return {{0, 0}, {0, 0}}; }
 
     virtual void SetCursorHint(size_t s_row, size_t s_col) = 0;
 
@@ -41,7 +42,8 @@ class Window {
     virtual void SaveView() = 0;
     virtual void RestoreView() = 0;
 
-    virtual void BuildSearchContext(const std::string& pattern) = 0;
+    virtual void BuildSearchContext(const std::string& pattern,
+                                    const Range* range) = 0;
     virtual const std::string& GetSearchPattern() = 0;
     virtual SearchState CursorGoSearchResult(bool next, size_t count,
                                              bool keep_current_if_one) = 0;

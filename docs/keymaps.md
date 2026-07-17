@@ -156,11 +156,11 @@ operator support:
 
 | Key | Description | Mode(s) | Context |
 | --- | --- | --- | --- |
-| `/` | Start forward search | Normal | All |
-| `?` | Start backward search | Normal | All |
+| `/` | Start forward search | Normal, Select, Select-L | All |
+| `?` | Start backward search | Normal, Select, Select-L | All |
 | `n` | Go to next search match | Normal | All |
 | `N` | Go to previous search match | Normal | All |
-| `:` | Enter command mode | Normal | All |
+| `:` | Enter command mode | Normal, Select, Select-L | All |
 | `<enter>` | Open Peel show mode | Normal | Editor |
 
 ## Peel Input (Command & Search)

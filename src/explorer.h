@@ -75,7 +75,10 @@ class Explorer : public Window {
     void SaveView() override { area_.SaveView(); }
     void RestoreView() override { area_.RestoreView(); }
 
-    void BuildSearchContext(const std::string& pattern) override {
+    void BuildSearchContext(const std::string& pattern,
+                            const Range* range) override {
+        (void)range;
+        CHX_ASSERT(range == nullptr);
         area_.BuildSearchContext(pattern);
     }
     void DestorySearchContext() { area_.DestorySearchContext(); }

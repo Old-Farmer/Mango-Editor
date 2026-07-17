@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <optional>
 #include <string_view>
 
 namespace charxed {
@@ -92,5 +93,15 @@ class PointerIterator {
         return it_ != other.it_;
     }
 };
+
+template <typename T>
+inline const T* OptionalToPtr(const std::optional<T>& opt) {
+    return opt.has_value() ? &*opt : nullptr;
+}
+
+template <typename T>
+inline T* OptionalToPtr(std::optional<T>& opt) {
+    return opt.has_value() ? &*opt : nullptr;
+}
 
 }  // namespace charxed
