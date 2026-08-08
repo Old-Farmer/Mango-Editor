@@ -13,7 +13,6 @@
 #include "options.h"
 #include "search.h"
 #include "str.h"
-#include "syntax.h"
 
 namespace charxed {
 
@@ -23,241 +22,67 @@ TextArea::TextArea(Cursor* cursor, Opts* opts, SyntaxParser* parser,
                    ClipBoard* clipboard) noexcept
     : cursor_(cursor), clipboard_(clipboard), parser_(parser), opts_(opts) {}
 
-void TextArea::Draw(BufferSearchContext* search_context) {
+void TextArea::Draw(BufferSearchReplaceContext* search_context) {
     CHX_ASSERT(buffer_ != nullptr);
     if (!buffer_->IsLoad()) {
         return;
     }
 
-    size_t sidebar_width = SidebarWidth();
-    if (!SizeValid(sidebar_width)) {
+    DrawContext context;
+
+    context.sidebar_width = SidebarWidth();
+    if (!SizeValid(context.sidebar_width)) {
         return;
     }
 
-    size_t content_s_col = col_ + sidebar_width;
-    size_t content_width = width_ - sidebar_width;
-
-    auto theme = GetOpt<Theme>(kOptTheme);
-    auto tabstop = GetOpt<int64_t>(kOptTabStop);
-    auto wrap = GetOpt<bool>(kOptWrap);
-    auto eob_mark = GetOpt<bool>(kOptEndOfBufferMark);
-    auto trailing_white = GetOpt<bool>(kOptTrailingWhite);
-    auto need_hl_cursor_line =
+    context.content_s_col = col_ + context.sidebar_width;
+    context.content_width = width_ - context.sidebar_width;
+    context.need_hl_cursor_line =
         GetOpt<bool>(kOptHighlightCursorLine) && !IsSelectionActive();
-    size_t cursor_line = b_view_->cursor_state_valid
-                             ? b_view_->cursor_state.pos.line
-                             : cursor_->pos.line;
+    context.cursor_line = b_view_->cursor_state_valid
+                              ? b_view_->cursor_state.pos.line
+                              : cursor_->pos.line;
+
+    auto wrap = GetOpt<bool>(kOptWrap);
 
     // Prepare highlights, priority: index 0 -> n, high -> low
-    std::vector<const std::vector<Highlight>*> highlights;
 
-    Range render_range;
     if (!wrap) {
         size_t last_line =
             std::min(b_view_->line + height_ - 1, buffer_->LineCnt() - 1);
         // If not wrap, render range is larger than the real render range,
         // but it's ok.
-        render_range = {{b_view_->line, 0},
-                        {last_line, buffer_->GetLineView(last_line).Size()}};
+        context.render_range = {
+            {b_view_->line, 0},
+            {last_line, buffer_->GetLineView(last_line).Size()}};
     } else {
-        render_range = CalcWrapRange(content_width);
+        context.render_range = CalcWrapRange(context.content_width);
     }
 
-    // Search hl
-    std::vector<Highlight> search_hl;
-    if (search_context && search_context->EnsureSearched(buffer_)) {
-        search_hl.reserve(search_context->search_result.size());
-        // TODO: Only highlight ranges in the screen
-        for (size_t i = 0; i < search_context->search_result.size(); i++) {
-            search_hl.push_back(
-                {search_context->search_result[i],
-                 search_context->current_search == static_cast<int64_t>(i)
-                     ? kSearchCurrent
-                     : kSearch});
-        }
-        highlights.push_back(&search_hl);
-    }
-
-    // Selection hl
-    std::vector<Highlight> selection_hl;
-    if (IsSelectionActive()) {
-        selection_hl.resize(1);
-        selection_hl[0].range = selection_->ToSelectRange(buffer_);
-        selection_hl[0].hl_type = kSelection;
-        highlights.push_back(&selection_hl);
-    }
-
-    // Trailing blank hl
+    auto seach_hl = PrepareSearchHighlight(search_context);
+    if (!seach_hl.empty()) context.highlights.push_back(&seach_hl);
+    context.selection_hl = PrepareSelectionHighlight();
+    if (!context.selection_hl.empty())
+        context.highlights.push_back(&context.selection_hl);
     std::vector<Highlight> trailing_white_hl;
-    std::vector<int64_t> trailing_white_begin_pre_line;
-    if (trailing_white) {
-        size_t line_cnt = render_range.end.line -
-                          static_cast<int64_t>(render_range.begin.line) + 1;
-        trailing_white_begin_pre_line.reserve(line_cnt);
-        for (size_t l = render_range.begin.line; l <= render_range.end.line;
-             l++) {
-            auto line = buffer_->GetLineView(l);
-            int64_t i = static_cast<int64_t>(line.Size()) - 1;
-            for (auto iter = line.end; i >= 0; i--) {
-                iter.PrevByte();
-                // Backward codepoint scan is correct and enough.
-                // '\t' will break all, ' ' only may after a pretend
-                // codepoint, but we render from begin so we will skip it if
-                // it's wrong.
-                if (iter.ThisByte() != kSpaceChar && iter.ThisByte() != '\t') {
-                    break;
-                }
-            }
-            i++;
-            trailing_white_begin_pre_line.push_back(i);
-            if (i != static_cast<int64_t>(line.Size())) {
-                trailing_white_hl.push_back(
-                    {{{l, static_cast<size_t>(i)}, {l, line.Size()}},
-                     kTrailingWhite});
-            }
-        }
-        if (!trailing_white_hl.empty()) {
-            highlights.push_back(&trailing_white_hl);
-        }
-    }
+    std::tie(trailing_white_hl, context.trailing_white_begin_pre_line) =
+        PrepareTrailingBlankHighlight(context.render_range);
+    if (!trailing_white_hl.empty())
+        context.highlights.push_back(&trailing_white_hl);
 
     // Syntax hl
     if (parser_) {
         auto syntax_context =
-            parser_->GetBufferSyntaxContext(buffer_, render_range);
+            parser_->GetBufferSyntaxContext(buffer_, context.render_range);
         if (syntax_context) {
-            highlights.push_back(&syntax_context->syntax_highlight);
+            context.highlights.push_back(&syntax_context->syntax_highlight);
         }
     }
 
     if (wrap) {
-        // An empty sidebar
-        char empty_sidebar[kMaxSizeTWidth + 3 + 1];
-        memset(empty_sidebar, kSpaceChar, sidebar_width);
-        empty_sidebar[sidebar_width] = '\0';
-
-        // subline indicator sidebar
-        char subline_ind_sidebar[kMaxSizeTWidth + 3 + 1];
-
-        size_t line = render_range.begin.line;
-        auto iter = buffer_->Find(render_range.begin);
-        auto line_view = buffer_->GetLineView(line);
-        int64_t trailing_white_begin =
-            trailing_white_begin_pre_line.empty()
-                ? line_view.Size()
-                : trailing_white_begin_pre_line[line - render_range.begin.line];
-
-        CHX_ASSERT(line < buffer_->LineCnt());
-        for (size_t i = 0; i < height_; i++) {
-            if (line >= buffer_->LineCnt()) {
-                if (!eob_mark) break;
-                Codepoint codepoint = '~';
-                term_->SetCell(content_s_col, i + row_, &codepoint, 1,
-                               theme[kNormal]);
-                line++;
-                continue;
-            }
-
-            if (iter == line_view.begin) {
-                DrawSidebar(row_ + i, line, sidebar_width);
-            } else if (static_cast<LineNumberType>(GetOpt<int64_t>(
-                           kOptLineNumber)) != LineNumberType::kNone) {
-                // TODO: Merge this logic to DrawSideBar
-                if (i == 0) {
-                    memset(subline_ind_sidebar, kSpaceChar, sidebar_width);
-                    size_t left_space_size =
-                        sidebar_width - 1 - kSublineIndicator.size();
-                    memcpy(subline_ind_sidebar + left_space_size,
-                           kSublineIndicator.data(), kSublineIndicator.size());
-                    // If first row is a subline, we draw a <<< at the
-                    // sidebar
-                    term_->Print(0, row_ + i, theme[kSidebar],
-                                 subline_ind_sidebar);
-                } else {
-                    term_->Print(0, row_ + i, theme[kSidebar], empty_sidebar);
-                }
-            }
-            bool hl_cur_line_for_cursor =
-                need_hl_cursor_line && cursor_line == line;
-            auto fallback_attr = theme[kNormal];
-            if (hl_cur_line_for_cursor) {
-                if (theme[kCursorLine].fg_exist) {
-                    fallback_attr.fg = theme[kCursorLine].fg;
-                }
-                if (theme[kCursorLine].bg_exist) {
-                    fallback_attr.bg = theme[kCursorLine].bg;
-                }
-            }
-            size_t end_view_col;
-            std::tie(iter, end_view_col) = DrawLine(
-                *term_, line, line_view, iter, 0, content_width, i + row_,
-                content_s_col, &highlights, theme, fallback_attr,
-                trailing_white_begin, tabstop, true, hl_cur_line_for_cursor);
-            if (iter == line_view.end) {
-                if (IsSelectionActive() && end_view_col < content_width &&
-                    selection_hl[0].range.PosInMe({line, line_view.Size()})) {
-                    // cursor_line don't hl if selection is active, so just use
-                    // kSelection is ok
-                    term_->SetCell(content_s_col + end_view_col, i + row_,
-                                   &kSpaceChar, 1, theme[kSelection]);
-                }
-                line++;
-                if (line < buffer_->LineCnt()) {
-                    line_view = buffer_->GetLineView(line);
-                    iter = line_view.begin;
-                    trailing_white_begin =
-                        trailing_white_begin_pre_line.empty()
-                            ? line_view.Size()
-                            : trailing_white_begin_pre_line
-                                  [line - render_range.begin.line];
-                }
-            }
-        }
+        DrawWarp(context);
     } else {
-        const size_t line_cnt = buffer_->LineCnt();
-        for (size_t win_r = 0; win_r < height_; win_r++) {
-            int cur_s_row = win_r + row_;
-            size_t line = win_r + b_view_->line;
-
-            if (line >= line_cnt) {
-                if (!eob_mark) break;
-                Codepoint codepoint = '~';
-                term_->SetCell(content_s_col, cur_s_row, &codepoint, 1,
-                               theme[kNormal]);
-                continue;
-            }
-            DrawSidebar(cur_s_row, line, sidebar_width);
-            auto line_view = buffer_->GetLineView(line);
-            int64_t trailing_white_begin =
-                trailing_white_begin_pre_line.empty()
-                    ? line_view.Size()
-                    : trailing_white_begin_pre_line[line -
-                                                    render_range.begin.line];
-            bool hl_cur_line_for_cursor =
-                need_hl_cursor_line && cursor_line == line;
-            auto fallback_attr = theme[kNormal];
-            if (hl_cur_line_for_cursor) {
-                if (theme[kCursorLine].fg_exist) {
-                    fallback_attr.fg = theme[kCursorLine].fg;
-                }
-                if (theme[kCursorLine].bg_exist) {
-                    fallback_attr.bg = theme[kCursorLine].bg;
-                }
-            }
-            auto [iter, end_view_col] =
-                DrawLine(*term_, line, line_view, line_view.begin, b_view_->col,
-                         content_width, cur_s_row, content_s_col, &highlights,
-                         theme, fallback_attr, trailing_white_begin, tabstop,
-                         false, hl_cur_line_for_cursor);
-            if (IsSelectionActive() && iter == line_view.end &&
-                end_view_col - b_view_->col < content_width &&
-                selection_hl[0].range.PosInMe({line, line_view.Size()})) {
-                // cursor_line don't hl if selection is active, so just use
-                // kSelection is ok
-                term_->SetCell(content_s_col + end_view_col - b_view_->col,
-                               cur_s_row, &kSpaceChar, 1, theme[kSelection]);
-            }
-        }
+        DrawNoWarp(context);
     }
 }
 
@@ -672,8 +497,9 @@ void TextArea::MakeSureBColViewWantReady(CursorState& state) {
 size_t TextArea::CalcByteOffsetByBViewCol(std::string_view line,
                                           size_t b_view_col_from_byte_offset,
                                           size_t byte_offset,
-                                          size_t content_width, bool wrap) {
+                                          size_t content_width) {
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
+    auto wrap = GetOpt<bool>(kOptWrap);
 
     size_t target_b_view_col = b_view_col_from_byte_offset;
     Character character;
@@ -711,8 +537,9 @@ size_t TextArea::CalcByteOffsetByBViewCol(std::string_view line,
 
 TextTree::Iterator TextArea::CalcByteOffsetByBViewCol(
     const TextTree::TextView& line, size_t b_view_col_from_byte_offset,
-    TextTree::Iterator iter, size_t content_width, bool wrap) {
+    TextTree::Iterator iter, size_t content_width) {
     auto tabstop = GetOpt<int64_t>(kOptTabStop);
+    auto wrap = GetOpt<bool>(kOptWrap);
 
     size_t target_b_view_col = b_view_col_from_byte_offset;
     Character character;
@@ -765,7 +592,7 @@ void TextArea::SetCursorHintNoWrap(size_t s_row, size_t s_col,
     auto iter = line.begin;
     cursor_->pos.byte_offset =
         CalcByteOffsetByBViewCol(line, target_b_view_col, iter,
-                                 width_ - SidebarWidth(), false)
+                                 width_ - SidebarWidth())
             .offset() -
         line.begin.offset();
     SelectionFollowCursor();
@@ -809,7 +636,7 @@ void TextArea::SetCursorHintWrap(size_t s_row, size_t s_col,
     // Search througn line after byte_offset
     cursor_->pos = {
         line, CalcByteOffsetByBViewCol(line_view, s_col - sidebar_width, iter,
-                                       width_ - sidebar_width, true)
+                                       width_ - sidebar_width)
                       .offset() -
                   line_view.begin.offset()};
 
@@ -1007,7 +834,7 @@ bool TextArea::CursorGoUpStateWrap(size_t count, size_t content_width,
     MakeSureBColViewWantReady(state);
     state.pos.byte_offset =
         CalcByteOffsetByBViewCol(line, state.b_view_col_want.value(), iter,
-                                 content_width, true)
+                                 content_width)
             .offset() -
         line.begin.offset();
     return true;
@@ -1026,7 +853,7 @@ bool TextArea::CursorGoUpStateNoWrap(size_t count, size_t content_width,
     auto iter = line.begin;
     state.pos.byte_offset =
         CalcByteOffsetByBViewCol(line, cursor_->b_view_col_want.value(), iter,
-                                 content_width, false)
+                                 content_width)
             .offset() -
         line.begin.offset();
     return true;
@@ -1089,7 +916,7 @@ bool TextArea::CursorGoDownStateWrap(size_t count, size_t content_width,
     MakeSureBColViewWantReady(state);
     state.pos.byte_offset =
         CalcByteOffsetByBViewCol(line, state.b_view_col_want.value(),
-                                 subline_begin_iter, content_width, true)
+                                 subline_begin_iter, content_width)
             .offset() -
         line.begin.offset();
     return true;
@@ -1109,7 +936,7 @@ bool TextArea::CursorGoDownStateNoWrap(size_t count, size_t content_width,
     auto iter = line.begin;
     state.pos.byte_offset =
         CalcByteOffsetByBViewCol(line, state.b_view_col_want.value(), iter,
-                                 content_width, false)
+                                 content_width)
             .offset() -
         line.begin.offset();
     return true;
@@ -1228,11 +1055,11 @@ bool TextArea::CursorGoLineState(size_t line, CursorState& state) {
     MakeSureBColViewWantReady(state);
     auto line_view = buffer_->GetLineView(state.pos.line);
     auto iter = line_view.begin;
-    state.pos.byte_offset = CalcByteOffsetByBViewCol(
-                                line_view, state.b_view_col_want.value(), iter,
-                                width_ - SidebarWidth(), GetOpt<bool>(kOptWrap))
-                                .offset() -
-                            line_view.begin.offset();
+    state.pos.byte_offset =
+        CalcByteOffsetByBViewCol(line_view, state.b_view_col_want.value(), iter,
+                                 width_ - SidebarWidth())
+            .offset() -
+        line_view.begin.offset();
     return true;
 }
 
@@ -1929,10 +1756,9 @@ Result TextArea::UnindentLines(size_t count, size_t begin_line,
     return res;
 }
 
-SearchState TextArea::CursorGoSearchResultState(BufferSearchContext& context,
-                                                bool next, size_t count,
-                                                bool keep_current_if_one,
-                                                CursorState& state) {
+SearchState TextArea::CursorGoSearchResultState(
+    BufferSearchReplaceContext& context, bool next, size_t count,
+    bool keep_current_if_one, CursorState& state) {
     if (!context.NearestSearchPos(state.pos, buffer_, next, count,
                                   keep_current_if_one)) {
         return {};
@@ -1946,8 +1772,8 @@ SearchState TextArea::CursorGoSearchResultState(BufferSearchContext& context,
 // Just make buffer view move.
 // A little bit ugly, but just make sure we don't modify cursor, and
 // make the cursor state right accroding to the buffer state.
-bool TextArea::BufferViewGoSearchResult(BufferSearchContext& context, bool next,
-                                        size_t count,
+bool TextArea::BufferViewGoSearchResult(BufferSearchReplaceContext& context,
+                                        bool next, size_t count,
                                         bool keep_current_if_one) {
     Cursor c;
     b_view_->RestoreCursorState(&c, buffer_);
@@ -2067,6 +1893,211 @@ void TextArea::AfterModify(const Pos& cursor_pos) {
 
 bool TextArea::SizeValid(size_t sidebar_width) {
     return sidebar_width < width_ && height_ > 0;
+}
+
+std::vector<Highlight> TextArea::PrepareSearchHighlight(
+    BufferSearchReplaceContext* search_context) {
+    std::vector<Highlight> hl;
+    if (!(search_context && search_context->EnsureSearched(buffer_))) {
+        return hl;
+    }
+
+    hl.reserve(search_context->search_result.size());
+    // TODO: Only highlight ranges in the screen
+    for (size_t i = 0; i < search_context->search_result.size(); i++) {
+        hl.push_back({search_context->search_result[i],
+                      search_context->current_search == static_cast<int64_t>(i)
+                          ? kSearchCurrent
+                          : kSearch});
+    }
+    return hl;
+}
+
+std::vector<Highlight> TextArea::PrepareSelectionHighlight() {
+    std::vector<Highlight> hl;
+    if (!IsSelectionActive()) {
+        return hl;
+    }
+
+    hl.resize(1);
+    hl[0].range = selection_->ToSelectRange(buffer_);
+    hl[0].hl_type = kSelection;
+    return hl;
+}
+
+std::tuple<std::vector<Highlight>, std::vector<int64_t>>
+TextArea::PrepareTrailingBlankHighlight(const Range& render_range) {
+    std::vector<Highlight> trailing_white_hl;
+    std::vector<int64_t> trailing_white_begin_pre_line;
+    if (!GetOpt<bool>(kOptTrailingWhite)) {
+        return {trailing_white_hl, trailing_white_begin_pre_line};
+    }
+
+    size_t line_cnt = render_range.end.line -
+                      static_cast<int64_t>(render_range.begin.line) + 1;
+    trailing_white_begin_pre_line.reserve(line_cnt);
+    for (size_t l = render_range.begin.line; l <= render_range.end.line; l++) {
+        auto line = buffer_->GetLineView(l);
+        int64_t i = static_cast<int64_t>(line.Size()) - 1;
+        for (auto iter = line.end; i >= 0; i--) {
+            iter.PrevByte();
+            // Backward codepoint scan is correct and enough.
+            // '\t' will break all, ' ' only may after a pretend
+            // codepoint, but we render from begin so we will skip it if
+            // it's wrong.
+            if (iter.ThisByte() != kSpaceChar && iter.ThisByte() != '\t') {
+                break;
+            }
+        }
+        i++;
+        trailing_white_begin_pre_line.push_back(i);
+        if (i != static_cast<int64_t>(line.Size())) {
+            trailing_white_hl.push_back(
+                {{{l, static_cast<size_t>(i)}, {l, line.Size()}},
+                 kTrailingWhite});
+        }
+    }
+    return {trailing_white_hl, trailing_white_begin_pre_line};
+}
+
+void TextArea::DrawWarp(const DrawContext& context) {
+    auto theme = GetOpt<Theme>(kOptTheme);
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+    auto eob_mark = GetOpt<bool>(kOptEndOfBufferMark);
+
+    // An empty sidebar
+    char empty_sidebar[kMaxSizeTWidth + 3 + 1];
+    memset(empty_sidebar, kSpaceChar, context.sidebar_width);
+    empty_sidebar[context.sidebar_width] = '\0';
+
+    // subline indicator sidebar
+    char subline_ind_sidebar[kMaxSizeTWidth + 3 + 1];
+
+    size_t line = context.render_range.begin.line;
+    auto iter = buffer_->Find(context.render_range.begin);
+    auto line_view = buffer_->GetLineView(line);
+    int64_t trailing_white_begin =
+        context.trailing_white_begin_pre_line.empty()
+            ? line_view.Size()
+            : context.trailing_white_begin_pre_line[line - context.render_range
+                                                               .begin.line];
+
+    CHX_ASSERT(line < buffer_->LineCnt());
+    for (size_t i = 0; i < height_; i++) {
+        if (line >= buffer_->LineCnt()) {
+            if (!eob_mark) break;
+            Codepoint codepoint = '~';
+            term_->SetCell(context.content_s_col, i + row_, &codepoint, 1,
+                           theme[kNormal]);
+            line++;
+            continue;
+        }
+
+        if (iter == line_view.begin) {
+            DrawSidebar(row_ + i, line, context.sidebar_width);
+        } else if (static_cast<LineNumberType>(GetOpt<int64_t>(
+                       kOptLineNumber)) != LineNumberType::kNone) {
+            // TODO: Merge this logic to DrawSideBar
+            if (i == 0) {
+                memset(subline_ind_sidebar, kSpaceChar, context.sidebar_width);
+                size_t left_space_size =
+                    context.sidebar_width - 1 - kSublineIndicator.size();
+                memcpy(subline_ind_sidebar + left_space_size,
+                       kSublineIndicator.data(), kSublineIndicator.size());
+                // If first row is a subline, we draw a <<< at the
+                // sidebar
+                term_->Print(0, row_ + i, theme[kSidebar], subline_ind_sidebar);
+            } else {
+                term_->Print(0, row_ + i, theme[kSidebar], empty_sidebar);
+            }
+        }
+        bool hl_cur_line_for_cursor =
+            context.need_hl_cursor_line && context.cursor_line == line;
+        auto fallback_attr = theme[kNormal];
+        if (hl_cur_line_for_cursor) {
+            if (theme[kCursorLine].fg_exist) {
+                fallback_attr.fg = theme[kCursorLine].fg;
+            }
+            if (theme[kCursorLine].bg_exist) {
+                fallback_attr.bg = theme[kCursorLine].bg;
+            }
+        }
+        size_t end_view_col;
+        std::tie(iter, end_view_col) = DrawLine(
+            *term_, line, line_view, iter, 0, context.content_width, i + row_,
+            context.content_s_col, &(context.highlights), theme, fallback_attr,
+            trailing_white_begin, tabstop, true, hl_cur_line_for_cursor);
+        if (iter == line_view.end) {
+            if (IsSelectionActive() && end_view_col < context.content_width &&
+                context.selection_hl[0].range.PosInMe(
+                    {line, line_view.Size()})) {
+                // cursor_line don't hl if selection is active, so just use
+                // kSelection is ok
+                term_->SetCell(context.content_s_col + end_view_col, i + row_,
+                               &kSpaceChar, 1, theme[kSelection]);
+            }
+            line++;
+            if (line < buffer_->LineCnt()) {
+                line_view = buffer_->GetLineView(line);
+                iter = line_view.begin;
+                trailing_white_begin =
+                    context.trailing_white_begin_pre_line.empty()
+                        ? line_view.Size()
+                        : context.trailing_white_begin_pre_line
+                              [line - context.render_range.begin.line];
+            }
+        }
+    }
+}
+void TextArea::DrawNoWarp(const DrawContext& context) {
+    auto theme = GetOpt<Theme>(kOptTheme);
+    auto tabstop = GetOpt<int64_t>(kOptTabStop);
+    auto eob_mark = GetOpt<bool>(kOptEndOfBufferMark);
+
+    const size_t line_cnt = buffer_->LineCnt();
+    for (size_t win_r = 0; win_r < height_; win_r++) {
+        int cur_s_row = win_r + row_;
+        size_t line = win_r + b_view_->line;
+
+        if (line >= line_cnt) {
+            if (!eob_mark) break;
+            Codepoint codepoint = '~';
+            term_->SetCell(context.content_s_col, cur_s_row, &codepoint, 1,
+                           theme[kNormal]);
+            continue;
+        }
+        DrawSidebar(cur_s_row, line, context.sidebar_width);
+        auto line_view = buffer_->GetLineView(line);
+        int64_t trailing_white_begin =
+            context.trailing_white_begin_pre_line.empty()
+                ? line_view.Size()
+                : context.trailing_white_begin_pre_line
+                      [line - context.render_range.begin.line];
+        bool hl_cur_line_for_cursor =
+            context.need_hl_cursor_line && context.cursor_line == line;
+        auto fallback_attr = theme[kNormal];
+        if (hl_cur_line_for_cursor) {
+            if (theme[kCursorLine].fg_exist) {
+                fallback_attr.fg = theme[kCursorLine].fg;
+            }
+            if (theme[kCursorLine].bg_exist) {
+                fallback_attr.bg = theme[kCursorLine].bg;
+            }
+        }
+        auto [iter, end_view_col] = DrawLine(
+            *term_, line, line_view, line_view.begin, b_view_->col,
+            context.content_width, cur_s_row, context.content_s_col,
+            &context.highlights, theme, fallback_attr, trailing_white_begin,
+            tabstop, false, hl_cur_line_for_cursor);
+        if (IsSelectionActive() && iter == line_view.end &&
+            end_view_col - b_view_->col < context.content_width &&
+            context.selection_hl[0].range.PosInMe({line, line_view.Size()})) {
+            // cursor_line don't hl if selection is active, so just use
+            // kSelection is ok
+            term_->SetCell(context.content_s_col + end_view_col - b_view_->col,
+                           cur_s_row, &kSpaceChar, 1, theme[kSelection]);
+        }
+    }
 }
 
 }  // namespace charxed

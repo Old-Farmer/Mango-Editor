@@ -6,6 +6,7 @@
 #include "options.h"
 #include "search.h"
 #include "selection.h"
+#include "syntax.h"
 #include "term.h"
 #include "utils.h"
 
@@ -30,7 +31,7 @@ class TextArea {
 
     // if search_context != nullptr, frame will draw the search highlight no
     // matter what kHighlighOnSearch is. So caller should be careful.
-    void Draw(BufferSearchContext* search_context);
+    void Draw(BufferSearchReplaceContext* search_context);
 
     bool In(size_t s_col, size_t s_row);
 
@@ -194,17 +195,39 @@ class TextArea {
     Result UnindentLines(size_t count, size_t begin_line, size_t end_line);
 
     // Search relevant
-    SearchState CursorGoSearchResultState(BufferSearchContext& context,
+    SearchState CursorGoSearchResultState(BufferSearchReplaceContext& context,
                                           bool next, size_t count,
                                           bool keep_current_if_one,
                                           CursorState& state);
     // Just move buffer view without touch cursor
-    bool BufferViewGoSearchResult(BufferSearchContext& context, bool next,
-                                  size_t count, bool keep_current_if_one);
+    bool BufferViewGoSearchResult(BufferSearchReplaceContext& context,
+                                  bool next, size_t count,
+                                  bool keep_current_if_one);
 
     void AfterModify(const Pos& cursor_pos);
 
    private:
+    std::vector<Highlight> PrepareSearchHighlight(
+        BufferSearchReplaceContext* search_context);
+    std::vector<Highlight> PrepareSelectionHighlight();
+    std::tuple<std::vector<Highlight>, std::vector<int64_t>>
+    PrepareTrailingBlankHighlight(const Range& render_range);
+
+    struct DrawContext {
+        size_t sidebar_width;
+        size_t content_s_col;
+        size_t content_width;
+        bool need_hl_cursor_line;
+        size_t cursor_line;
+        std::vector<const std::vector<Highlight>*> highlights;
+        Range render_range;
+        std::vector<Highlight> selection_hl;
+        std::vector<int64_t> trailing_white_begin_pre_line;
+    };
+
+    void DrawWarp(const DrawContext& context);
+    void DrawNoWarp(const DrawContext& context);
+
     size_t SidebarWidth();
     void DrawSidebar(int s_row, size_t absolute_line, size_t sidebar_width);
     Range CalcWrapRange(size_t content_width);
@@ -212,12 +235,11 @@ class TextArea {
     // return byte_offset
     size_t CalcByteOffsetByBViewCol(std::string_view line,
                                     size_t b_view_col_from_byte_offset,
-                                    size_t byte_offset, size_t content_width,
-                                    bool wrap);
+                                    size_t byte_offset, size_t content_width);
     // return byte_offset
     TextTree::Iterator CalcByteOffsetByBViewCol(
         const TextTree::TextView& line, size_t b_view_col_from_byte_offset,
-        TextTree::Iterator iter, size_t content_width, bool wrap);
+        TextTree::Iterator iter, size_t content_width);
 
     void SetCursorHintNoWrap(size_t s_row, size_t s_col, size_t sidebar_width);
     void SetCursorHintWrap(size_t s_row, size_t s_col, size_t sidebar_width);

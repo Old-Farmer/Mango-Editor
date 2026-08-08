@@ -13,26 +13,11 @@
 #include "character.h"
 #include "exception.h"
 #include "logging.h"
-#include "result.h"
 #include "state.h"
 #include "termbox2.h"
 #include "utils.h"
 
 namespace charxed {
-
-inline void PrintTermError(std::string_view context, int error) {
-    PrintError(context, tb_strerror(error));
-}
-
-inline void PrintTermErrorExit(std::string_view context, int error) {
-    PrintError(context, tb_strerror(error));
-    exit(EXIT_FAILURE);
-}
-
-inline void PrintTermErrorExit(int error) {
-    PrintError({}, tb_strerror(error));
-    exit(EXIT_FAILURE);
-}
 
 class GlobalOpts;
 class KeyseqManager;
