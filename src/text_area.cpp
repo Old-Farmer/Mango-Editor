@@ -1503,6 +1503,7 @@ void TextArea::Cut() {
                                selection_->LineSemantic());
         DeleteSelection();
     } else {
+        // Copy a line where cursor is located.
         Range range = {{cursor_->pos.line, 0},
                        {cursor_->pos.line,
                         buffer_->GetLineView(cursor_->pos.line).Size()}};
@@ -1512,15 +1513,11 @@ void TextArea::Cut() {
         // We try to delete a line where cursor is located.
         Pos pos;
         auto cur_pos = cursor_->pos;
-        if (buffer_->LineCnt() == 1) {
-            return;
-        }
-
         if (cursor_->pos.line == buffer_->LineCnt() - 1) {
             range.begin.line--;
             range.begin.byte_offset =
                 buffer_->GetLineView(range.begin.line).Size();
-        } else {
+        } else if (buffer_->LineCnt() != 1) {
             range.end.line++;
             range.end.byte_offset = 0;
         }
@@ -1536,6 +1533,7 @@ Result TextArea::IndentSelection(size_t count) {
     size_t end_line = range.end.byte_offset == 0 && range.end.line != 0
                           ? range.end.line - 1
                           : range.end.line;
+    StopSelection();
     return IndentLines(count, begin_line, end_line);
 }
 
@@ -1546,6 +1544,7 @@ Result TextArea::UnindentSelection(size_t count) {
     size_t end_line = range.end.byte_offset == 0 && range.end.line != 0
                           ? range.end.line - 1
                           : range.end.line;
+    StopSelection();
     return UnindentLines(count, begin_line, end_line);
 }
 
@@ -1631,12 +1630,12 @@ Result TextArea::DeleteSelection() {
             pos.byte_offset = state.pos.byte_offset;
         }
     }
+    StopSelection();
     if (Result res;
         (res = buffer_->Delete(r, &cursor_->pos, line_semantic, pos)) != kOk) {
         return res;
     }
     AfterModify(pos);
-    StopSelection();
     return kOk;
 }
 
@@ -1664,6 +1663,8 @@ Result TextArea::ReplaceSelection(std::string_view str, bool lines) {
     // We need select range here because we want replace the
     // selection range.
     Range r = selection_->ToSelectRange(buffer_);
+    bool line_semantic = selection_->LineSemantic();
+    StopSelection();
 
     Pos pos;
     std::string line_str;
@@ -1675,7 +1676,7 @@ Result TextArea::ReplaceSelection(std::string_view str, bool lines) {
             if (c != '\t' && c != kSpaceChar) break;
             blank_bytes++;
         }
-        if (!selection_->LineSemantic()) {
+        if (line_semantic) {
             line_str.append(1, '\n');
             line_str += str;
             str = line_str;
@@ -1691,7 +1692,6 @@ Result TextArea::ReplaceSelection(std::string_view str, bool lines) {
         return res;
     }
     AfterModify(pos);
-    StopSelection();
     return kOk;
 }
 

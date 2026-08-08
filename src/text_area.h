@@ -176,6 +176,9 @@ class TextArea {
     Result Redo();
     Result Undo();
 
+    // Operations on selection will stop cancel selection after finishing,
+    // include Copy, Paste, Cut, Indent, etc.
+
     void Copy();
     Result Paste(size_t count, bool after_cursor);
     void Cut();
